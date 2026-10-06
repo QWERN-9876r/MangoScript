@@ -1,0 +1,426 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MangoScript",
+  "scopeName": "source.mango",
+  "fileTypes": ["mango"],
+  "patterns": [{ "include": "#statements" }],
+  "repository": {
+    "statements": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "#markup" },
+        { "include": "#declarations" },
+        { "include": "#keywords" },
+        { "include": "#types" },
+        { "include": "#numbers" },
+        { "include": "#calls" },
+        { "include": "#object-key" },
+        { "include": "#block" },
+        { "include": "#operators" },
+        { "include": "#identifiers" }
+      ]
+    },
+
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.mango",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": { "0": { "name": "punctuation.definition.comment.mango" } }
+        },
+        {
+          "name": "comment.line.double-slash.mango",
+          "match": "(//).*",
+          "captures": { "1": { "name": "punctuation.definition.comment.mango" } }
+        }
+      ]
+    },
+
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.mango",
+          "begin": "\"",
+          "end": "\"|$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mango" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mango" } },
+          "patterns": [{ "include": "#escape" }]
+        },
+        {
+          "name": "string.quoted.single.mango",
+          "begin": "'",
+          "end": "'|$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mango" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mango" } },
+          "patterns": [{ "include": "#escape" }]
+        },
+        {
+          "name": "string.template.mango",
+          "begin": "`",
+          "end": "`",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.template.begin.mango" }
+          },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.template.end.mango" } },
+          "patterns": [
+            { "include": "#escape" },
+            {
+              "name": "meta.template.expression.mango",
+              "begin": "\\$\\{",
+              "end": "\\}",
+              "beginCaptures": {
+                "0": { "name": "punctuation.definition.template-expression.begin.mango" }
+              },
+              "endCaptures": {
+                "0": { "name": "punctuation.definition.template-expression.end.mango" }
+              },
+              "contentName": "meta.embedded.line.mango",
+              "patterns": [{ "include": "#statements" }]
+            }
+          ]
+        }
+      ]
+    },
+
+    "escape": {
+      "name": "constant.character.escape.mango",
+      "match": "\\\\(?:x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]+\\}|u[0-9A-Fa-f]{4}|.)"
+    },
+
+    "markup": {
+      "comment": "An element where a value is expected. `<` after a value (a name, `)` or `]`, with at most one space between) is a comparison, unless the name is a keyword such as `return`; so is `<` followed by a space.",
+      "begin": "(?:(?<=\\breturn\\s|\\bthrow\\s|\\bcase\\s|\\bin\\s)|(?<![\\w$)\\]])(?<![\\w$)\\]]\\s))(?=<(?:[A-Za-z_$][\\w$\\-:.]*(?=[\\s/>{]|$)|>))",
+      "end": "(/>)|(?:(</)([A-Za-z_$][\\w$\\-:.]*)?\\s*(>))",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.mango" },
+        "2": { "name": "punctuation.definition.tag.begin.mango" },
+        "3": { "patterns": [{ "include": "#markup-tag-name" }] },
+        "4": { "name": "punctuation.definition.tag.end.mango" }
+      },
+      "patterns": [{ "include": "#markup-open-tag" }, { "include": "#markup-content" }]
+    },
+
+    "markup-child": {
+      "comment": "An element among the children of another one, where `<` always starts a tag.",
+      "begin": "(?=<(?:[A-Za-z_$]|>))",
+      "end": "(/>)|(?:(</)([A-Za-z_$][\\w$\\-:.]*)?\\s*(>))",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.mango" },
+        "2": { "name": "punctuation.definition.tag.begin.mango" },
+        "3": { "patterns": [{ "include": "#markup-tag-name" }] },
+        "4": { "name": "punctuation.definition.tag.end.mango" }
+      },
+      "patterns": [{ "include": "#markup-open-tag" }, { "include": "#markup-content" }]
+    },
+
+    "markup-open-tag": {
+      "name": "meta.tag.mango",
+      "begin": "(<)([A-Za-z_$][\\w$\\-:.]*)?",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.mango" },
+        "2": { "patterns": [{ "include": "#markup-tag-name" }] }
+      },
+      "end": "(?=/?>)",
+      "patterns": [{ "include": "#markup-attributes" }]
+    },
+
+    "markup-content": {
+      "begin": ">",
+      "beginCaptures": { "0": { "name": "punctuation.definition.tag.end.mango" } },
+      "end": "(?=</)",
+      "contentName": "meta.jsx.children.mango",
+      "patterns": [
+        { "include": "#markup-child" },
+        { "include": "#markup-expression" },
+        { "include": "#markup-entity" }
+      ]
+    },
+
+    "markup-tag-name": {
+      "patterns": [
+        { "name": "support.class.component.mango", "match": "[A-Z][\\w$.]*" },
+        { "name": "entity.name.tag.mango", "match": "[A-Za-z_$][\\w$\\-:.]*" }
+      ]
+    },
+
+    "markup-attributes": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#markup-expression" },
+        {
+          "match": "(bind)(:)([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.namespace.mango" },
+            "2": { "name": "punctuation.separator.namespace.mango" },
+            "3": { "name": "entity.other.attribute-name.mango" }
+          }
+        },
+        { "name": "entity.other.attribute-name.mango", "match": "[A-Za-z_$][\\w$\\-:.]*" },
+        { "name": "keyword.operator.assignment.mango", "match": "=" },
+        {
+          "name": "string.quoted.double.mango",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mango" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mango" } },
+          "patterns": [{ "include": "#markup-entity" }]
+        },
+        {
+          "name": "string.quoted.single.mango",
+          "begin": "'",
+          "end": "'",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mango" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mango" } },
+          "patterns": [{ "include": "#markup-entity" }]
+        }
+      ]
+    },
+
+    "markup-expression": {
+      "comment": "`{value}`, `{...attrs}`, handler code and `{if ...}` / `{for ...}` blocks.",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.embedded.begin.mango" } },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.mango" } },
+      "contentName": "meta.embedded.expression.mango",
+      "patterns": [{ "include": "#statements" }]
+    },
+
+    "markup-entity": {
+      "name": "constant.character.entity.mango",
+      "match": "&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#x[0-9A-Fa-f]+);"
+    },
+
+    "declarations": {
+      "patterns": [
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(func)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.function.mango" },
+            "2": { "name": "entity.name.function.mango" }
+          }
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(comp)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.component.mango" },
+            "2": { "name": "entity.name.type.component.mango" }
+          }
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(class)\\s+([A-Za-z_$][\\w$]*)(?:\\s+(extends)\\s+([A-Za-z_$][\\w$.]*))?(?:\\s+(implements)(?![\\w$]))?",
+          "captures": {
+            "1": { "name": "storage.type.class.mango" },
+            "2": { "name": "entity.name.type.class.mango" },
+            "3": { "name": "storage.modifier.mango" },
+            "4": { "name": "entity.other.inherited-class.mango" },
+            "5": { "name": "storage.modifier.mango" }
+          }
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(interface|type)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.mango" },
+            "2": { "name": "entity.name.type.mango" }
+          }
+        },
+        {
+          "comment": "`state` is a keyword only at the start of a statement, followed by a name.",
+          "match": "^\\s*(state)(?=\\s+[A-Za-z_$])",
+          "captures": { "1": { "name": "storage.type.state.mango" } }
+        },
+        {
+          "comment": "Modifiers of class members.",
+          "match": "^\\s*((?:(?:static|private|protected|public)\\s+)+)(?=[A-Za-z_$])",
+          "captures": { "1": { "name": "storage.modifier.mango" } }
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(from)(?=\\s*[\"'])",
+          "captures": { "1": { "name": "keyword.control.import.mango" } }
+        },
+        {
+          "match": "(\\*)\\s*(as)(?![\\w$])",
+          "captures": {
+            "1": { "name": "constant.language.import-export-all.mango" },
+            "2": { "name": "keyword.control.as.mango" }
+          }
+        }
+      ]
+    },
+
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:if|else|switch|case|default)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.loop.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:for|in|break|continue)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.flow.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:return|throw|defer)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.trycatch.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:try|catch|finally)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.import.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:import|export)(?![\\w$])"
+        },
+        {
+          "name": "storage.type.function.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)func(?![\\w$])"
+        },
+        {
+          "name": "storage.type.component.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)comp(?![\\w$])"
+        },
+        {
+          "name": "storage.type.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:let|const|type|interface|class)(?![\\w$])"
+        },
+        {
+          "name": "storage.modifier.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)extends(?![\\w$])"
+        },
+        {
+          "name": "keyword.operator.new.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)new(?![\\w$])"
+        },
+        {
+          "name": "keyword.operator.expression.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:typeof|instanceof)(?![\\w$])"
+        },
+        {
+          "name": "variable.language.this.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)this(?![\\w$])"
+        },
+        {
+          "name": "variable.language.super.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)super(?![\\w$])"
+        },
+        {
+          "name": "constant.language.null.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)null(?![\\w$])"
+        },
+        {
+          "name": "constant.language.boolean.true.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)true(?![\\w$])"
+        },
+        {
+          "name": "constant.language.boolean.false.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)false(?![\\w$])"
+        }
+      ]
+    },
+
+    "types": {
+      "patterns": [
+        {
+          "comment": "`[]Todo`: the element type is coloured by the rules below.",
+          "name": "punctuation.definition.type.array.mango",
+          "match": "\\[\\](?=[A-Za-z_$?\\[])"
+        },
+        {
+          "comment": "`?User`; the ternary `?` has a space after it.",
+          "name": "keyword.operator.type.nullable.mango",
+          "match": "(?<![\\w$)\\]}\"'`])\\?(?=[A-Za-z_$\\[])"
+        },
+        {
+          "name": "support.function.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)error(?=\\s*\\()"
+        },
+        {
+          "name": "support.type.primitive.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:number|string|bool|any|void|error|Content)(?![\\w$])"
+        },
+        {
+          "name": "variable.other.constant.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)[A-Z][A-Z0-9_]+(?![\\w$])"
+        },
+        {
+          "name": "entity.name.type.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)[A-Z][\\w$]*"
+        }
+      ]
+    },
+
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.mango",
+          "match": "(?<![\\w$])0[xX][0-9A-Fa-f][0-9A-Fa-f_]*(?![\\w$])"
+        },
+        {
+          "name": "constant.numeric.binary.mango",
+          "match": "(?<![\\w$])0[bB][01][01_]*(?![\\w$])"
+        },
+        {
+          "name": "constant.numeric.octal.mango",
+          "match": "(?<![\\w$])0[oO][0-7][0-7_]*(?![\\w$])"
+        },
+        {
+          "name": "constant.numeric.decimal.mango",
+          "match": "(?<![\\w$.])(?:\\d[\\d_]*(?:\\.\\d[\\d_]*)?|\\.\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?(?![\\w$])"
+        }
+      ]
+    },
+
+    "calls": {
+      "name": "entity.name.function.mango",
+      "match": "(?<![\\w$])[a-z_$][\\w$]*(?=\\s*\\()"
+    },
+
+    "object-key": {
+      "comment": "`{ id: 1, label: \"Все\" }`: a name after `{` or `,` (or at the start of a line) followed by `:`.",
+      "match": "(?:(?<=[{,])|(?<=[{,]\\s)|^)\\s*(?!(?:case|default)(?![\\w$]))([A-Za-z_$][\\w$]*)\\s*(:)(?!:)",
+      "captures": {
+        "1": { "name": "meta.object-literal.key.mango" },
+        "2": { "name": "punctuation.separator.key-value.mango" }
+      }
+    },
+
+    "block": {
+      "name": "meta.block.mango",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.block.mango" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.block.mango" } },
+      "patterns": [{ "include": "#statements" }]
+    },
+
+    "operators": {
+      "patterns": [
+        { "name": "storage.type.function.arrow.mango", "match": "=>" },
+        { "name": "keyword.operator.spread.mango", "match": "\\.\\.\\." },
+        { "name": "punctuation.accessor.optional.mango", "match": "\\?\\." },
+        {
+          "name": "keyword.operator.assignment.compound.mango",
+          "match": "\\*\\*=|<<=|>>>=|>>=|&&=|\\|\\|=|\\?\\?=|[-+*/%&|^]="
+        },
+        { "name": "keyword.operator.comparison.mango", "match": "===|!==|==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.logical.mango", "match": "&&|\\|\\||\\?\\?|!" },
+        { "name": "keyword.operator.increment.mango", "match": "\\+\\+|--" },
+        { "name": "keyword.operator.bitwise.mango", "match": ">>>|<<|>>|[&|^~]" },
+        { "name": "keyword.operator.arithmetic.mango", "match": "\\*\\*|[-+*/%]" },
+        { "name": "keyword.operator.assignment.mango", "match": "=" },
+        { "name": "keyword.operator.ternary.mango", "match": "\\?|:" },
+        { "name": "punctuation.accessor.mango", "match": "\\." },
+        { "name": "punctuation.separator.comma.mango", "match": "," },
+        { "name": "punctuation.terminator.statement.mango", "match": ";" }
+      ]
+    },
+
+    "identifiers": {
+      "patterns": [
+        { "name": "variable.other.property.mango", "match": "(?<=[^.]\\.)[A-Za-z_$][\\w$]*" },
+        { "name": "variable.other.readwrite.mango", "match": "[A-Za-z_$][\\w$]*" }
+      ]
+    }
+  }
+}

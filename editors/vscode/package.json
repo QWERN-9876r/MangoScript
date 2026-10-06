@@ -1,0 +1,46 @@
+{
+  "name": "mangoscript",
+  "displayName": "MangoScript",
+  "description": "Подсветка синтаксиса MangoScript: код, типы и разметка",
+  "version": "0.0.1",
+  "publisher": "mangoscript",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mangoscript",
+        "aliases": [
+          "MangoScript",
+          "mango"
+        ],
+        "extensions": [
+          ".mango"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/mango.svg",
+          "dark": "./icons/mango.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mangoscript",
+        "scopeName": "source.mango",
+        "path": "./syntaxes/mangoscript.tmLanguage.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[mangoscript]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+      }
+    }
+  }
+}

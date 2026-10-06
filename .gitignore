@@ -9,3 +9,6 @@ examples/**/*.js
 
 # Output of `mango build` for the test site
 site/dist/
+
+# Packaged VS Code extension
+editors/vscode/*.vsix

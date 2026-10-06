@@ -34,9 +34,16 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 | `npm run lint` / `npm run format`    | ESLint / Prettier                                           |
 | `npm run check`                      | Всё сразу — типы, линт, формат, тесты                       |
 | `npm run build`                      | Сборка в `dist/` (бинарь `mango`)                           |
+| `npm run vscode:install`             | Собрать и установить расширение для VS Code                 |
 
 Опции `build`: `--out-dir dir` — писать `.js` в отдельную папку, `--stdout` — вывести JS одного
 файла в консоль, `--no-check` — без проверки типов.
+
+## Подсветка в VS Code
+
+В [editors/vscode/](editors/vscode/) лежит расширение с подсветкой синтаксиса `.mango`: код, типы
+и разметка. `npm run vscode:install` собирает его и устанавливает через `code`; подробности — в
+[editors/vscode/README.md](editors/vscode/README.md).
 
 ## Тестовый сайт
 

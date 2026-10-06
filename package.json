@@ -23,6 +23,8 @@
   "scripts": {
     "mango": "node src/cli.ts",
     "site": "node src/cli.ts build site/src --out-dir site/dist && node src/cli.ts run site/server.mango",
+    "vscode:package": "cd editors/vscode && npx --yes @vscode/vsce@4 package --allow-missing-repository --skip-license --out mangoscript.vsix",
+    "vscode:install": "npm run vscode:package && code --install-extension editors/vscode/mangoscript.vsix --force",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -39,6 +41,8 @@
     "prettier": "^3.9.9",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   }
 }
