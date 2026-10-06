@@ -66,7 +66,7 @@ const point = {
 ### Ключевые слова
 
 ```
-func  return  let  const  type  interface  class  extends  new  this  super
+func  comp  return  let  const  type  interface  class  extends  new  this  super
 if  else  for  in  break  continue  switch  case  default  defer
 try  catch  finally  throw  import  export
 null  true  false  typeof  instanceof
@@ -648,8 +648,35 @@ link.append("Ссылка ", name);
 - **Где вводить разметку.** `<` в начале выражения начинает разметку, после значения — это
   сравнение. Открывающий тег пишется на той же строке, что `return`.
 
-Компоненты и реактивность (`comp`, `state`, `derived`, `effect`) описаны в концепции
-[docs/components.md](components.md).
+### Компоненты
+
+Компонент существует только при компиляции: каждое его использование заменяется его кодом.
+
+```go
+comp Card(title string, kind string = "info", children Content) {
+    return <section class={kind}>
+        <h2>{title}</h2>
+        {children}
+    </section>
+}
+
+document.body.append(<Card title="Профиль"><p>Текст</p></Card>)
+```
+
+- **Объявление.** `comp Name(свойства) { ...; return <разметка> }` — только на верхнем уровне
+  модуля. Имя начинается с заглавной буквы. Тело заканчивается `return` разметки и не содержит
+  других `return`.
+- **Свойства.** Это параметры в синтаксисе Go; только у них бывают значения по умолчанию. Свойство
+  с `?T` или со значением по умолчанию можно не указывать. Атрибуты проверяются как аргументы
+  вызова: лишний атрибут или пропущенное обязательное свойство — ошибка.
+- **`children Content`** получает разметку между тегами.
+- **Свойства-функции** (`onPress func()`) принимают код по тому же правилу, что `on*` у элементов.
+- **В JS компонента нет:** его код встраивается блоком на месте использования, а значения
+  атрибутов вычисляются до этого блока.
+- **Пока не поддерживаются:** рекурсивные компоненты, экспорт компонентов из модуля и состояние
+  (`state`, `derived`, `effect`).
+
+Полная концепция, включая реактивность, — в [docs/components.md](components.md).
 
 ## 10. Операторы: отличия от JS
 

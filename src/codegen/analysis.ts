@@ -55,6 +55,41 @@ export function findDefers(body: ast.BlockStatement): ast.DeferStatement[] {
   return defers;
 }
 
+/** Every name declared inside a component: its properties and all its local declarations. */
+export function namesDeclaredIn(component: ast.ComponentDeclaration): Set<string> {
+  const names = new Set<string>();
+  const visit = (node: ast.Node): void => {
+    switch (node.kind) {
+      case 'Parameter':
+        names.add(node.name.name);
+        break;
+      case 'VariableDeclaration':
+        for (const name of node.names) names.add(name.name);
+        break;
+      case 'FuncDeclaration':
+      case 'ClassDeclaration':
+        names.add(node.name.name);
+        break;
+      case 'ForInStatement':
+        names.add(node.value.name);
+        if (node.key) names.add(node.key.name);
+        break;
+      case 'CatchClause':
+        if (node.param) names.add(node.param.name);
+        break;
+      case 'EventHandler':
+        names.add('event');
+        break;
+      default:
+        break;
+    }
+    forEachChild(node, visit);
+  };
+  component.params.forEach(visit);
+  visit(component.body);
+  return names;
+}
+
 /** Whether markup appears in an expression, not counting nested functions (they handle theirs). */
 export function containsElement(node: ast.Node): boolean {
   let found = false;
@@ -137,6 +172,21 @@ export function collectValueNames(node: ast.Node, names: Set<string>): void {
     case 'ArrowFunction':
       visit(node.body);
       return;
+    case 'ComponentDeclaration':
+      node.params.forEach(visit);
+      visit(node.body);
+      return;
+    case 'ElementExpression':
+      // Tags are not values.
+      node.attributes.forEach(visit);
+      node.children.forEach(visit);
+      return;
+    case 'JsxAttribute':
+      visit(node.value);
+      return;
+    case 'Parameter':
+      visit(node.defaultValue);
+      return;
     case 'ClassDeclaration':
       visit(node.superClass);
       node.members.forEach(visit);
@@ -154,7 +204,6 @@ export function collectValueNames(node: ast.Node, names: Set<string>): void {
     case 'ImportDeclaration':
     case 'InterfaceDeclaration':
     case 'TypeAliasDeclaration':
-    case 'Parameter':
     case 'TypeReference':
     case 'ArrayType':
     case 'NullableType':

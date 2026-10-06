@@ -59,6 +59,8 @@ export abstract class Emitter {
   protected readonly assigned: Set<string>;
   /** Names used as values; imports used only as types are dropped. */
   protected readonly valueNames = new Set<string>();
+  /** Components of the module, inlined where they are used. */
+  protected readonly components = new Map<string, ast.ComponentDeclaration>();
 
   constructor(program: ast.Program, options: JsOptions) {
     this.program = program;
@@ -66,6 +68,8 @@ export abstract class Emitter {
     for (const statement of program.body) {
       if (statement.kind === 'TypeAliasDeclaration') {
         this.typeAliases.set(statement.name.name, statement.type);
+      } else if (statement.kind === 'ComponentDeclaration') {
+        this.components.set(statement.name.name, statement);
       }
     }
     this.assigned = assignedNames(program);

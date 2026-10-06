@@ -45,7 +45,8 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 - [site/src/todos.mango](site/src/todos.mango) — модель: интерфейс, класс, `?Todo` из `find`,
   ошибки вторым возвращаемым значением;
 - [site/src/storage.mango](site/src/storage.mango) — сохранение в `localStorage`;
-- [site/src/app.mango](site/src/app.mango) — работа с DOM;
+- [site/src/app.mango](site/src/app.mango) — работа с DOM; строка списка — компонент `TodoItem` с
+  разметкой;
 - [site/server.mango](site/server.mango) — статический сервер на `node:http` с логом через `defer`.
 
 ```sh

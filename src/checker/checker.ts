@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import type { Diagnostic } from '../diagnostics.ts';
-import { assignedNames, containsBreak } from '../walk.ts';
+import { assignedNames, containsBreak, forEachChild } from '../walk.ts';
 import {
   arrayMember,
   boolMember,
@@ -9,7 +9,7 @@ import {
   numberMember,
   stringMember,
 } from './builtins.ts';
-import { DOCUMENT_FRAGMENT, domProperty, elementType, eventType, NODE } from './dom.ts';
+import { CONTENT, DOCUMENT_FRAGMENT, domProperty, elementType, eventType, NODE } from './dom.ts';
 import {
   ANY,
   arrayOf,
@@ -73,13 +73,32 @@ export function check(program: ast.Program, options: CheckOptions = {}): CheckRe
 }
 
 type BindingKind =
-  'let' | 'const' | 'param' | 'function' | 'class' | 'import' | 'loop' | 'catch' | 'builtin';
+  | 'let'
+  | 'const'
+  | 'param'
+  | 'function'
+  | 'class'
+  | 'import'
+  | 'loop'
+  | 'catch'
+  | 'builtin'
+  | 'component';
 
 interface Binding {
   name: string;
   kind: BindingKind;
   /** `null` while a variable is declared but its declaration has not been checked yet. */
   type: Type | null;
+  /** For components, which exist only at compile time and are used as tags. */
+  component?: ComponentInfo;
+}
+
+interface ComponentInfo {
+  node: ast.ComponentDeclaration;
+  /** Properties by name; optional ones have a default value or a nullable type. */
+  props: Map<string, { type: Type; optional: boolean }>;
+  /** Names from the module that the component's code uses, computed when first needed. */
+  freeNames: Set<string> | null;
 }
 
 /** A `type` alias, resolved when first used. */
@@ -144,6 +163,14 @@ class Checker {
   /** Classes whose members are not resolved yet, with the code that resolves them. */
   private readonly unresolvedClasses = new Map<ClassInfo, () => void>();
   private readonly resolvingClasses = new Set<ClassInfo>();
+  /** The component whose body is being checked, if any. */
+  private component: ComponentInfo | null = null;
+  /** Where components use other components, to find recursion. */
+  private readonly componentUses: {
+    from: ComponentInfo;
+    to: ComponentInfo;
+    node: ast.Identifier;
+  }[] = [];
 
   constructor(program: ast.Program, options: CheckOptions) {
     this.program = program;
@@ -155,6 +182,7 @@ class Checker {
 
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
+    this.checkRecursion();
     this.diagnostics.sort((a, b) => a.start - b.start);
     return {
       diagnostics: this.diagnostics,
@@ -265,6 +293,7 @@ class Checker {
     const classes: [ast.ClassDeclaration, ClassInfo][] = [];
     const interfaces: [ast.InterfaceDeclaration, ObjectType][] = [];
     const functions: [ast.FuncDeclaration, Binding][] = [];
+    const components: ComponentInfo[] = [];
 
     for (const statement of statements) {
       switch (statement.kind) {
@@ -301,6 +330,15 @@ class Checker {
         case 'FuncDeclaration':
           functions.push([statement, this.declareValue(statement.name, 'function', null)]);
           break;
+        case 'ComponentDeclaration': {
+          const info: ComponentInfo = { node: statement, props: new Map(), freeNames: null };
+          this.declareValue(statement.name, 'component', UNKNOWN).component = info;
+          components.push(info);
+          if (statement.exported) {
+            this.error('exporting components is not supported yet', statement.name);
+          }
+          break;
+        }
         case 'VariableDeclaration':
           // Top-level variables can be used in functions declared before them.
           if (topLevel) {
@@ -319,6 +357,7 @@ class Checker {
     for (const [node, binding] of functions) {
       binding.type = this.signature(node.params, node.results);
     }
+    for (const info of components) this.resolveProps(info);
     for (const [node, info] of classes) {
       this.unresolvedClasses.set(info, () => this.resolveClass(node, info));
     }
@@ -333,6 +372,7 @@ class Checker {
       );
     }
     for (const [node, info] of classes) bodies.push(() => this.checkClassBodies(node, info));
+    for (const info of components) bodies.push(() => this.checkComponentBody(info));
     return bodies;
   }
 
@@ -720,6 +760,7 @@ class Checker {
         break;
       case 'ImportDeclaration':
       case 'FuncDeclaration':
+      case 'ComponentDeclaration':
       case 'ClassDeclaration':
       case 'InterfaceDeclaration':
       case 'TypeAliasDeclaration':
@@ -1333,6 +1374,10 @@ class Checker {
       );
       return UNKNOWN;
     }
+    if (binding.kind === 'component') {
+      this.error(`components are used as tags: <${node.name} />`, node);
+      return UNKNOWN;
+    }
     if (binding.type === null) {
       this.error(`"${node.name}" is used before its declaration`, node);
       return UNKNOWN;
@@ -1606,10 +1651,7 @@ class Checker {
   // ─── Markup ────────────────────────────────────────────────────────────────────────────────────
 
   private checkElement(node: ast.ElementExpression): Type {
-    if (node.tag && /^[A-Z]/.test(node.tag.name)) {
-      this.error('components (<Counter />) are not supported yet', node.tag);
-      return UNKNOWN;
-    }
+    if (node.tag && /^[A-Z]/.test(node.tag.name)) return this.checkComponentUse(node, node.tag);
     const tag = node.tag?.name ?? null;
     const type = tag === null ? DOCUMENT_FRAGMENT : elementType(tag);
     for (const attribute of node.attributes) {
@@ -1622,7 +1664,12 @@ class Checker {
         this.checkAttribute(attribute, tag, type);
       }
     }
-    for (const child of node.children) {
+    this.checkChildren(node.children);
+    return type;
+  }
+
+  private checkChildren(children: readonly ast.JsxChild[]): void {
+    for (const child of children) {
       if (child.kind === 'JsxText') continue;
       if (child.kind === 'ElementExpression') {
         this.checkExpression(child, null);
@@ -1637,7 +1684,6 @@ class Checker {
         );
       }
     }
-    return type;
   }
 
   private checkAttribute(attribute: ast.JsxAttribute, tag: string, element: Type): void {
@@ -1692,8 +1738,8 @@ class Checker {
     }
   }
 
-  /** The statements of `onClick={count++}`, with `event` declared. */
-  private checkEventHandler(handler: ast.EventHandler, event: Type): void {
+  /** The statements of `onClick={count++}`, with `event` declared when there is one. */
+  private checkEventHandler(handler: ast.EventHandler, event: Type | null): void {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
     this.scope = new Scope(this.scope);
     this.flow = this.stableFlow();
@@ -1705,13 +1751,196 @@ class Checker {
         start: handler.start,
         end: handler.start,
       };
-      this.declareValue(name, 'param', event);
+      if (event) this.declareValue(name, 'param', event);
       for (const statement of handler.body) this.checkStatement(statement);
     } finally {
       this.scope = saved.scope;
       this.flow = saved.flow;
       this.fn = saved.fn;
     }
+  }
+
+  // ─── Components ────────────────────────────────────────────────────────────────────────────────
+
+  private resolveProps(info: ComponentInfo): void {
+    for (const param of info.node.params) {
+      const name = param.name.name;
+      const type = param.type ? this.resolveType(param.type) : UNKNOWN;
+      if (name === 'children' && type !== CONTENT && type.kind !== 'unknown') {
+        this.error('the "children" property has the type Content', param.type ?? param);
+      }
+      if (info.props.has(name)) this.error(`duplicate property "${name}"`, param.name);
+      const optional = param.defaultValue !== null || isNullable(type) || name === 'children';
+      info.props.set(name, { type, optional });
+    }
+  }
+
+  /** The body runs once where the component is used and must end with `return <markup>`. */
+  private checkComponentBody(info: ComponentInfo): void {
+    const { node } = info;
+    const last = node.body.body.at(-1);
+    if (last?.kind !== 'ReturnStatement' || last.values.length !== 1) {
+      this.error('a component ends with "return <markup>"', {
+        start: node.body.end - 1,
+        end: node.body.end,
+      });
+    }
+    for (const statement of ownStatements(node.body)) {
+      if (statement.kind === 'ReturnStatement' && statement !== last) {
+        this.error('a component returns its markup once, at the end of its body', statement);
+      } else if (statement.kind === 'DeferStatement') {
+        this.error('defer is not supported in components yet', statement);
+      }
+    }
+
+    const types: Type[] = [];
+    for (const param of node.params) {
+      const prop = info.props.get(param.name.name);
+      const type = prop?.type ?? UNKNOWN;
+      types.push(type);
+      if (param.defaultValue) {
+        const value = this.checkValue(param.defaultValue, type);
+        this.expectAssignable(value, type, param.defaultValue);
+      }
+    }
+
+    const saved = this.component;
+    this.component = info;
+    try {
+      const [result] = this.withClass(null, () =>
+        this.checkFunction(node.params, func(types, []), null, node.body),
+      );
+      const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
+      if (result && value && !isUntyped(result) && !isAssignable(result, NODE)) {
+        this.error(`a component returns markup, not ${typeToString(result)}`, value);
+      }
+    } finally {
+      this.component = saved;
+    }
+  }
+
+  /** `<Card title="Профиль">...</Card>`: properties are checked like the arguments of a call. */
+  private checkComponentUse(node: ast.ElementExpression, tag: ast.Identifier): Type {
+    const binding = this.lookupValue(tag.name);
+    const info = binding?.component;
+    if (!info) {
+      this.error(
+        binding ? `"${tag.name}" is not a component` : `unknown component <${tag.name}>`,
+        tag,
+      );
+      return UNKNOWN;
+    }
+    if (this.component) this.componentUses.push({ from: this.component, to: info, node: tag });
+    this.checkHygiene(info, tag);
+
+    const given = new Set<string>();
+    for (const attribute of node.attributes) {
+      if (attribute.kind === 'JsxSpreadAttribute') {
+        this.error('spreading properties into a component is not supported yet', attribute);
+        continue;
+      }
+      const name = attribute.name.name;
+      const prop = info.props.get(name);
+      if (given.has(name)) this.error(`duplicate property "${name}"`, attribute.name);
+      given.add(name);
+      if (name === 'children' && prop) {
+        this.error(
+          `pass children between the tags: <${tag.name}>...</${tag.name}>`,
+          attribute.name,
+        );
+      } else if (!prop) {
+        this.error(`<${tag.name}> has no property "${name}"`, attribute.name);
+      } else {
+        this.checkProp(attribute, prop.type, tag.name);
+      }
+    }
+    for (const [name, prop] of info.props) {
+      if (!prop.optional && !given.has(name)) {
+        this.error(`<${tag.name}> needs the property "${name}"`, tag);
+      }
+    }
+    if (node.children.length > 0 && !info.props.has('children')) {
+      this.error(`<${tag.name}> takes no children`, node.children[0]!);
+    }
+    this.checkChildren(node.children);
+    return this.componentResult(info, new Set());
+  }
+
+  private checkProp(attribute: ast.JsxAttribute, type: Type, component: string): void {
+    const name = attribute.name.name;
+    const { value } = attribute;
+    if (value?.kind === 'EventHandler') {
+      // Code for a callback property; `event` is the callback's first argument, if it has one.
+      const signature = callSignature(nonNull(type));
+      if (!signature && !isUntyped(type)) {
+        this.error(`"${name}" of <${component}> is not a function, so it needs a value`, value);
+        return;
+      }
+      this.checkEventHandler(value, signature?.params[0] ?? null);
+      return;
+    }
+    const valueType =
+      value === null
+        ? BOOL
+        : value.kind === 'StringLiteral'
+          ? STRING
+          : this.checkValue(value, type);
+    this.expectAssignable(valueType, type, value ?? attribute, ` for "${name}" of <${component}>`);
+  }
+
+  /**
+   * The component's code is inlined where it is used, so the names of the module that it uses
+   * must not be hidden there by local declarations.
+   */
+  private checkHygiene(info: ComponentInfo, tag: ast.Identifier): void {
+    info.freeNames ??= freeNames(info.node);
+    for (const name of info.freeNames) {
+      if (this.lookupValue(name) !== lookupIn(this.moduleScope, name)) {
+        this.error(
+          `<${tag.name}> uses "${name}" of the module, but here "${name}" is another declaration: rename one of them`,
+          tag,
+        );
+        return;
+      }
+    }
+  }
+
+  /** The type of `<Card />`: what its markup creates. */
+  private componentResult(info: ComponentInfo, seen: Set<ComponentInfo>): Type {
+    const last = info.node.body.body.at(-1);
+    const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
+    if (value?.kind !== 'ElementExpression') return NODE;
+    if (value.tag === null) return DOCUMENT_FRAGMENT;
+    if (!/^[A-Z]/.test(value.tag.name)) return elementType(value.tag.name);
+    const other = lookupIn(this.moduleScope, value.tag.name)?.component;
+    if (!other || seen.has(other)) return NODE;
+    seen.add(info);
+    return this.componentResult(other, seen);
+  }
+
+  /** Components cannot be inlined into themselves, directly or through other components. */
+  private checkRecursion(): void {
+    const edges = new Map<ComponentInfo, { to: ComponentInfo; node: ast.Identifier }[]>();
+    for (const use of this.componentUses) {
+      edges.set(use.from, [...(edges.get(use.from) ?? []), use]);
+    }
+    const state = new Map<ComponentInfo, 'visiting' | 'done'>();
+    const visit = (info: ComponentInfo, path: ComponentInfo[]): void => {
+      state.set(info, 'visiting');
+      for (const edge of edges.get(info) ?? []) {
+        if (state.get(edge.to) === 'visiting') {
+          const cycle = [...path.slice(path.indexOf(edge.to)), edge.to];
+          this.error(
+            `recursive component: ${cycle.map((c) => c.node.name.name).join(' → ')}; recursive components are not supported yet`,
+            edge.node,
+          );
+        } else if (!state.has(edge.to)) {
+          visit(edge.to, [...path, edge.to]);
+        }
+      }
+      state.set(info, 'done');
+    };
+    for (const info of edges.keys()) if (!state.has(info)) visit(info, [info]);
   }
 
   // ─── Member access and calls ───────────────────────────────────────────────────────────────────
@@ -1959,8 +2188,102 @@ class Checker {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────────────────────
 
+/** A binding as seen from a scope and its parents. */
+function lookupIn(scope: Scope, name: string): Binding | undefined {
+  for (let current: Scope | null = scope; current; current = current.parent) {
+    const binding = current.values.get(name);
+    if (binding) return binding;
+  }
+  return undefined;
+}
+
+/** Return and defer statements of a body, not counting those of nested functions. */
+function ownStatements(body: ast.BlockStatement): ast.Statement[] {
+  const found: ast.Statement[] = [];
+  const visit = (node: ast.Node): void => {
+    if (node.kind === 'ReturnStatement' || node.kind === 'DeferStatement') found.push(node);
+    if (
+      node.kind === 'FuncDeclaration' ||
+      node.kind === 'FuncExpression' ||
+      node.kind === 'ArrowFunction' ||
+      node.kind === 'ClassDeclaration'
+    )
+      return;
+    forEachChild(node, visit);
+  };
+  forEachChild(body, visit);
+  return found;
+}
+
+/** Names a component uses as values but does not declare: those come from the module. */
+function freeNames(component: ast.ComponentDeclaration): Set<string> {
+  const used = new Set<string>();
+  const declared = new Set<string>(component.params.map((param) => param.name.name));
+  const visit = (node: ast.Node | null): void => {
+    if (node === null) return;
+    switch (node.kind) {
+      case 'Identifier':
+        used.add(node.name);
+        return;
+      case 'MemberExpression':
+        visit(node.object);
+        return;
+      case 'Property':
+        visit(node.value);
+        return;
+      case 'ElementExpression':
+        // Tags are not values: components are found by the generator itself.
+        node.attributes.forEach(visit);
+        node.children.forEach(visit);
+        return;
+      case 'JsxAttribute':
+        visit(node.value);
+        return;
+      case 'EventHandler':
+        declared.add('event');
+        node.body.forEach(visit);
+        return;
+      case 'VariableDeclaration':
+        for (const name of node.names) declared.add(name.name);
+        node.values.forEach(visit);
+        return;
+      case 'FuncDeclaration':
+      case 'ClassDeclaration':
+        declared.add(node.name.name);
+        forEachChild(node, visit);
+        return;
+      case 'Parameter':
+        declared.add(node.name.name);
+        visit(node.defaultValue);
+        return;
+      case 'ForInStatement':
+        declared.add(node.value.name);
+        if (node.key) declared.add(node.key.name);
+        visit(node.iterable);
+        visit(node.body);
+        return;
+      case 'CatchClause':
+        if (node.param) declared.add(node.param.name);
+        visit(node.body);
+        return;
+      case 'TypeReference':
+      case 'ArrayType':
+      case 'NullableType':
+      case 'FuncType':
+      case 'ObjectType':
+        return;
+      default:
+        forEachChild(node, visit);
+    }
+  };
+  component.params.forEach(visit);
+  visit(component.body);
+  return new Set([...used].filter((name) => !declared.has(name)));
+}
+
 /** Values that can be element children: text, numbers, nodes, lists of them, or null. */
 function isContent(type: Type): boolean {
+  if (type === CONTENT) return true;
   switch (type.kind) {
     case 'string':
     case 'number':

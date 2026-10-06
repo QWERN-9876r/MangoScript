@@ -18,7 +18,12 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   protected statements(list: readonly ast.Statement[]): void {
     let previous: ast.Statement | undefined;
     for (const statement of list) {
-      if (statement.kind === 'InterfaceDeclaration' || statement.kind === 'TypeAliasDeclaration') {
+      // Types and components exist only at compile time.
+      if (
+        statement.kind === 'InterfaceDeclaration' ||
+        statement.kind === 'TypeAliasDeclaration' ||
+        statement.kind === 'ComponentDeclaration'
+      ) {
         continue;
       }
       if (previous && this.blankLineBetween(previous, statement)) this.blankLine();
@@ -27,9 +32,12 @@ export abstract class StatementEmitter extends ExpressionEmitter {
     }
   }
 
-  /** A block's statements in a new scope, without the braces. */
-  protected blockStatements(statements: readonly ast.Statement[]): void {
-    this.withScope(declarationsOf(statements), () => this.statements(statements));
+  /** A block's statements in a new scope, without the braces; `then` writes more code in it. */
+  protected blockStatements(statements: readonly ast.Statement[], then?: () => void): void {
+    this.withScope(declarationsOf(statements), () => {
+      this.statements(statements);
+      then?.();
+    });
   }
 
   private blockStatement(node: ast.BlockStatement): string {
@@ -72,6 +80,7 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         break;
       case 'InterfaceDeclaration':
       case 'TypeAliasDeclaration':
+      case 'ComponentDeclaration':
         break;
       case 'BlockStatement':
         this.line(this.blockStatement(node));

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type * as ast from '../src/ast.ts';
 import { check } from '../src/checker/checker.ts';
 import { compile } from '../src/index.ts';
+import { runWithDom } from './fake-dom.ts';
 import { tokenize } from '../src/lexer/lexer.ts';
 import { parse } from '../src/parser/parser.ts';
 
@@ -63,74 +64,6 @@ function js(source: string): string {
   const { code, diagnostics } = compile(source);
   expect(diagnostics).toEqual([]);
   return code.trimEnd();
-}
-
-// ─── A tiny DOM, enough to run generated code ────────────────────────────────────────────────────
-
-class FakeNode {
-  readonly tagName: string;
-  readonly attributes = new Map<string, string>();
-  readonly children: (FakeNode | string)[] = [];
-  readonly listeners = new Map<string, ((event: unknown) => void)[]>();
-  readonly style: Record<string, string> = {};
-  [property: string]: unknown;
-
-  constructor(tagName: string) {
-    this.tagName = tagName;
-  }
-
-  append(...items: unknown[]): void {
-    for (const item of items) this.children.push(item instanceof FakeNode ? item : String(item));
-  }
-
-  setAttribute(name: string, value: unknown): void {
-    this.attributes.set(name, String(value));
-  }
-
-  addEventListener(type: string, listener: (event: unknown) => void): void {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
-  }
-
-  dispatch(type: string): void {
-    for (const listener of this.listeners.get(type) ?? []) {
-      listener({ type, currentTarget: this, preventDefault() {} });
-    }
-  }
-
-  click(): void {
-    this.dispatch('click');
-  }
-
-  /** HTML-like text: properties that were set are shown as attributes. */
-  toString(): string {
-    const shown = ['id', 'className', 'href', 'type', 'value', 'checked', 'disabled', 'htmlFor'];
-    const attributes = [
-      ...shown
-        .filter((name) => this[name] !== undefined)
-        .map((name) => `${name}=${String(this[name])}`),
-      ...[...this.attributes].map(([name, value]) => `${name}=${value}`),
-      ...(this.style.cssText ? [`style=${this.style.cssText}`] : []),
-    ];
-    const open = [this.tagName, ...attributes].join(' ');
-    return `<${open}>${this.children.map(String).join('')}</${this.tagName}>`;
-  }
-}
-
-/** Compiles and runs a program with a fake `document`; returns what it printed. */
-function run(source: string): string[] {
-  const output: string[] = [];
-  const fakeConsole = { log: (...args: unknown[]) => output.push(args.map(String).join(' ')) };
-  const document = {
-    createElement: (tag: string) => new FakeNode(tag),
-    createDocumentFragment: () => new FakeNode('#fragment'),
-  };
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const program = new Function('console', 'document', `"use strict";\n${js(source)}`) as (
-    console: typeof fakeConsole,
-    document: unknown,
-  ) => void;
-  program(fakeConsole, document);
-  return output;
 }
 
 // ─── Lexer ───────────────────────────────────────────────────────────────────────────────────────
@@ -323,7 +256,7 @@ describe('types', () => {
       'const a HTMLInputElement = <a />',
       'cannot use HTMLAnchorElement as HTMLInputElement: missing "value"',
     ],
-    ['const c = <Counter />', 'components (<Counter />) are not supported yet'],
+    ['const c = <Counter />', 'unknown component <Counter>'],
   ])('rejects %j', (source, message) => {
     expect(errors(source)).toEqual([message]);
   });
@@ -415,7 +348,7 @@ x.append("a");`,
 describe('runtime behavior', () => {
   it('builds elements and runs their handlers', () => {
     expect(
-      run(`const items = ["one", "two"]
+      runWithDom(`const items = ["one", "two"]
 let clicks = 0
 const list = <ul class="list">{items.map(item => <li>{item}</li>)}</ul>
 const button = <button type="button" onClick={clicks++}>Нажато {clicks}</button>
@@ -432,7 +365,7 @@ console.log(clicks)`),
 
   it('skips null children and attributes', () => {
     expect(
-      run(`func card(title string, note ?string) HTMLElement {
+      runWithDom(`func card(title string, note ?string) HTMLElement {
     return <div data-note={note}><h2>{title}</h2>{note}</div>
 }
 console.log(card("A", null))

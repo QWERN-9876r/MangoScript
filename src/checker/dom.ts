@@ -274,9 +274,16 @@ export function elementType(tag: string): ObjectType {
   return elementTypes.get(tag) ?? HTML_ELEMENT;
 }
 
+/**
+ * The type of a component's `children`: the markup between its tags. At runtime it is a
+ * DocumentFragment, but only placing it as `{children}` is allowed.
+ */
+export const CONTENT = object('Content', {});
+
 /** DOM types that programs can name, e.g. `func render() HTMLLIElement`. */
 export const DOM_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['Node', NODE],
+  ['Content', CONTENT],
   ['HTMLElement', HTML_ELEMENT],
   ['Element', HTML_ELEMENT],
   ['DocumentFragment', DOCUMENT_FRAGMENT],

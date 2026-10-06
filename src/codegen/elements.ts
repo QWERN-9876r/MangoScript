@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import { domProperty } from '../checker/dom.ts';
 import type { Type } from '../checker/types.ts';
 import { forEachChild } from '../walk.ts';
+import { namesDeclaredIn } from './analysis.ts';
 import { StatementEmitter } from './statements.ts';
 import { ARROW } from './syntax.ts';
 
@@ -13,17 +14,106 @@ import { ARROW } from './syntax.ts';
 export abstract class ElementEmitter extends StatementEmitter {
   /** Counter for `$$li1`, `$$div2`, ... */
   private elementCount = 0;
+  private readonly componentNames = new Map<ast.ComponentDeclaration, Set<string>>();
 
   protected override element(node: ast.ElementExpression): string {
-    if (this.hoist) return this.build(node, null);
+    if (this.hoist) return this.create(node);
     const body = this.withHoisting(true, () =>
-      this.block(() => this.line(`return ${this.build(node, null)};`)),
+      this.block(() => this.line(`return ${this.create(node)};`)),
     );
     return `(() => ${body})()`;
   }
 
   protected override elementDeclaration(declaration: string, node: ast.ElementExpression): void {
-    this.build(node, declaration);
+    const component = this.componentOf(node);
+    if (component) this.line(`${declaration} = ${this.expand(node, component)};`);
+    else this.build(node, declaration);
+  }
+
+  /** Writes the code for an element or a component and returns the variable with the result. */
+  private create(node: ast.ElementExpression): string {
+    const component = this.componentOf(node);
+    return component ? this.expand(node, component) : this.build(node, null);
+  }
+
+  private componentOf(node: ast.ElementExpression): ast.ComponentDeclaration | undefined {
+    return node.tag ? this.components.get(node.tag.name) : undefined;
+  }
+
+  /**
+   * Inlines a component: its code goes into a block where its properties are constants. Attribute
+   * values are computed before the block, so that the component's own names cannot hide the
+   * names they refer to.
+   */
+  private expand(node: ast.ElementExpression, component: ast.ComponentDeclaration): string {
+    const name = component.name.name;
+    this.line(`// <${name}>`);
+    const values = new Map<string, string>();
+    for (const attribute of node.attributes) {
+      if (attribute.kind === 'JsxAttribute') {
+        values.set(attribute.name.name, this.prop(attribute, component));
+      }
+    }
+    if (component.params.some((param) => param.name.name === 'children')) {
+      const fragment = `$$children${++this.elementCount}`;
+      this.line(`const ${fragment} = document.createDocumentFragment();`);
+      this.children(fragment, node.children);
+      values.set('children', fragment);
+    }
+
+    const result = `$$${name.charAt(0).toLowerCase()}${name.slice(1)}${++this.elementCount}`;
+    this.line(`let ${result};`);
+    const props = component.params.map((param): [string, 'const'] => [param.name.name, 'const']);
+    const block = this.block(() =>
+      this.withScope(props, () => {
+        for (const param of component.params) {
+          const value =
+            values.get(param.name.name) ??
+            (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
+          this.line(`const ${this.name(param.name.name)} = ${value};`);
+        }
+        const body = component.body.body;
+        const last = body.at(-1);
+        this.blockStatements(last?.kind === 'ReturnStatement' ? body.slice(0, -1) : body, () => {
+          const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
+          if (!value) return;
+          this.withHoisting(true, () => {
+            if (value.kind === 'ElementExpression' && !this.componentOf(value)) {
+              this.build(value, result);
+            } else {
+              this.line(`${result} = ${this.expression(value, ARROW)};`);
+            }
+          });
+        });
+      }),
+    );
+    this.line(block);
+    return result;
+  }
+
+  /**
+   * The value of a component property. Literals and names that the component does not redeclare
+   * go into its code as they are; anything else is computed before the block into a temporary.
+   */
+  private prop(attribute: ast.JsxAttribute, component: ast.ComponentDeclaration): string {
+    const { value } = attribute;
+    if (value === null) return 'true';
+    if (value.kind !== 'EventHandler') {
+      let declared = this.componentNames.get(component);
+      if (!declared) {
+        declared = namesDeclaredIn(component);
+        this.componentNames.set(component, declared);
+      }
+      const root = rootName(value);
+      if (isConstant(value) || (isSimple(value) && root !== null && !declared.has(root))) {
+        return this.expression(value, ARROW);
+      }
+    }
+    const text =
+      value.kind === 'EventHandler' ? this.handler(value) : this.expression(value, ARROW);
+    const temp = this.temp();
+    this.line(`const ${temp} = ${text};`);
+    return temp;
   }
 
   /**
@@ -115,7 +205,16 @@ export abstract class ElementEmitter extends StatementEmitter {
       end: value.start,
     };
     const params: ast.Parameter[] = mentions(value, 'event')
-      ? [{ kind: 'Parameter', name, type: null, start: value.start, end: value.start }]
+      ? [
+          {
+            kind: 'Parameter',
+            name,
+            type: null,
+            defaultValue: null,
+            start: value.start,
+            end: value.start,
+          },
+        ]
       : [];
     return this.withFunction('none', params, () => {
       const body = this.block(() => this.statements(value.body));
@@ -144,7 +243,7 @@ export abstract class ElementEmitter extends StatementEmitter {
       if (child.kind === 'ElementExpression') {
         // A child element is created before the append; earlier calls must still run first.
         if (pendingCalls) flush();
-        pending.push(this.build(child, null));
+        pending.push(this.create(child));
         continue;
       }
       const { expression } = child;
@@ -226,6 +325,29 @@ function isPlainContent(type: Type): boolean {
     type.kind === 'object' ||
     type.kind === 'class'
   );
+}
+
+/** The variable at the start of `a.b.c`, or `null`. */
+function rootName(node: ast.Expression): string | null {
+  if (node.kind === 'Identifier') return node.name;
+  return node.kind === 'MemberExpression' ? rootName(node.object) : null;
+}
+
+/** Literals, which can be put into the component's code as they are. */
+function isConstant(node: ast.Expression): boolean {
+  switch (node.kind) {
+    case 'NumberLiteral':
+    case 'StringLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+      return true;
+    case 'TemplateLiteral':
+      return node.expressions.length === 0;
+    case 'UnaryExpression':
+      return node.operator === '-' && node.argument.kind === 'NumberLiteral';
+    default:
+      return false;
+  }
 }
 
 /** Expressions without side effects, which may be evaluated more than once. */

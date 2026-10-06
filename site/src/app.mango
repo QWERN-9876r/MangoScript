@@ -1,4 +1,4 @@
-// Страница: связывает модель с DOM. Элементы списка создаются разметкой; объекты браузера
+// Страница: связывает модель с DOM. Строка списка — компонент TodoItem; объекты браузера
 // (document и т. п.) имеют тип any.
 
 import { Todo, TodoList, parseTitle } from "./todos.mango"
@@ -26,7 +26,12 @@ func showMessage(text string) {
 }
 
 func render() {
-    list.replaceChildren(...todos.visible(filter).map(renderItem))
+    const items = todos.visible(filter).map(todo => <TodoItem
+        todo={todo}
+        onToggle={todos.toggle(todo.id); render()}
+        onRemove={todos.remove(todo.id); render()}
+    />)
+    list.replaceChildren(...items)
 
     const left, done = todos.counts()
     summary.textContent = `Осталось: ${left} · готово: ${done}`
@@ -37,11 +42,12 @@ func render() {
     save(todos.all())
 }
 
-func renderItem(todo Todo) HTMLLIElement {
+// Компонента в JS не будет: его код встроится в render().
+comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
     return <li class={todo.done ? "todo done" : "todo"}>
-        <input type="checkbox" checked={todo.done} onChange={todos.toggle(todo.id); render()} />
+        <input type="checkbox" checked={todo.done} onChange={onToggle} />
         <span>{todo.title}</span>
-        <button title="Удалить" onClick={todos.remove(todo.id); render()}>×</button>
+        <button title="Удалить" onClick={onRemove}>×</button>
     </li>
 }
 

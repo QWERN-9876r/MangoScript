@@ -62,6 +62,20 @@ export interface Parameter extends NodeBase {
   kind: 'Parameter';
   name: Identifier;
   type: TypeNode | null;
+  /** `kind string = "info"`: only properties of components have default values. */
+  defaultValue: Expression | null;
+}
+
+/**
+ * `comp Card(title string, children Content) { ...; return <section>...</section> }`. Components
+ * exist only at compile time: each use is replaced by the component's code.
+ */
+export interface ComponentDeclaration extends NodeBase {
+  kind: 'ComponentDeclaration';
+  exported: boolean;
+  name: Identifier;
+  params: Parameter[];
+  body: BlockStatement;
 }
 
 /**
@@ -146,6 +160,7 @@ export interface TypeAliasDeclaration extends NodeBase {
 export type Statement =
   | ImportDeclaration
   | FuncDeclaration
+  | ComponentDeclaration
   | VariableDeclaration
   | ClassDeclaration
   | InterfaceDeclaration

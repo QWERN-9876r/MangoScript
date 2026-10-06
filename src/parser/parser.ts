@@ -100,6 +100,7 @@ const STATEMENT_KEYWORDS: ReadonlySet<TokenKind> = new Set<TokenKind>([
   'import',
   'export',
   'func',
+  'comp',
   'let',
   'const',
   'class',
@@ -456,6 +457,8 @@ class Parser {
       }
       case 'class':
         return this.parseClass(start, exported);
+      case 'comp':
+        return this.parseComponent(start, exported);
       case 'interface':
         return this.parseInterface(start, exported);
       case 'type': {
@@ -862,14 +865,15 @@ class Parser {
    * `(a, b number, c string)`. Names without a type take the type of the next typed name, as in
    * Go; only arrow functions may leave types out entirely.
    */
-  private parseParams(typesOptional: boolean): ast.Parameter[] {
+  private parseParams(typesOptional: boolean, allowDefaults = false): ast.Parameter[] {
     this.expect('(');
     const params: ast.Parameter[] = [];
     let untyped = 0;
     while (!this.check(')')) {
       const name = this.parseIdentifier('parameter name');
       const type = this.canStartType() ? this.parseType() : null;
-      params.push({ kind: 'Parameter', name, type, ...this.span(name.start) });
+      const defaultValue = allowDefaults && this.accept('=') ? this.parseExpression() : null;
+      params.push({ kind: 'Parameter', name, type, defaultValue, ...this.span(name.start) });
       if (type === null) {
         untyped++;
       } else {
@@ -892,6 +896,29 @@ class Parser {
     // `{` after the parameters starts the body, so an object result type needs parentheses.
     if (this.canStartType() && !this.check('{')) return [this.parseType()];
     return [];
+  }
+
+  /** `comp Name(properties) { ...; return <markup> }` */
+  private parseComponent(start: number, exported: boolean): ast.ComponentDeclaration {
+    const keyword = this.expect('comp');
+    if (!this.context.topLevel) {
+      this.error(
+        'components can only be declared at the top level of a module',
+        keyword.start,
+        keyword.end,
+      );
+    }
+    const name = this.parseIdentifier('component name');
+    if (!/^[A-Z]/.test(name.name)) {
+      this.error(
+        `component names start with a capital letter, as in <${name.name.charAt(0).toUpperCase()}${name.name.slice(1)} />`,
+        name.start,
+        name.end,
+      );
+    }
+    const params = this.parseParams(false, true);
+    const body = this.parseFunctionBody();
+    return { kind: 'ComponentDeclaration', exported, name, params, body, ...this.span(start) };
   }
 
   private parseClass(start: number, exported: boolean): ast.ClassDeclaration {
@@ -1331,7 +1358,16 @@ class Parser {
     let params: ast.Parameter[];
     if (this.check('Identifier')) {
       const name = this.parseIdentifier();
-      params = [{ kind: 'Parameter', name, type: null, start: name.start, end: name.end }];
+      params = [
+        {
+          kind: 'Parameter',
+          name,
+          type: null,
+          defaultValue: null,
+          start: name.start,
+          end: name.end,
+        },
+      ];
     } else {
       params = this.parseParams(true);
     }

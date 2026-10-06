@@ -34,6 +34,12 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'Parameter':
       visit(node.name);
       optional(node.type);
+      optional(node.defaultValue);
+      break;
+    case 'ComponentDeclaration':
+      visit(node.name);
+      each(node.params);
+      visit(node.body);
       break;
     case 'VariableDeclaration':
       each(node.names);
