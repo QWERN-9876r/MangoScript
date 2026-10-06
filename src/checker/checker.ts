@@ -75,7 +75,9 @@ export function check(program: ast.Program, options: CheckOptions = {}): CheckRe
 type BindingKind =
   | 'let'
   | 'const'
+  | 'state'
   | 'param'
+  | 'prop'
   | 'function'
   | 'class'
   | 'import'
@@ -140,7 +142,15 @@ interface ClassContext {
 type Flow = Map<Binding, Type>;
 type Narrowing = [Binding, Type][];
 
-const NARROWABLE: ReadonlySet<BindingKind> = new Set(['let', 'const', 'param', 'catch', 'loop']);
+const NARROWABLE: ReadonlySet<BindingKind> = new Set([
+  'let',
+  'const',
+  'state',
+  'param',
+  'prop',
+  'catch',
+  'loop',
+]);
 
 function globalScope(): Scope {
   const scope = new Scope(null);
@@ -909,7 +919,17 @@ class Checker {
           this.error(`cannot assign to "${target.name}": it is a constant`, target);
         } else if (binding.kind === 'loop') {
           this.error(`cannot assign to loop variable "${target.name}"`, target);
-        } else if (binding.kind !== 'let' && binding.kind !== 'param' && binding.kind !== 'catch') {
+        } else if (binding.kind === 'prop') {
+          this.error(
+            `cannot assign to "${target.name}": component properties are read-only; to change the parent's state, pass a function`,
+            target,
+          );
+        } else if (
+          binding.kind !== 'let' &&
+          binding.kind !== 'state' &&
+          binding.kind !== 'param' &&
+          binding.kind !== 'catch'
+        ) {
           this.error(`cannot assign to "${target.name}"`, target);
         }
         return binding.type ?? UNKNOWN;
@@ -1133,7 +1153,7 @@ class Checker {
     type: FunctionType,
     results: Type[] | null,
     body: ast.BlockStatement | ast.Expression,
-    options: { isConstructor?: boolean; closure?: boolean } = {},
+    options: { isConstructor?: boolean; closure?: boolean; paramKind?: BindingKind } = {},
   ): Type[] {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
     this.scope = new Scope(this.scope);
@@ -1142,7 +1162,7 @@ class Checker {
     this.fn = { results, returns: [], isConstructor: options.isConstructor ?? false };
     try {
       params.forEach((param, i) =>
-        this.declareValue(param.name, 'param', type.params[i] ?? UNKNOWN),
+        this.declareValue(param.name, options.paramKind ?? 'param', type.params[i] ?? UNKNOWN),
       );
       if (body.kind === 'BlockStatement') {
         this.checkStatementList(body.body, false);
@@ -1660,8 +1680,23 @@ class Checker {
         if (!isUntyped(spread) && spread.kind !== 'object') {
           this.error(`cannot spread ${typeToString(spread)} into attributes`, attribute.argument);
         }
+      } else if (tag !== null && attribute.name.name.startsWith('bind:')) {
+        this.checkBinding(attribute, tag, node.attributes);
       } else if (tag !== null) {
         this.checkAttribute(attribute, tag, type);
+      }
+    }
+    for (const attribute of node.attributes) {
+      if (attribute.kind !== 'JsxAttribute' || !attribute.name.name.startsWith('bind:')) continue;
+      const property = attribute.name.name.slice('bind:'.length);
+      const plain = node.attributes.some(
+        (other) => other.kind === 'JsxAttribute' && other.name.name === property,
+      );
+      if (plain) {
+        this.error(
+          `"${property}" and "bind:${property}" set the same property: keep one of them`,
+          attribute.name,
+        );
       }
     }
     this.checkChildren(node.children);
@@ -1689,10 +1724,6 @@ class Checker {
   private checkAttribute(attribute: ast.JsxAttribute, tag: string, element: Type): void {
     const name = attribute.name.name;
     const { value } = attribute;
-    if (name.startsWith('bind:')) {
-      this.error('bind: needs component state, which is not supported yet', attribute.name);
-      return;
-    }
     if (/^on[A-Z]/.test(name)) {
       this.checkEventAttribute(attribute, eventType(element));
       return;
@@ -1720,6 +1751,71 @@ class Checker {
         `attribute "${name}" needs a string, number or bool, not ${typeToString(valueType)}`,
         value,
       );
+    }
+  }
+
+  /**
+   * `bind:value={name}`: the element shows the variable, and what the user enters is written back
+   * to it. So the value must be something that can be assigned.
+   */
+  private checkBinding(
+    attribute: ast.JsxAttribute,
+    tag: string,
+    attributes: readonly (ast.JsxAttribute | ast.JsxSpreadAttribute)[],
+  ): void {
+    const name = attribute.name.name;
+    const property = name.slice('bind:'.length);
+    const { value } = attribute;
+    if (property !== 'value' && property !== 'checked') {
+      this.error(`unknown binding "${name}": use bind:value or bind:checked`, attribute.name);
+      return;
+    }
+    const tags = property === 'value' ? ['input', 'textarea', 'select'] : ['input'];
+    if (!tags.includes(tag)) {
+      this.error(
+        property === 'value'
+          ? 'bind:value works with <input>, <textarea> and <select>'
+          : 'bind:checked works with <input>',
+        attribute.name,
+      );
+    }
+    if (value === null || value.kind === 'StringLiteral' || value.kind === 'EventHandler') {
+      this.error(`"${name}" needs a variable in braces, e.g. ${name}={title}`, attribute);
+      return;
+    }
+    const bindable =
+      (value.kind === 'Identifier' && value.name !== '_') ||
+      ((value.kind === 'MemberExpression' || value.kind === 'IndexExpression') && !value.optional);
+    if (!bindable) {
+      this.checkValue(value);
+      this.error(`"${name}" needs a variable or a field to write to`, value);
+      return;
+    }
+    const type = this.checkTarget(value);
+    this.checkedTypes.set(value, type);
+    if (isUntyped(type)) return;
+    if (property === 'checked' && type.kind !== 'bool') {
+      this.error(`bind:checked needs a bool, not ${typeToString(type)}`, value);
+    } else if (property === 'value' && type.kind === 'number' && tag === 'input') {
+      // A number is read with valueAsNumber, which only number and range inputs have.
+      const typeAttribute = attributes.find(
+        (other): other is ast.JsxAttribute =>
+          other.kind === 'JsxAttribute' && other.name.name === 'type',
+      )?.value;
+      const inputType = typeAttribute?.kind === 'StringLiteral' ? typeAttribute.value : null;
+      if (inputType !== 'number' && inputType !== 'range') {
+        this.error(
+          'a number can be bound to <input type="number"> or <input type="range">',
+          attribute.name,
+        );
+      }
+    } else if (
+      property === 'value' &&
+      type.kind !== 'string' &&
+      !(type.kind === 'number' && tag === 'input')
+    ) {
+      const allowed = tag === 'input' ? 'a string or a number' : 'a string';
+      this.error(`bind:value needs ${allowed}, not ${typeToString(type)}`, value);
     }
   }
 
@@ -1808,7 +1904,7 @@ class Checker {
     this.component = info;
     try {
       const [result] = this.withClass(null, () =>
-        this.checkFunction(node.params, func(types, []), null, node.body),
+        this.checkFunction(node.params, func(types, []), null, node.body, { paramKind: 'prop' }),
       );
       const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
       if (result && value && !isUntyped(result) && !isAssignable(result, NODE)) {

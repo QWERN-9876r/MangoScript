@@ -1,48 +1,75 @@
-// Страница: связывает модель с DOM. Строка списка — компонент TodoItem; объекты браузера
-// (document и т. п.) имеют тип any.
+// Страница — один компонент TodoApp. Его состояние объявлено через state: после каждого изменения
+// компилятор сам обновляет те узлы, которые от него зависят. Функции render() больше нет.
 
 import { Todo, TodoList, parseTitle } from "./todos.mango"
 import { load, save } from "./storage.mango"
 
-const form = document.querySelector("#new-todo")
-const input = document.querySelector("#title")
-const list = document.querySelector("#list")
-const message = document.querySelector("#message")
-const summary = document.querySelector("#summary")
-const clearButton = document.querySelector("#clear-done")
-const filterButtons = document.querySelectorAll("[data-filter]")
+const FILTERS = [
+    { id: "all", label: "Все" },
+    { id: "active", label: "Активные" },
+    { id: "done", label: "Готовые" },
+]
 
-const saved, loadError = load()
-const todos = new TodoList(saved)
-let filter = "all"
+comp TodoApp() {
+    const saved, loadError = load()
+    state todos = new TodoList(saved)
+    state title = ""
+    state message = loadError?.message ?? ""
+    state filter = "all"
 
-if loadError != null {
-    showMessage(loadError.message)
-}
-
-func showMessage(text string) {
-    message.textContent = text
-    message.hidden = text == ""
-}
-
-func render() {
-    const items = todos.visible(filter).map(todo => <TodoItem
-        todo={todo}
-        onToggle={todos.toggle(todo.id); render()}
-        onRemove={todos.remove(todo.id); render()}
-    />)
-    list.replaceChildren(...items)
-
-    const left, done = todos.counts()
-    summary.textContent = `Осталось: ${left} · готово: ${done}`
-    clearButton.disabled = done == 0
-    for button in filterButtons {
-        button.classList.toggle("active", button.dataset.filter == filter)
+    // Разметка ниже вызывает эти функции, поэтому зависит от того, что они читают.
+    func summary() string {
+        const left, done = todos.counts()
+        return `Осталось: ${left} · готово: ${done}`
     }
-    save(todos.all())
+
+    func hasDone() bool {
+        const _, done = todos.counts()
+        return done > 0
+    }
+
+    func add() {
+        const text, err = parseTitle(title)
+        if err != null {
+            message = err.message
+            return
+        }
+        todos.add(text)
+        save(todos)
+        title = ""
+        message = ""
+    }
+
+    // Вызов метода todos (add, toggle, remove, clearDone) считается изменением списка. save его
+    // только читает; когда появится effect, сохранение переедет туда.
+    return <>
+        <form id="new-todo" onSubmit={event.preventDefault(); add()}>
+            <input id="title" bind:value={title} placeholder="Что сделать?" autocomplete="off" autofocus />
+            <button>Добавить</button>
+        </form>
+        <p id="message" role="alert" hidden={message == ""}>{message}</p>
+
+        <nav aria-label="Фильтр">
+            {FILTERS.map(f => <button class={f.id == filter ? "active" : ""} onClick={filter = f.id}>{f.label}</button>)}
+        </nav>
+
+        <ul id="list">
+            {todos.visible(filter).map(todo => <TodoItem
+                todo={todo}
+                onToggle={todos.toggle(todo.id); save(todos)}
+                onRemove={todos.remove(todo.id); save(todos)}
+            />)}
+        </ul>
+
+        <footer>
+            <span id="summary">{summary()}</span>
+            <button id="clear-done" disabled={!hasDone()} onClick={todos.clearDone(); save(todos)}>
+                Убрать готовые
+            </button>
+        </footer>
+    </>
 }
 
-// Компонента в JS не будет: его код встроится в render().
 comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
     return <li class={todo.done ? "todo done" : "todo"}>
         <input type="checkbox" checked={todo.done} onChange={onToggle} />
@@ -51,29 +78,4 @@ comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
     </li>
 }
 
-form.addEventListener("submit", event => {
-    event.preventDefault()
-    const title, err = parseTitle(input.value)
-    if err != null {
-        showMessage(err.message)
-        return
-    }
-    todos.add(title)
-    input.value = ""
-    showMessage("")
-    render()
-})
-
-for button in filterButtons {
-    button.addEventListener("click", () => {
-        filter = button.dataset.filter
-        render()
-    })
-}
-
-clearButton.addEventListener("click", () => {
-    todos.clearDone()
-    render()
-})
-
-render()
+document.querySelector("main").append(<TodoApp />)

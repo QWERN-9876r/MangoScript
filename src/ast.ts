@@ -79,7 +79,8 @@ export interface ComponentDeclaration extends NodeBase {
 }
 
 /**
- * `let x number`, `const PI = 3.14`, `let a, b = 1, 2`, `const q, err = divide(10, 2)`.
+ * `let x number`, `const PI = 3.14`, `let a, b = 1, 2`, `const q, err = divide(10, 2)`; inside a
+ * component also `state count = 0`.
  *
  * `values` is empty (every name gets its zero value), has one value per name, or holds a single
  * call that returns several values.
@@ -87,7 +88,7 @@ export interface ComponentDeclaration extends NodeBase {
 export interface VariableDeclaration extends NodeBase {
   kind: 'VariableDeclaration';
   exported: boolean;
-  keyword: 'let' | 'const';
+  keyword: 'let' | 'const' | 'state';
   /** `_` is an ordinary identifier here; the checker treats it as "skip this value". */
   names: Identifier[];
   type: TypeNode | null;

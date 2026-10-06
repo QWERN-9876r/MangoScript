@@ -135,6 +135,8 @@ interface Context {
   inDefer: boolean;
   /** In an if/for/switch header, where `{` starts the block rather than an object literal. */
   noObjectLiteral: boolean;
+  /** Inside a component, for the error about `state` in a nested block. */
+  inComponent: boolean;
 }
 
 const FUNCTION_BODY: Partial<Context> = {
@@ -223,6 +225,7 @@ class Parser {
     inBreakable: false,
     inDefer: false,
     noObjectLiteral: false,
+    inComponent: false,
   };
   /** Expressions written in parentheses, which the tree itself does not record. */
   private readonly parenthesized = new WeakSet<ast.Expression>();
@@ -426,6 +429,13 @@ class Parser {
     if (hint !== undefined && this.peek(1).kind === 'Identifier') {
       this.fail(`"${token.text}" is not a MangoScript keyword: ${hint}`);
     }
+    if (this.isStateDeclaration()) {
+      this.fail(
+        this.context.inComponent
+          ? 'state is declared at the top level of a component, not inside blocks or functions'
+          : 'state can only be declared inside a component',
+      );
+    }
 
     const statement = this.parseSimpleStatement();
     if (statement.kind === 'ExpressionStatement') {
@@ -551,8 +561,14 @@ class Parser {
     return expressions;
   }
 
+  /** `state count = 0`: `state` is a keyword only at the start of a statement in a component. */
+  private isStateDeclaration(): boolean {
+    return this.checkWord('state') && this.peek(1).kind === 'Identifier';
+  }
+
   private parseVariableDeclaration(start: number, exported: boolean): ast.VariableDeclaration {
-    const keyword = this.next().kind === 'const' ? 'const' : 'let';
+    const token = this.next();
+    const keyword = token.kind === 'const' ? 'const' : token.text === 'state' ? 'state' : 'let';
     const names = [this.parseIdentifier('variable name')];
     while (this.accept(',')) names.push(this.parseIdentifier('variable name'));
     const type = this.canStartType() ? this.parseType() : null;
@@ -917,8 +933,30 @@ class Parser {
       );
     }
     const params = this.parseParams(false, true);
-    const body = this.parseFunctionBody();
+    const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () =>
+      this.parseComponentBody(),
+    );
     return { kind: 'ComponentDeclaration', exported, name, params, body, ...this.span(start) };
+  }
+
+  /** Like a function body, but its own statements may also declare `state`. */
+  private parseComponentBody(): ast.BlockStatement {
+    const start = this.expect('{').start;
+    const body: ast.Statement[] = [];
+    this.parseSeparated(
+      () => this.check('}'),
+      () => {
+        if (!this.isStateDeclaration()) {
+          body.push(this.parseStatement());
+          return;
+        }
+        const declaration = this.parseVariableDeclaration(this.peek().start, false);
+        this.endStatement();
+        body.push(declaration);
+      },
+    );
+    this.expect('}');
+    return { kind: 'BlockStatement', body, ...this.span(start) };
   }
 
   private parseClass(start: number, exported: boolean): ast.ClassDeclaration {

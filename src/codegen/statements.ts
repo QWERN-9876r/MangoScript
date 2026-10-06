@@ -44,7 +44,7 @@ export abstract class StatementEmitter extends ExpressionEmitter {
     return this.block(() => this.blockStatements(node.body));
   }
 
-  private statement(node: ast.Statement): void {
+  protected override statement(node: ast.Statement): void {
     this.withHoisting(true, () => this.emitStatement(node));
   }
 
@@ -64,7 +64,8 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         const [value] = node.values;
         if (node.names.length === 1 && value?.kind === 'ElementExpression' && name?.name !== '_') {
           const exported = node.exported ? 'export ' : '';
-          this.elementDeclaration(`${exported}${node.keyword} ${this.name(name!.name)}`, value);
+          const keyword = node.keyword === 'state' ? 'let' : node.keyword;
+          this.elementDeclaration(`${exported}${keyword} ${this.name(name!.name)}`, value);
           break;
         }
         if (node.names.every((name) => name.name === '_') && !node.exported) {
@@ -132,7 +133,8 @@ export abstract class StatementEmitter extends ExpressionEmitter {
 
   /** `let a, b = 1, 2` → `let a = 1, b = 2`; `const q, err = f()` → `const [q, err] = f()`. */
   private variableDeclaration(node: ast.VariableDeclaration): string {
-    const { keyword } = node;
+    // A state variable is an ordinary variable; updates are added where it changes.
+    const keyword = node.keyword === 'state' ? 'let' : node.keyword;
     if (node.values.length === 0) {
       const zero = node.type ? this.zeroValue(node.type) : null;
       const names = node.names.map((name) => this.name(name.name));

@@ -239,6 +239,13 @@ export function assignedNames(node: ast.Node, names = new Set<string>()): Set<st
     for (const target of node.targets) if (target.kind === 'Identifier') names.add(target.name);
   } else if (node.kind === 'IncDecStatement' && node.target.kind === 'Identifier') {
     names.add(node.target.name);
+  } else if (
+    node.kind === 'JsxAttribute' &&
+    node.name.name.startsWith('bind:') &&
+    node.value?.kind === 'Identifier'
+  ) {
+    // `bind:value={name}` writes what the user enters.
+    names.add(node.value.name);
   }
   forEachChild(node, (child) => assignedNames(child, names));
   return names;

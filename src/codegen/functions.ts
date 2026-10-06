@@ -125,7 +125,7 @@ export abstract class FunctionEmitter extends ElementEmitter {
         return node.expressions.every((expression) => this.isStable(expression));
       case 'Identifier': {
         const kind = this.lookup(node.name);
-        if (kind === 'let' || kind === 'param' || kind === 'catch') {
+        if (kind === 'let' || kind === 'state' || kind === 'param' || kind === 'catch') {
           return !this.assigned.has(node.name);
         }
         return true;

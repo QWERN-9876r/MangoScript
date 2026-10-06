@@ -4,7 +4,7 @@ import { forEachChild } from '../walk.ts';
 // Questions about the syntax tree that the generator asks before writing code.
 
 export type BindingKind =
-  'let' | 'const' | 'param' | 'function' | 'class' | 'import' | 'loop' | 'catch';
+  'let' | 'const' | 'state' | 'param' | 'function' | 'class' | 'import' | 'loop' | 'catch';
 
 /** Names declared directly in a list of statements. */
 export function declarationsOf(statements: readonly ast.Statement[]): [string, BindingKind][] {

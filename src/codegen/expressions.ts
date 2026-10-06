@@ -11,6 +11,12 @@ export abstract class ExpressionEmitter extends Emitter {
   /** Code that creates an element, as an expression; implemented by ElementEmitter. */
   protected abstract element(node: ast.ElementExpression): string;
 
+  /** Writes a statement; implemented by StatementEmitter. */
+  protected abstract statement(node: ast.Statement): void;
+
+  /** Whether an arrow function's expression body changes component state; see ElementEmitter. */
+  protected abstract changesState(body: ast.Expression): boolean;
+
   /** The expression, in parentheses if it binds weaker than `minPrecedence`. */
   protected expression(node: ast.Expression, minPrecedence: number, forceParens = false): string {
     const [text, precedence] = this.expressionWithPrecedence(node);
@@ -158,11 +164,16 @@ export abstract class ExpressionEmitter extends Emitter {
     }
     return this.withFunction('none', node.params, () => {
       const params = this.params(node.params);
-      if (containsElement(body)) {
-        // Elements are created by statements, so the body becomes a block.
-        const block = this.withHoisting(true, () =>
-          this.block(() => this.line(`return ${this.expression(body, 0)};`)),
-        );
+      if (containsElement(body) || this.changesState(body)) {
+        // Elements are created by statements, and so are updates after a change of state: the
+        // body becomes a block.
+        const statement: ast.ReturnStatement = {
+          kind: 'ReturnStatement',
+          values: [body],
+          start: body.start,
+          end: body.end,
+        };
+        const block = this.block(() => this.statement(statement));
         return `(${params}) => ${block}`;
       }
       // `() => ({ ... })`: a body starting with `{` would be read as a block.

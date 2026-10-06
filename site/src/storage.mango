@@ -1,6 +1,6 @@
 // Задачи хранятся в localStorage браузера.
 
-import { Todo } from "./todos.mango"
+import { Todo, TodoList } from "./todos.mango"
 
 const KEY = "mango-todos"
 
@@ -17,6 +17,6 @@ export func load() ([]Todo, error) {
     }
 }
 
-export func save(todos []Todo) {
-    localStorage.setItem(KEY, JSON.stringify(todos))
+export func save(todos TodoList) {
+    localStorage.setItem(KEY, JSON.stringify(todos.all()))
 }

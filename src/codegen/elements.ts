@@ -3,6 +3,7 @@ import { domProperty } from '../checker/dom.ts';
 import type { Type } from '../checker/types.ts';
 import { forEachChild } from '../walk.ts';
 import { namesDeclaredIn } from './analysis.ts';
+import { Reactive, type Source, type Write } from './reactive.ts';
 import { StatementEmitter } from './statements.ts';
 import { ARROW } from './syntax.ts';
 
@@ -10,30 +11,133 @@ import { ARROW } from './syntax.ts';
  * Markup: `<a href="/">Ссылка {name}</a>` becomes statements that create the element. When the
  * expression is evaluated exactly once they go before the statement that contains it; otherwise
  * the element is created inside a function that is called right away.
+ *
+ * Markup that a component creates once (what it returns, and elements declared at the top level
+ * of its body) is live: parts that read state are updated when the state changes. Each state
+ * variable gets an update function; every place that changes the variable calls it. Those places
+ * are written before it is known what the update needs, so they get a marker that is replaced at
+ * the end of the component: by the call, by the only update statement, or by nothing.
  */
 export abstract class ElementEmitter extends StatementEmitter {
   /** Counter for `$$li1`, `$$div2`, ... */
   private elementCount = 0;
   private readonly componentNames = new Map<ast.ComponentDeclaration, Set<string>>();
+  /** The component whose code is being written, if it has state or reactive properties. */
+  private reactive: Reactive | null = null;
+  /** Inside event handlers, which cannot run before the markup exists. */
+  private inHandler = 0;
+  /**
+   * Inside code that runs while live markup is created or updated: its expressions, the functions
+   * they call and the callbacks they pass (`items.map(item => ...)`). Changes there do not update
+   * the markup, which would update it again; code that runs later (handlers) is not included.
+   */
+  private rendering = 0;
 
   protected override element(node: ast.ElementExpression): string {
-    if (this.hoist) return this.create(node);
+    if (this.hoist) return this.create(node, null);
     const body = this.withHoisting(true, () =>
-      this.block(() => this.line(`return ${this.create(node)};`)),
+      this.block(() => this.line(`return ${this.create(node, null)};`)),
     );
     return `(() => ${body})()`;
   }
 
   protected override elementDeclaration(declaration: string, node: ast.ElementExpression): void {
+    const live = this.reactive?.topLevel.has(node) ? this.reactive : null;
     const component = this.componentOf(node);
-    if (component) this.line(`${declaration} = ${this.expand(node, component)};`);
-    else this.build(node, declaration);
+    if (component) this.line(`${declaration} = ${this.expand(node, component, live)};`);
+    else this.build(node, declaration, live);
+  }
+
+  /** After a statement that changes state, the update of what depends on it. */
+  protected override statement(node: ast.Statement): void {
+    const { reactive } = this;
+    if (reactive && this.fn === reactive.setup && reactive.declaresRenderFunction(node)) {
+      this.withRendering(this.rendering + 1, () => super.statement(node));
+      return;
+    }
+    const written = this.changedBy(node);
+    if (written.length === 0) {
+      super.statement(node);
+      return;
+    }
+    switch (node.kind) {
+      case 'ReturnStatement':
+      case 'ThrowStatement': {
+        // The update goes between computing the value and leaving the function.
+        const values = node.kind === 'ThrowStatement' ? [node.argument] : node.values;
+        const temp = this.temp();
+        this.withHoisting(true, () => {
+          const rendered = values.map((value) => this.expression(value, ARROW));
+          const value = rendered.length === 1 ? rendered[0]! : `[${rendered.join(', ')}]`;
+          this.line(`const ${temp} = ${value};`);
+        });
+        this.updates(written);
+        this.line(`${node.kind === 'ThrowStatement' ? 'throw' : 'return'} ${temp};`);
+        return;
+      }
+      case 'IfStatement':
+      case 'ForStatement':
+      case 'ForInStatement':
+      case 'SwitchStatement':
+        // The change is in a condition: update at the start of every branch, before anything in
+        // it can leave the function, and after the statement.
+        super.statement(withFirst(node, (position) => this.markers(written, position)));
+        this.updates(written);
+        return;
+      default:
+        super.statement(node);
+        this.updates(written);
+    }
+  }
+
+  protected override changesState(body: ast.Expression): boolean {
+    return this.changedBy(body).length > 0;
+  }
+
+  /** State that a statement changes, when it runs after the component's markup is created. */
+  private changedBy(node: ast.Node): Source[] {
+    const { reactive } = this;
+    if (!reactive || this.fn === reactive.setup || this.rendering > 0) return [];
+    return [...reactive.writtenBy(node, (expression) => this.typeOf(expression))];
+  }
+
+  private withRendering<T>(rendering: number, emit: () => T): T {
+    const saved = this.rendering;
+    this.rendering = rendering;
+    try {
+      return emit();
+    } finally {
+      this.rendering = saved;
+    }
+  }
+
+  private updates(sources: readonly Source[]): void {
+    for (const source of sources) this.line(`${this.write(source)};`);
+  }
+
+  /** Marker statements for the start of a branch, at `position` in the source. */
+  private markers(sources: readonly Source[], position: number): ast.Statement[] {
+    return sources.map((source) => {
+      const expression: ast.Identifier = {
+        kind: 'Identifier',
+        name: this.write(source),
+        start: position,
+        end: position,
+      };
+      return { kind: 'ExpressionStatement', expression, start: position, end: position };
+    });
+  }
+
+  /** Records a place that changes a source and returns its marker; see resolveMarkers. */
+  private write(source: Source, skip: number | null = null): string {
+    source.writes.push({ early: this.inHandler === 0, skip });
+    return `\uE000${source.id}${skip === null ? '' : `:${skip}`}\uE001`;
   }
 
   /** Writes the code for an element or a component and returns the variable with the result. */
-  private create(node: ast.ElementExpression): string {
+  private create(node: ast.ElementExpression, live: Reactive | null): string {
     const component = this.componentOf(node);
-    return component ? this.expand(node, component) : this.build(node, null);
+    return component ? this.expand(node, component, live) : this.build(node, null, live);
   }
 
   private componentOf(node: ast.ElementExpression): ast.ComponentDeclaration | undefined {
@@ -43,52 +147,133 @@ export abstract class ElementEmitter extends StatementEmitter {
   /**
    * Inlines a component: its code goes into a block where its properties are constants. Attribute
    * values are computed before the block, so that the component's own names cannot hide the
-   * names they refer to.
+   * names they refer to. In live markup, a property whose value depends on the parent's state is
+   * a variable, and the parent's updates call a function that sets it.
    */
-  private expand(node: ast.ElementExpression, component: ast.ComponentDeclaration): string {
+  private expand(
+    node: ast.ElementExpression,
+    component: ast.ComponentDeclaration,
+    live: Reactive | null,
+  ): string {
     const name = component.name.name;
     this.line(`// <${name}>`);
     const values = new Map<string, string>();
+    const reactiveProps: [string, string, Set<Source>][] = [];
     for (const attribute of node.attributes) {
-      if (attribute.kind === 'JsxAttribute') {
-        values.set(attribute.name.name, this.prop(attribute, component));
+      if (attribute.kind !== 'JsxAttribute') continue;
+      const prop = attribute.name.name;
+      values.set(prop, this.prop(attribute, component));
+      const { value } = attribute;
+      if (live && value && value.kind !== 'EventHandler') {
+        const sources = live.dependencies(value);
+        if (sources.size > 0) reactiveProps.push([prop, this.liveExpression(value), sources]);
       }
     }
     if (component.params.some((param) => param.name.name === 'children')) {
       const fragment = `$$children${++this.elementCount}`;
       this.line(`const ${fragment} = document.createDocumentFragment();`);
-      this.children(fragment, node.children);
+      this.children(fragment, node.children, live);
       values.set('children', fragment);
     }
 
-    const result = `$$${name.charAt(0).toLowerCase()}${name.slice(1)}${++this.elementCount}`;
+    const result = `$$${lowerFirst(name)}${++this.elementCount}`;
     this.line(`let ${result};`);
+    const setters = new Map<string, string>();
+    for (const [prop, text, sources] of reactiveProps) {
+      const setter = `$$set${upperFirst(prop)}${++this.elementCount}`;
+      this.line(`let ${setter};`);
+      for (const source of sources) source.dependents.push(`${setter}(${text});`);
+      setters.set(prop, setter);
+    }
+
+    const reactive = new Reactive(component, this.fn, setters.keys(), (sourceName, kind) => {
+      const id = ++this.elementCount;
+      const update = `$$update${upperFirst(sourceName)}${id}`;
+      return { id, name: sourceName, kind, update, dependents: [], writes: [] };
+    });
     const props = component.params.map((param): [string, 'const'] => [param.name.name, 'const']);
-    const block = this.block(() =>
-      this.withScope(props, () => {
-        for (const param of component.params) {
-          const value =
-            values.get(param.name.name) ??
-            (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
-          this.line(`const ${this.name(param.name.name)} = ${value};`);
-        }
-        const body = component.body.body;
-        const last = body.at(-1);
-        this.blockStatements(last?.kind === 'ReturnStatement' ? body.slice(0, -1) : body, () => {
-          const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
-          if (!value) return;
-          this.withHoisting(true, () => {
-            if (value.kind === 'ElementExpression' && !this.componentOf(value)) {
-              this.build(value, result);
-            } else {
-              this.line(`${result} = ${this.expression(value, ARROW)};`);
-            }
+    const saved = { reactive: this.reactive, inHandler: this.inHandler, rendering: this.rendering };
+    this.reactive = reactive.sources.size > 0 ? reactive : null;
+    this.inHandler = 0;
+    this.rendering = 0;
+    let block: string;
+    try {
+      block = this.block(() =>
+        this.withScope(props, () => {
+          for (const param of component.params) {
+            const value =
+              values.get(param.name.name) ??
+              (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
+            const keyword = setters.has(param.name.name) ? 'let' : 'const';
+            this.line(`${keyword} ${this.name(param.name.name)} = ${value};`);
+          }
+          const body = component.body.body;
+          const last = body.at(-1);
+          const setup = last?.kind === 'ReturnStatement' ? body.slice(0, -1) : body;
+          this.blockStatements(setup, () => {
+            if (last?.kind !== 'ReturnStatement' || !last.values[0]) return;
+            const previous = setup.at(-1);
+            if (previous && this.blankLineBetween(previous, last)) this.blankLine();
+            const value = last.values[0];
+            this.withHoisting(true, () => this.markup(value, result, reactive, setters));
           });
-        });
-      }),
-    );
-    this.line(block);
+        }),
+      );
+    } finally {
+      this.reactive = saved.reactive;
+      this.inHandler = saved.inHandler;
+      this.rendering = saved.rendering;
+    }
+    this.line(resolveMarkers(block, reactive));
     return result;
+  }
+
+  /** The markup a component returns, then the functions that update it. */
+  private markup(
+    value: ast.Expression,
+    result: string,
+    reactive: Reactive,
+    setters: ReadonlyMap<string, string>,
+  ): void {
+    if (reactive.sources.size === 0) {
+      if (value.kind === 'ElementExpression' && !this.componentOf(value)) {
+        this.build(value, result, null);
+      } else {
+        this.line(`${result} = ${this.expression(value, ARROW)};`);
+      }
+      return;
+    }
+    const root =
+      value.kind === 'ElementExpression'
+        ? this.create(value, reactive)
+        : this.expression(value, ARROW);
+
+    let functions = 0;
+    for (const [prop, setter] of setters) {
+      const source = reactive.sources.get(prop)!;
+      const param = `$$${prop}`;
+      const body = this.block(() => {
+        this.line(`${this.name(prop)} = ${param};`);
+        for (const dependent of source.dependents) this.line(indentMore(dependent));
+      });
+      this.blankLine();
+      this.line(`${setter} = (${param}) => ${body};`);
+      functions++;
+    }
+    for (const source of reactive.sources.values()) {
+      const called = source.writes.some((write) => needed(source, write).length > 0);
+      if (source.kind !== 'state' || !called || inlinesUpdate(source)) continue;
+      const body = this.block(() => {
+        // A function of the body may change the state while the markup is being created.
+        if (source.writes.some((write) => write.early)) this.line(`if (!${result}) return;`);
+        for (const dependent of source.dependents) this.line(indentMore(dependent));
+      });
+      this.blankLine();
+      this.line(`function ${source.update}() ${body}`);
+      functions++;
+    }
+    if (functions > 0) this.blankLine();
+    this.line(`${result} = ${root};`);
   }
 
   /**
@@ -109,8 +294,13 @@ export abstract class ElementEmitter extends StatementEmitter {
         return this.expression(value, ARROW);
       }
     }
+    // A function given to the component runs later, not while the markup is being created.
     const text =
-      value.kind === 'EventHandler' ? this.handler(value) : this.expression(value, ARROW);
+      value.kind === 'EventHandler'
+        ? this.handler(value)
+        : value.kind === 'ArrowFunction' || value.kind === 'FuncExpression'
+          ? this.withRendering(0, () => this.expression(value, ARROW))
+          : this.expression(value, ARROW);
     const temp = this.temp();
     this.line(`const ${temp} = ${text};`);
     return temp;
@@ -120,7 +310,11 @@ export abstract class ElementEmitter extends StatementEmitter {
    * Writes the statements that create the element and returns the name of its variable.
    * `declaration` is `const link` for `const link = <a>`; otherwise a temporary name is used.
    */
-  private build(node: ast.ElementExpression, declaration: string | null): string {
+  private build(
+    node: ast.ElementExpression,
+    declaration: string | null,
+    live: Reactive | null,
+  ): string {
     const tag = node.tag?.name ?? null;
     const name = declaration?.split(' ').at(-1) ?? this.elementName(tag);
     const create =
@@ -128,8 +322,19 @@ export abstract class ElementEmitter extends StatementEmitter {
         ? 'document.createDocumentFragment()'
         : `document.createElement(${JSON.stringify(tag)})`;
     this.line(`${declaration ?? `const ${name}`} = ${create};`);
-    for (const attribute of node.attributes) this.attribute(name, tag, attribute);
-    this.children(name, node.children);
+    // Bindings go last: `valueAsNumber` needs the `type` attribute to be set.
+    const bindings: ast.JsxAttribute[] = [];
+    for (const attribute of node.attributes) {
+      if (attribute.kind === 'JsxAttribute' && attribute.name.name.startsWith('bind:')) {
+        bindings.push(attribute);
+      } else {
+        this.attribute(name, tag, attribute, live);
+      }
+    }
+    if (tag !== null) {
+      for (const attribute of bindings) this.binding(name, tag, attribute, live);
+    }
+    this.children(name, node.children, live);
     return name;
   }
 
@@ -142,26 +347,31 @@ export abstract class ElementEmitter extends StatementEmitter {
     element: string,
     tag: string | null,
     attribute: ast.JsxAttribute | ast.JsxSpreadAttribute,
+    live: Reactive | null,
   ): void {
     if (attribute.kind === 'JsxSpreadAttribute') {
-      this.line(`Object.assign(${element}, ${this.expression(attribute.argument, ARROW)});`);
+      this.setLive(live, attribute.argument, (text) => `Object.assign(${element}, ${text});`);
       return;
     }
     const name = attribute.name.name;
     const { value } = attribute;
 
     if (/^on[A-Z]/.test(name)) {
-      this.line(
-        `${element}.addEventListener(${JSON.stringify(eventName(name))}, ${this.handler(value)});`,
-      );
+      this.inHandler++;
+      try {
+        this.line(
+          `${element}.addEventListener(${JSON.stringify(eventName(name))}, ${this.handler(value)});`,
+        );
+      } finally {
+        this.inHandler--;
+      }
       return;
     }
     if (value?.kind === 'EventHandler') return;
 
     if (name === 'style' && value !== null) {
-      const text = this.expression(value, ARROW);
       const isString = value.kind === 'StringLiteral' || this.typeOf(value)?.kind === 'string';
-      this.line(
+      this.setLive(live, value, (text) =>
         isString
           ? `${element}.style.cssText = ${text};`
           : `Object.assign(${element}.style, ${text});`,
@@ -180,22 +390,92 @@ export abstract class ElementEmitter extends StatementEmitter {
       return;
     }
     if (property) {
-      this.line(`${element}.${property.name} = ${this.expression(value, ARROW)};`);
+      this.setLive(live, value, (text) => `${element}.${property.name} = ${text};`);
       return;
     }
-    const setAttribute = (text: string) =>
-      `${element}.setAttribute(${JSON.stringify(name)}, ${text});`;
-    if (this.typeOf(value)?.kind === 'nullable') {
+    const quoted = JSON.stringify(name);
+    if (this.typeOf(value)?.kind !== 'nullable') {
+      this.setLive(live, value, (text) => `${element}.setAttribute(${quoted}, ${text});`);
+    } else if (live && live.dependencies(value).size > 0) {
+      this.helpers.add('attribute');
+      this.setLive(live, value, (text) => `$$attribute(${element}, ${quoted}, ${text});`);
+    } else {
       // A null value leaves the attribute out.
       const text = this.once(value);
-      this.line(`if (${text} != null) ${setAttribute(text)}`);
-    } else {
-      this.line(setAttribute(this.expression(value, ARROW)));
+      this.line(`if (${text} != null) ${element}.setAttribute(${quoted}, ${text});`);
+    }
+  }
+
+  /**
+   * Writes the statement that sets a value. In live markup, when the value depends on state, the
+   * same statement also goes into the updates of that state.
+   */
+  private setLive(
+    live: Reactive | null,
+    value: ast.Expression,
+    statement: (text: string) => string,
+  ): void {
+    const sources = live && value.kind !== 'StringLiteral' ? live.dependencies(value) : null;
+    if (!sources || sources.size === 0) {
+      this.line(statement(this.expression(value, ARROW)));
+      return;
+    }
+    const text = statement(this.liveExpression(value));
+    this.line(text);
+    for (const source of sources) source.dependents.push(text);
+  }
+
+  /**
+   * `bind:value={name}`: the element shows the variable, and what the user enters is written
+   * back to it. In live markup the element is also updated when the variable changes elsewhere.
+   */
+  private binding(
+    element: string,
+    tag: string,
+    attribute: ast.JsxAttribute,
+    live: Reactive | null,
+  ): void {
+    const value = attribute.value as ast.Expression;
+    const isNumber = attribute.name.name === 'bind:value' && this.typeOf(value)?.kind === 'number';
+    const property =
+      attribute.name.name === 'bind:checked' ? 'checked' : isNumber ? 'valueAsNumber' : 'value';
+    const target = this.liveExpression(value);
+    const current = `${element}.${property}`;
+    this.line(`${current} = ${target};`);
+
+    const event = property === 'checked' || tag === 'select' ? 'change' : 'input';
+    const written = [...(this.reactive?.rootSources(value) ?? [])].filter(
+      (source) => source.kind === 'state',
+    );
+    const dependsOn = live?.dependencies(value) ?? new Set<Source>();
+    this.inHandler++;
+    try {
+      const body = this.block(() => {
+        this.line(`${target} = ${current};`);
+        for (const source of written) {
+          // The element already shows what was entered: its own update is skipped.
+          const own = dependsOn.has(source) ? source.dependents.length : null;
+          this.line(`${this.write(source, own)};`);
+        }
+      });
+      this.line(`${element}.addEventListener(${JSON.stringify(event)}, () => ${body});`);
+    } finally {
+      this.inHandler--;
+    }
+
+    // NaN from an unfinished number must not clear the input while the user types.
+    const differs = isNumber ? `!Object.is(${current}, ${target})` : `${current} !== ${target}`;
+    for (const source of dependsOn) {
+      source.dependents.push(`if (${differs}) ${current} = ${target};`);
     }
   }
 
   /** `onClick={count++}` becomes `() => { count++; }`; a function is used as it is. */
   private handler(value: ast.JsxAttribute['value']): string {
+    return this.withRendering(0, () => this.handlerFunction(value));
+  }
+
+  private handlerFunction(value: ast.JsxAttribute['value']): string {
     if (value === null) return '() => {}';
     if (value.kind !== 'EventHandler') return this.expression(value, ARROW);
     const name: ast.Identifier = {
@@ -226,7 +506,11 @@ export abstract class ElementEmitter extends StatementEmitter {
    * Children are appended in order; consecutive ones that need no checks go into one `append`.
    * Values whose type allows null, or is not known, are checked before they are appended.
    */
-  private children(element: string, children: readonly ast.JsxChild[]): void {
+  private children(
+    element: string,
+    children: readonly ast.JsxChild[],
+    live: Reactive | null,
+  ): void {
     let pending: string[] = [];
     let pendingCalls = false;
     const flush = () => {
@@ -243,10 +527,37 @@ export abstract class ElementEmitter extends StatementEmitter {
       if (child.kind === 'ElementExpression') {
         // A child element is created before the append; earlier calls must still run first.
         if (pendingCalls) flush();
-        pending.push(this.create(child));
+        pending.push(this.create(child, live));
         continue;
       }
       const { expression } = child;
+      const sources = live?.dependencies(expression);
+      if (sources && sources.size > 0) {
+        if (pendingCalls) flush();
+        const text = this.liveExpression(expression);
+        const kind = this.typeOf(expression)?.kind;
+        const id = ++this.elementCount;
+        if (kind === 'string' || kind === 'number') {
+          // Text that changes: a text node whose data is replaced.
+          const node = `$$text${id}`;
+          this.line(`const ${node} = document.createTextNode(${text});`);
+          pending.push(node);
+          for (const source of sources) source.dependents.push(`${node}.data = ${text};`);
+        } else {
+          // Nodes that change: they are kept before an empty text node and replaced on updates.
+          const anchor = `$$slot${id}`;
+          const nodes = `$$nodes${id}`;
+          this.helpers.add('swap');
+          this.line(`const ${anchor} = document.createTextNode("");`);
+          pending.push(anchor);
+          flush();
+          this.line(`let ${nodes} = $$swap([], ${anchor}, ${text});`);
+          for (const source of sources) {
+            source.dependents.push(`${nodes} = $$swap(${nodes}, ${anchor}, ${text});`);
+          }
+        }
+        continue;
+      }
       switch (contentKind(expression, this.typeOf(expression))) {
         case 'value':
           pending.push(this.expression(expression, ARROW));
@@ -272,6 +583,16 @@ export abstract class ElementEmitter extends StatementEmitter {
     flush();
   }
 
+  /**
+   * An expression that is evaluated again on updates: elements inside it are created in place,
+   * so that each evaluation creates new ones.
+   */
+  private liveExpression(node: ast.Expression): string {
+    return this.withRendering(this.rendering + 1, () =>
+      this.withHoisting(false, () => this.expression(node, ARROW)),
+    );
+  }
+
   /** The expression if it can be repeated, otherwise a temporary that holds its value. */
   private once(node: ast.Expression): string {
     if (isSimple(node)) return this.expression(node, ARROW);
@@ -283,6 +604,96 @@ export abstract class ElementEmitter extends StatementEmitter {
   private typeOf(node: ast.Expression): Type | undefined {
     return this.options.types?.get(node);
   }
+}
+
+/**
+ * Replaces the markers of a component's sources: by the call of the update function, by the only
+ * update statement, or by nothing when no markup depends on the source.
+ */
+function resolveMarkers(block: string, reactive: Reactive): string {
+  const sources = new Map<number, Source>();
+  for (const source of reactive.sources.values()) sources.set(source.id, source);
+  return block.replace(
+    /^([ \t]*)\uE000(\d+)(?::(\d+))?\uE001;\n/gm,
+    (line, indent: string, id: string, skip: string | undefined) => {
+      const source = sources.get(Number(id));
+      if (!source) return line;
+      const dependents = needed(source, { early: false, skip: skip ? Number(skip) : null });
+      if (dependents.length === 0) return '';
+      const text = inlinesUpdate(source) ? dependents[0]! : `${source.update}();`;
+      return `${indent}${text}\n`;
+    },
+  );
+}
+
+/** The update statements that a place changing the source needs. */
+function needed(source: Source, write: Write): string[] {
+  return source.dependents.filter((_, i) => i !== write.skip);
+}
+
+/** One place changes the source, after the markup exists, and needs one update statement. */
+function inlinesUpdate(source: Source): boolean {
+  const [write] = source.writes;
+  if (source.writes.length !== 1 || write!.early) return false;
+  const dependents = needed(source, write!);
+  return dependents.length === 1 && !dependents[0]!.includes('\n');
+}
+
+/**
+ * A copy of an if/for/switch statement with statements added at the start of every branch or
+ * loop body; `first` gets the position where they go.
+ */
+function withFirst(
+  node: ast.IfStatement | ast.ForStatement | ast.ForInStatement | ast.SwitchStatement,
+  first: (position: number) => ast.Statement[],
+): ast.Statement {
+  const prepend = (body: readonly ast.Statement[], end: number) => [
+    ...first(body[0]?.start ?? end),
+    ...body,
+  ];
+  const block = (node: ast.BlockStatement): ast.BlockStatement => ({
+    ...node,
+    body: prepend(node.body, node.end - 1),
+  });
+  switch (node.kind) {
+    case 'IfStatement': {
+      const { alternate } = node;
+      return {
+        ...node,
+        consequent: block(node.consequent),
+        alternate:
+          alternate === null
+            ? null
+            : alternate.kind === 'IfStatement'
+              ? (withFirst(alternate, first) as ast.IfStatement)
+              : block(alternate),
+      };
+    }
+    case 'ForStatement':
+    case 'ForInStatement':
+      return { ...node, body: block(node.body) };
+    case 'SwitchStatement':
+      return {
+        ...node,
+        cases: node.cases.map((switchCase) => ({
+          ...switchCase,
+          body: prepend(switchCase.body, switchCase.end),
+        })),
+      };
+  }
+}
+
+/** A statement written at block level goes one level deeper into a function. */
+function indentMore(text: string): string {
+  return text.replace(/\n/g, '\n  ');
+}
+
+function upperFirst(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function lowerFirst(name: string): string {
+  return name.charAt(0).toLowerCase() + name.slice(1);
 }
 
 /** `onClick` → `click`, `onKeyDown` → `keydown`; JSX spells `dblclick` as `onDoubleClick`. */
