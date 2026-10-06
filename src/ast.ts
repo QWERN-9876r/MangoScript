@@ -179,7 +179,8 @@ export type Statement =
   | ContinueStatement
   | ThrowStatement
   | TryStatement
-  | DeferStatement;
+  | DeferStatement
+  | JsxElementStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
 export type SimpleStatement =
@@ -526,7 +527,7 @@ export interface ElementExpression extends NodeBase {
   children: JsxChild[];
 }
 
-export type JsxChild = JsxText | JsxExpressionContainer | ElementExpression;
+export type JsxChild = JsxText | JsxExpressionContainer | JsxStatementContainer | ElementExpression;
 
 /** Text between tags, with whitespace already cleaned up as in JSX. */
 export interface JsxText extends NodeBase {
@@ -538,6 +539,21 @@ export interface JsxText extends NodeBase {
 export interface JsxExpressionContainer extends NodeBase {
   kind: 'JsxExpressionContainer';
   expression: Expression;
+}
+
+/**
+ * `{for todo in todos { <li>{todo.title}</li> }}`: control flow among the children. Its blocks
+ * hold markup statements: elements, nested if/for/switch and `const` declarations.
+ */
+export interface JsxStatementContainer extends NodeBase {
+  kind: 'JsxStatementContainer';
+  statement: IfStatement | ForStatement | ForInStatement | SwitchStatement;
+}
+
+/** An element written as a statement inside markup control flow: it becomes content. */
+export interface JsxElementStatement extends NodeBase {
+  kind: 'JsxElementStatement';
+  element: ElementExpression;
 }
 
 /**
@@ -634,6 +650,7 @@ export type Node =
   | TemplateElement
   | JsxText
   | JsxExpressionContainer
+  | JsxStatementContainer
   | JsxAttribute
   | JsxSpreadAttribute
   | EventHandler;

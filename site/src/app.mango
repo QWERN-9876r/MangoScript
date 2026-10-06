@@ -47,18 +47,24 @@ comp TodoApp() {
             <input id="title" bind:value={title} placeholder="Что сделать?" autocomplete="off" autofocus />
             <button>Добавить</button>
         </form>
-        <p id="message" role="alert" hidden={message == ""}>{message}</p>
+        {if message != "" {
+            <p id="message" role="alert">{message}</p>
+        }}
 
         <nav aria-label="Фильтр">
-            {FILTERS.map(f => <button class={f.id == filter ? "active" : ""} onClick={filter = f.id}>{f.label}</button>)}
+            {for f in FILTERS {
+                <button class={f.id == filter ? "active" : ""} onClick={filter = f.id}>{f.label}</button>
+            }}
         </nav>
 
         <ul id="list">
-            {todos.visible(filter).map(todo => <TodoItem
-                todo={todo}
-                onToggle={todos.toggle(todo.id); save(todos)}
-                onRemove={todos.remove(todo.id); save(todos)}
-            />)}
+            {for todo in todos.visible(filter) {
+                <TodoItem
+                    todo={todo}
+                    onToggle={todos.toggle(todo.id); save(todos)}
+                    onRemove={todos.remove(todo.id); save(todos)}
+                />
+            }}
         </ul>
 
         <footer>

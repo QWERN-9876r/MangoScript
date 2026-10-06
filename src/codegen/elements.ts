@@ -1,11 +1,16 @@
 import type * as ast from '../ast.ts';
 import { domProperty } from '../checker/dom.ts';
-import type { Type } from '../checker/types.ts';
+import { spreadFields, type Type } from '../checker/types.ts';
 import { forEachChild } from '../walk.ts';
-import { namesDeclaredIn } from './analysis.ts';
-import { Reactive, type Source, type Write } from './reactive.ts';
+import { declarationsOf, namesDeclaredIn, startsWithObjectLiteral } from './analysis.ts';
+import { Block, Reactive, type Live, type Source, type Write } from './reactive.ts';
 import { StatementEmitter } from './statements.ts';
-import { ARROW } from './syntax.ts';
+import { ARROW, arrayPattern, CONDITIONAL, POSTFIX } from './syntax.ts';
+
+/** What can be inside markup: children of an element, or statements of a markup block. */
+type Content = ast.JsxChild | ast.Statement;
+
+type ControlStatement = ast.JsxStatementContainer['statement'];
 
 /**
  * Markup: `<a href="/">Ссылка {name}</a>` becomes statements that create the element. When the
@@ -17,6 +22,10 @@ import { ARROW } from './syntax.ts';
  * variable gets an update function; every place that changes the variable calls it. Those places
  * are written before it is known what the update needs, so they get a marker that is replaced at
  * the end of the component: by the call, by the only update statement, or by nothing.
+ *
+ * `{if ...}`, `{switch ...}` and `{for ...}` in markup become plain JS control flow that appends
+ * elements. In live markup, when they depend on state, helpers keep their content between markers
+ * instead, and their blocks are functions that create the content and return its update.
  */
 export abstract class ElementEmitter extends StatementEmitter {
   /** Counter for `$$li1`, `$$div2`, ... */
@@ -32,6 +41,8 @@ export abstract class ElementEmitter extends StatementEmitter {
    * the markup, which would update it again; code that runs later (handlers) is not included.
    */
   private rendering = 0;
+  /** The element that elements of markup blocks are appended to, in plain control flow. */
+  private contentTarget: string | null = null;
 
   protected override element(node: ast.ElementExpression): string {
     if (this.hoist) return this.create(node, null);
@@ -46,6 +57,12 @@ export abstract class ElementEmitter extends StatementEmitter {
     const component = this.componentOf(node);
     if (component) this.line(`${declaration} = ${this.expand(node, component, live)};`);
     else this.build(node, declaration, live);
+  }
+
+  protected override elementStatement(node: ast.JsxElementStatement): void {
+    if (this.contentTarget === null) throw new Error('an element statement outside of markup');
+    const element = this.create(node.element, null);
+    this.line(`${this.contentTarget}.append(${element});`);
   }
 
   /** After a statement that changes state, the update of what depends on it. */
@@ -135,7 +152,7 @@ export abstract class ElementEmitter extends StatementEmitter {
   }
 
   /** Writes the code for an element or a component and returns the variable with the result. */
-  private create(node: ast.ElementExpression, live: Reactive | null): string {
+  private create(node: ast.ElementExpression, live: Live | null): string {
     const component = this.componentOf(node);
     return component ? this.expand(node, component, live) : this.build(node, null, live);
   }
@@ -153,20 +170,24 @@ export abstract class ElementEmitter extends StatementEmitter {
   private expand(
     node: ast.ElementExpression,
     component: ast.ComponentDeclaration,
-    live: Reactive | null,
+    live: Live | null,
   ): string {
     const name = component.name.name;
     this.line(`// <${name}>`);
     const values = new Map<string, string>();
-    const reactiveProps: [string, string, Set<Source>][] = [];
+    const reactiveProps = new Map<string, [string, Set<Source>]>();
     for (const attribute of node.attributes) {
-      if (attribute.kind !== 'JsxAttribute') continue;
+      if (attribute.kind === 'JsxSpreadAttribute') {
+        this.spreadProps(attribute.argument, component, live, values, reactiveProps);
+        continue;
+      }
       const prop = attribute.name.name;
       values.set(prop, this.prop(attribute, component));
+      reactiveProps.delete(prop);
       const { value } = attribute;
       if (live && value && value.kind !== 'EventHandler') {
         const sources = live.dependencies(value);
-        if (sources.size > 0) reactiveProps.push([prop, this.liveExpression(value), sources]);
+        if (sources.size > 0) reactiveProps.set(prop, [this.liveExpression(value), sources]);
       }
     }
     if (component.params.some((param) => param.name.name === 'children')) {
@@ -179,10 +200,10 @@ export abstract class ElementEmitter extends StatementEmitter {
     const result = `$$${lowerFirst(name)}${++this.elementCount}`;
     this.line(`let ${result};`);
     const setters = new Map<string, string>();
-    for (const [prop, text, sources] of reactiveProps) {
+    for (const [prop, [text, sources]] of reactiveProps) {
       const setter = `$$set${upperFirst(prop)}${++this.elementCount}`;
       this.line(`let ${setter};`);
-      for (const source of sources) source.dependents.push(`${setter}(${text});`);
+      live?.depend(sources, `${setter}(${text});`);
       setters.set(prop, setter);
     }
 
@@ -283,27 +304,68 @@ export abstract class ElementEmitter extends StatementEmitter {
   private prop(attribute: ast.JsxAttribute, component: ast.ComponentDeclaration): string {
     const { value } = attribute;
     if (value === null) return 'true';
-    if (value.kind !== 'EventHandler') {
-      let declared = this.componentNames.get(component);
-      if (!declared) {
-        declared = namesDeclaredIn(component);
-        this.componentNames.set(component, declared);
-      }
-      const root = rootName(value);
-      if (isConstant(value) || (isSimple(value) && root !== null && !declared.has(root))) {
-        return this.expression(value, ARROW);
-      }
+    if (value.kind === 'EventHandler') {
+      const temp = this.temp();
+      this.line(`const ${temp} = ${this.handler(value)};`);
+      return temp;
+    }
+    return this.propValue(value, component);
+  }
+
+  private propValue(value: ast.Expression, component: ast.ComponentDeclaration): string {
+    let declared = this.componentNames.get(component);
+    if (!declared) {
+      declared = namesDeclaredIn(component);
+      this.componentNames.set(component, declared);
+    }
+    const root = rootName(value);
+    if (isConstant(value) || (isSimple(value) && root !== null && !declared.has(root))) {
+      return this.expression(value, ARROW);
     }
     // A function given to the component runs later, not while the markup is being created.
     const text =
-      value.kind === 'EventHandler'
-        ? this.handler(value)
-        : value.kind === 'ArrowFunction' || value.kind === 'FuncExpression'
-          ? this.withRendering(0, () => this.expression(value, ARROW))
-          : this.expression(value, ARROW);
+      value.kind === 'ArrowFunction' || value.kind === 'FuncExpression'
+        ? this.withRendering(0, () => this.expression(value, ARROW))
+        : this.expression(value, ARROW);
     const temp = this.temp();
     this.line(`const ${temp} = ${text};`);
     return temp;
+  }
+
+  /**
+   * `<Product {...product} />`: properties that the object has get their values from it. Later
+   * attributes override them. The object is computed once, before the component's block.
+   */
+  private spreadProps(
+    argument: ast.Expression,
+    component: ast.ComponentDeclaration,
+    live: Live | null,
+    values: Map<string, string>,
+    reactiveProps: Map<string, [string, Set<Source>]>,
+  ): void {
+    const type = this.typeOf(argument);
+    // Without a type, the object may have any of the properties.
+    const fields =
+      type && type.kind !== 'any' && type.kind !== 'unknown' ? spreadFields(type) : null;
+    const params = component.params.filter(
+      (param) => param.name.name !== 'children' && (fields === null || fields.has(param.name.name)),
+    );
+    if (params.length === 0) return;
+    const object = this.propValue(argument, component);
+    const sources = live?.dependencies(argument);
+    const liveObject = sources && sources.size > 0 ? this.liveExpression(argument, POSTFIX) : null;
+    for (const param of params) {
+      const name = param.name.name;
+      const read = `${object}.${name}`;
+      values.set(
+        name,
+        fields === null && param.defaultValue
+          ? `${read} ?? ${this.expression(param.defaultValue, POSTFIX)}`
+          : read,
+      );
+      if (sources && liveObject) reactiveProps.set(name, [`${liveObject}.${name}`, sources]);
+      else reactiveProps.delete(name);
+    }
   }
 
   /**
@@ -313,7 +375,7 @@ export abstract class ElementEmitter extends StatementEmitter {
   private build(
     node: ast.ElementExpression,
     declaration: string | null,
-    live: Reactive | null,
+    live: Live | null,
   ): string {
     const tag = node.tag?.name ?? null;
     const name = declaration?.split(' ').at(-1) ?? this.elementName(tag);
@@ -347,7 +409,7 @@ export abstract class ElementEmitter extends StatementEmitter {
     element: string,
     tag: string | null,
     attribute: ast.JsxAttribute | ast.JsxSpreadAttribute,
-    live: Reactive | null,
+    live: Live | null,
   ): void {
     if (attribute.kind === 'JsxSpreadAttribute') {
       this.setLive(live, attribute.argument, (text) => `Object.assign(${element}, ${text});`);
@@ -411,7 +473,7 @@ export abstract class ElementEmitter extends StatementEmitter {
    * same statement also goes into the updates of that state.
    */
   private setLive(
-    live: Reactive | null,
+    live: Live | null,
     value: ast.Expression,
     statement: (text: string) => string,
   ): void {
@@ -422,7 +484,7 @@ export abstract class ElementEmitter extends StatementEmitter {
     }
     const text = statement(this.liveExpression(value));
     this.line(text);
-    for (const source of sources) source.dependents.push(text);
+    live!.depend(sources, text);
   }
 
   /**
@@ -433,7 +495,7 @@ export abstract class ElementEmitter extends StatementEmitter {
     element: string,
     tag: string,
     attribute: ast.JsxAttribute,
-    live: Reactive | null,
+    live: Live | null,
   ): void {
     const value = attribute.value as ast.Expression;
     const isNumber = attribute.name.name === 'bind:value' && this.typeOf(value)?.kind === 'number';
@@ -454,7 +516,7 @@ export abstract class ElementEmitter extends StatementEmitter {
         this.line(`${target} = ${current};`);
         for (const source of written) {
           // The element already shows what was entered: its own update is skipped.
-          const own = dependsOn.has(source) ? source.dependents.length : null;
+          const own = live && dependsOn.has(source) ? live.ownIndex(source) : null;
           this.line(`${this.write(source, own)};`);
         }
       });
@@ -465,8 +527,8 @@ export abstract class ElementEmitter extends StatementEmitter {
 
     // NaN from an unfinished number must not clear the input while the user types.
     const differs = isNumber ? `!Object.is(${current}, ${target})` : `${current} !== ${target}`;
-    for (const source of dependsOn) {
-      source.dependents.push(`if (${differs}) ${current} = ${target};`);
+    if (live && dependsOn.size > 0) {
+      live.depend(dependsOn, `if (${differs}) ${current} = ${target};`);
     }
   }
 
@@ -504,13 +566,10 @@ export abstract class ElementEmitter extends StatementEmitter {
 
   /**
    * Children are appended in order; consecutive ones that need no checks go into one `append`.
-   * Values whose type allows null, or is not known, are checked before they are appended.
+   * Values whose type allows null, or is not known, are checked before they are appended. The
+   * statements of markup blocks are handled here too.
    */
-  private children(
-    element: string,
-    children: readonly ast.JsxChild[],
-    live: Reactive | null,
-  ): void {
+  private children(element: string, children: readonly Content[], live: Live | null): void {
     let pending: string[] = [];
     let pendingCalls = false;
     const flush = () => {
@@ -520,76 +579,283 @@ export abstract class ElementEmitter extends StatementEmitter {
     };
 
     for (const child of children) {
-      if (child.kind === 'JsxText') {
-        pending.push(JSON.stringify(child.value));
-        continue;
-      }
-      if (child.kind === 'ElementExpression') {
-        // A child element is created before the append; earlier calls must still run first.
-        if (pendingCalls) flush();
-        pending.push(this.create(child, live));
-        continue;
-      }
-      const { expression } = child;
-      const sources = live?.dependencies(expression);
-      if (sources && sources.size > 0) {
-        if (pendingCalls) flush();
-        const text = this.liveExpression(expression);
-        const kind = this.typeOf(expression)?.kind;
-        const id = ++this.elementCount;
-        if (kind === 'string' || kind === 'number') {
-          // Text that changes: a text node whose data is replaced.
-          const node = `$$text${id}`;
-          this.line(`const ${node} = document.createTextNode(${text});`);
-          pending.push(node);
-          for (const source of sources) source.dependents.push(`${node}.data = ${text};`);
-        } else {
-          // Nodes that change: they are kept before an empty text node and replaced on updates.
-          const anchor = `$$slot${id}`;
-          const nodes = `$$nodes${id}`;
-          this.helpers.add('swap');
-          this.line(`const ${anchor} = document.createTextNode("");`);
-          pending.push(anchor);
-          flush();
-          this.line(`let ${nodes} = $$swap([], ${anchor}, ${text});`);
-          for (const source of sources) {
-            source.dependents.push(`${nodes} = $$swap(${nodes}, ${anchor}, ${text});`);
+      switch (child.kind) {
+        case 'JsxText':
+          pending.push(JSON.stringify(child.value));
+          break;
+        case 'ElementExpression':
+        case 'JsxElementStatement': {
+          // A child element is created before the append; earlier calls must still run first.
+          if (pendingCalls) flush();
+          const node = child.kind === 'ElementExpression' ? child : child.element;
+          pending.push(this.create(node, live));
+          break;
+        }
+        case 'JsxStatementContainer':
+        case 'IfStatement':
+        case 'ForStatement':
+        case 'ForInStatement':
+        case 'SwitchStatement': {
+          const statement = child.kind === 'JsxStatementContainer' ? child.statement : child;
+          const sources = live?.dependencies(statement);
+          if (live && sources && sources.size > 0) {
+            if (pendingCalls) flush();
+            pending.push(this.liveControl(statement, live, sources));
+          } else {
+            // Nothing in it changes: plain control flow that appends the elements.
+            flush();
+            this.withContentTarget(element, () => this.statement(statement));
           }
-        }
-        continue;
-      }
-      switch (contentKind(expression, this.typeOf(expression))) {
-        case 'value':
-          pending.push(this.expression(expression, ARROW));
-          pendingCalls ||= !isSimple(expression);
-          break;
-        case 'list':
-          pending.push(`...${this.expression(expression, ARROW)}`);
-          pendingCalls ||= !isSimple(expression);
-          break;
-        case 'nullable': {
-          flush();
-          const text = this.once(expression);
-          this.line(`if (${text} != null) ${element}.append(${text});`);
           break;
         }
-        case 'unknown':
+        case 'VariableDeclaration':
           flush();
-          this.helpers.add('append');
-          this.line(`$$append(${element}, ${this.expression(expression, ARROW)});`);
+          this.blockConst(child, live);
           break;
+        case 'JsxExpressionContainer': {
+          const { expression } = child;
+          const sources = live?.dependencies(expression);
+          if (live && sources && sources.size > 0) {
+            if (pendingCalls) flush();
+            pending.push(this.liveChild(expression, live, sources));
+            break;
+          }
+          switch (contentKind(expression, this.typeOf(expression))) {
+            case 'value':
+              pending.push(this.expression(expression, ARROW));
+              pendingCalls ||= !isSimple(expression);
+              break;
+            case 'list':
+              pending.push(`...${this.expression(expression, ARROW)}`);
+              pendingCalls ||= !isSimple(expression);
+              break;
+            case 'nullable': {
+              flush();
+              const text = this.once(expression);
+              this.line(`if (${text} != null) ${element}.append(${text});`);
+              break;
+            }
+            case 'unknown':
+              flush();
+              this.helpers.add('append');
+              this.line(`$$append(${element}, ${this.expression(expression, ARROW)});`);
+              break;
+          }
+          break;
+        }
+        default:
+          // The parser allows no other statements in markup.
+          flush();
+          this.statement(child);
       }
     }
     flush();
   }
 
   /**
+   * `{value}` that depends on state. Text becomes a text node whose data is replaced; other
+   * content is kept by the $$content helper, which replaces its nodes. Returns what to append.
+   */
+  private liveChild(expression: ast.Expression, live: Live, sources: ReadonlySet<Source>): string {
+    const kind = this.typeOf(expression)?.kind;
+    const id = ++this.elementCount;
+    if (kind === 'string' || kind === 'number') {
+      const text = this.liveExpression(expression);
+      const node = `$$text${id}`;
+      this.line(`const ${node} = document.createTextNode(${text});`);
+      live.depend(sources, `${node}.data = ${text};`);
+      return node;
+    }
+    const name = `$$content${id}`;
+    const update = `$$updateContent${id}`;
+    this.helpers.add('content');
+    this.line(`const [${name}, ${update}] = $$content(${this.liveFunction(expression)});`);
+    live.depend(sources, `${update}();`);
+    return name;
+  }
+
+  /**
+   * `{if ...}`, `{switch ...}` or `{for ...}` that depends on state: a helper keeps its content
+   * between markers, and the updates of the enclosing markup call its update. Returns what to
+   * append.
+   */
+  private liveControl(
+    statement: ControlStatement,
+    live: Live,
+    sources: ReadonlySet<Source>,
+  ): string {
+    const id = ++this.elementCount;
+    const kind =
+      statement.kind === 'IfStatement'
+        ? 'if'
+        : statement.kind === 'SwitchStatement'
+          ? 'switch'
+          : 'for';
+    const name = `$$${kind}${id}`;
+    const update = `$$update${upperFirst(kind)}${id}`;
+    let call: string;
+    switch (statement.kind) {
+      case 'IfStatement':
+      case 'SwitchStatement': {
+        const [choose, blocks] =
+          statement.kind === 'IfStatement'
+            ? this.ifBranches(statement, live)
+            : this.switchBranches(statement, live);
+        this.helpers.add('branches');
+        call = `$$branches(${choose}, [${blocks.join(', ')}])`;
+        break;
+      }
+      case 'ForInStatement': {
+        this.helpers.add('list');
+        const items = this.liveFunction(statement.iterable);
+        call = `$$list(${items}, ${this.blockCreator(statement.body.body, live, statement)})`;
+        break;
+      }
+      case 'ForStatement':
+        // Without items to find the blocks by, the loop runs again and creates new content.
+        this.helpers.add('content');
+        call = `$$content(${this.loopContent(statement)})`;
+        break;
+    }
+    this.line(`const [${name}, ${update}] = ${call};`);
+    live.depend(sources, `${update}();`);
+    return name;
+  }
+
+  /** The choice of an if/else chain, `() => a ? 0 : b ? 1 : -1`, and its blocks. */
+  private ifBranches(node: ast.IfStatement, live: Live): [string, string[]] {
+    const conditions: string[] = [];
+    const blocks: string[] = [];
+    let current: ast.IfStatement | ast.BlockStatement | null = node;
+    while (current?.kind === 'IfStatement') {
+      conditions.push(this.liveExpression(current.condition, CONDITIONAL + 1));
+      blocks.push(this.blockCreator(current.consequent.body, live));
+      current = current.alternate;
+    }
+    if (current) blocks.push(this.blockCreator(current.body, live));
+    let choose = current ? String(conditions.length) : '-1';
+    for (let i = conditions.length - 1; i >= 0; i--) choose = `${conditions[i]} ? ${i} : ${choose}`;
+    return [`() => ${choose}`, blocks];
+  }
+
+  /** The choice of a switch: the same switch, returning the number of the case. */
+  private switchBranches(node: ast.SwitchStatement, live: Live): [string, string[]] {
+    const blocks = node.cases.map((switchCase) => this.blockCreator(switchCase.body, live));
+    const choice: ast.SwitchStatement = {
+      ...node,
+      cases: node.cases.map((switchCase, i) => ({
+        ...switchCase,
+        body: [returnNumber(i, switchCase)],
+      })),
+    };
+    const hasDefault = node.cases.some((switchCase) => switchCase.tests.length === 0);
+    const body = this.withFunction('none', [], () =>
+      this.withRendering(this.rendering + 1, () =>
+        this.block(() => {
+          this.statement(choice);
+          if (!hasDefault) this.line('return -1;');
+        }),
+      ),
+    );
+    return [`() => ${body}`, blocks];
+  }
+
+  /**
+   * The function that creates a block of markup control flow:
+   * `(item, index) => { ...; return [fragment, update]; }`. Parts of the block that depend on
+   * state go into its update.
+   */
+  private blockCreator(
+    statements: readonly ast.Statement[],
+    parent: Live,
+    loop?: ast.ForInStatement,
+  ): string {
+    const block = new Block(parent);
+    const params = loop ? [loop.value, ...(loop.key ? [loop.key] : [])].map(parameter) : [];
+    return this.withFunction('none', params, () =>
+      this.withRendering(this.rendering + 1, () => {
+        const paramList = this.params(params);
+        const fragment = `$$block${++this.elementCount}`;
+        const body = this.block(() =>
+          this.withScope(declarationsOf(statements), () => {
+            this.line(`const ${fragment} = document.createDocumentFragment();`);
+            this.children(fragment, statements, block);
+            // The block of an item that stays gets the item's new position.
+            const key = loop?.key && loop.key.name !== '_' ? this.name(loop.key.name) : null;
+            const updates = [...(key ? [`${key} = $$index;`] : []), ...block.statements];
+            if (updates.length === 0) {
+              this.line(`return [${fragment}];`);
+              return;
+            }
+            const update = this.block(() => {
+              for (const statement of updates) this.line(indentMore(statement));
+            });
+            this.line(`return [${fragment}, (${key ? '$$index' : ''}) => ${update}];`);
+          }),
+        );
+        return `(${paramList}) => ${body}`;
+      }),
+    );
+  }
+
+  /** A classic `for` loop in live markup: a function that runs it and returns the content. */
+  private loopContent(statement: ast.ForStatement): string {
+    return this.withFunction('none', [], () =>
+      this.withRendering(this.rendering + 1, () => {
+        const fragment = `$$block${++this.elementCount}`;
+        const body = this.block(() => {
+          this.line(`const ${fragment} = document.createDocumentFragment();`);
+          this.withContentTarget(fragment, () => this.statement(statement));
+          this.line(`return ${fragment};`);
+        });
+        return `() => ${body}`;
+      }),
+    );
+  }
+
+  /**
+   * `const` in a markup block. When its value depends on state, it is computed again on updates,
+   * before the parts that read it.
+   */
+  private blockConst(node: ast.VariableDeclaration, live: Live | null): void {
+    const sources = live?.dependencies(node);
+    const names = node.names.map((name) => (name.name === '_' ? '' : this.name(name.name)));
+    if (!live || !sources || sources.size === 0 || names.every((name) => name === '')) {
+      this.statement(node);
+      return;
+    }
+    const values = node.values.map((value) => this.liveExpression(value));
+    const assignments =
+      values.length === names.length
+        ? names.flatMap((name, i) => (name === '' ? [] : [`${name} = ${values[i]}`]))
+        : [`${arrayPattern(names)} = ${values[0]}`];
+    this.line(`let ${assignments.join(', ')};`);
+    for (const assignment of assignments) live.depend(sources, `${assignment};`);
+  }
+
+  private withContentTarget<T>(element: string, emit: () => T): T {
+    const saved = this.contentTarget;
+    this.contentTarget = element;
+    try {
+      return emit();
+    } finally {
+      this.contentTarget = saved;
+    }
+  }
+
+  /** `() => value`, evaluated by a helper when the markup is created and on updates. */
+  private liveFunction(node: ast.Expression): string {
+    const text = this.liveExpression(node);
+    return `() => ${startsWithObjectLiteral(node) ? `(${text})` : text}`;
+  }
+
+  /**
    * An expression that is evaluated again on updates: elements inside it are created in place,
    * so that each evaluation creates new ones.
    */
-  private liveExpression(node: ast.Expression): string {
+  private liveExpression(node: ast.Expression, precedence = ARROW): string {
     return this.withRendering(this.rendering + 1, () =>
-      this.withHoisting(false, () => this.expression(node, ARROW)),
+      this.withHoisting(false, () => this.expression(node, precedence)),
     );
   }
 
@@ -681,6 +947,30 @@ function withFirst(
         })),
       };
   }
+}
+
+/** `return 2` for the choice of a switch case. */
+function returnNumber(value: number, at: ast.NodeBase): ast.ReturnStatement {
+  const number: ast.NumberLiteral = {
+    kind: 'NumberLiteral',
+    value,
+    raw: String(value),
+    start: at.start,
+    end: at.start,
+  };
+  return { kind: 'ReturnStatement', values: [number], start: at.start, end: at.start };
+}
+
+/** A loop variable as a parameter of the function that creates the loop's blocks. */
+function parameter(name: ast.Identifier): ast.Parameter {
+  return {
+    kind: 'Parameter',
+    name,
+    type: null,
+    defaultValue: null,
+    start: name.start,
+    end: name.end,
+  };
 }
 
 /** A statement written at block level goes one level deeper into a function. */

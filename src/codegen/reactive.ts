@@ -95,10 +95,49 @@ const READ_METHODS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Where the updates of live markup go: the update functions of a component's state, or the update
+ * of a block of `{if ...}` / `{for ...}`.
+ */
+export interface Live {
+  /** Sources whose values an expression reads. */
+  dependencies(node: ast.Node): Set<Source>;
+  /** Adds a statement that brings a part of the markup up to date when the sources change. */
+  depend(sources: ReadonlySet<Source>, statement: string): void;
+  /** The index that the next statement for a source gets, for `bind:` to skip its own update. */
+  ownIndex(source: Source): number | null;
+}
+
+/**
+ * A block of markup control flow: a branch of `{if ...}` or the content for one item of
+ * `{for ...}`. It is created again when needed, so its updates go into a function of its own,
+ * which runs when any source that the block reads changes.
+ */
+export class Block implements Live {
+  readonly statements: string[] = [];
+  private readonly parent: Live;
+
+  constructor(parent: Live) {
+    this.parent = parent;
+  }
+
+  dependencies(node: ast.Node): Set<Source> {
+    return this.parent.dependencies(node);
+  }
+
+  depend(_sources: ReadonlySet<Source>, statement: string): void {
+    this.statements.push(statement);
+  }
+
+  ownIndex(): null {
+    return null;
+  }
+}
+
+/**
  * The reactivity of one inlined component. The analysis goes by names: a local variable that
  * has the name of a state variable can only cause extra updates, never a missed one.
  */
-export class Reactive {
+export class Reactive implements Live {
   readonly sources = new Map<string, Source>();
   /** The function context the body runs in; code in other functions runs later. */
   readonly setup: unknown;
@@ -166,6 +205,14 @@ export class Reactive {
     if (node.kind === 'FuncDeclaration') return this.renderFunctions.has(node);
     const [value] = node.kind === 'VariableDeclaration' ? node.values : [];
     return value !== undefined && this.renderFunctions.has(value);
+  }
+
+  depend(sources: ReadonlySet<Source>, statement: string): void {
+    for (const source of sources) source.dependents.push(statement);
+  }
+
+  ownIndex(source: Source): number {
+    return source.dependents.length;
   }
 
   /** Sources whose values an expression reads, directly or through local functions. */
@@ -260,16 +307,36 @@ export class Reactive {
         changed = true;
       }
     };
+    // In markup, a loop index and a `const` change with what they are computed from.
+    let inMarkup = false;
     const visit = (node: ast.Node): void => {
       switch (node.kind) {
+        case 'JsxStatementContainer': {
+          const saved = inMarkup;
+          inMarkup = true;
+          visit(node.statement);
+          inMarkup = saved;
+          return;
+        }
+        case 'FuncExpression':
+        case 'ArrowFunction': {
+          const saved = inMarkup;
+          inMarkup = false;
+          forEachChild(node, visit);
+          inMarkup = saved;
+          return;
+        }
         case 'ForInStatement':
           add(node.value.name, this.rootSources(node.iterable));
+          if (node.key && inMarkup) add(node.key.name, this.dependencies(node.iterable));
           break;
         case 'VariableDeclaration':
           node.names.forEach((name, i) => {
             const value =
               node.values.length === node.names.length ? node.values[i] : node.values[0];
-            if (value) add(name.name, this.rootSources(value));
+            if (!value) return;
+            add(name.name, this.rootSources(value));
+            if (inMarkup) add(name.name, this.dependencies(value));
           });
           break;
         case 'CallExpression': {

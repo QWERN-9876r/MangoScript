@@ -226,6 +226,22 @@ export function instanceMembers(info: ClassInfo): Map<string, Member> {
   return members;
 }
 
+/**
+ * The fields that spreading a value gives (`<Card {...user} />`): public non-method members of an
+ * object type or a class instance. `null` for other types.
+ */
+export function spreadFields(type: Type): Map<string, Type> | null {
+  let members: Map<string, Member>;
+  if (type.kind === 'object') members = type.members;
+  else if (type.kind === 'class') members = instanceMembers(type.info);
+  else return null;
+  const fields = new Map<string, Type>();
+  for (const [name, member] of members) {
+    if (!member.method && member.visibility === 'public') fields.set(name, member.type);
+  }
+  return fields;
+}
+
 /** The constructor used by `new`, with the class that declares it. */
 export function constructorOf(info: ClassInfo): { type: FunctionType; owner: ClassInfo | null } {
   for (let current: ClassInfo | null = info; current; current = current.superClass) {

@@ -408,16 +408,31 @@ document.body.append($$app1, $$input19);`,
     );
   });
 
-  it('replaces changing nodes with the $$swap helper', () => {
+  it('replaces changing nodes with the $$content helper, which evaluates them again', () => {
     const code = js(`comp Tags() {
     state tags = ["mango"]
     return <ul onClick={tags.push("x")}>{tags.map(tag => <li>{tag}</li>)}</ul>
 }
 document.body.append(<Tags />)`);
-    expect(code).toContain('function $$swap(old, anchor, value) {');
-    expect(code).toContain(`  const $$slot5 = document.createTextNode("");
-  $$ul3.append($$slot5);
-  let $$nodes5 = $$swap([], $$slot5, tags.map((tag) => {`);
+    expect(code).toContain('function $$content(value) {');
+    expect(code.slice(code.indexOf('// <Tags>'))).toBe(`// <Tags>
+let $$tags1;
+{
+  let tags = ["mango"];
+  const $$ul3 = document.createElement("ul");
+  $$ul3.addEventListener("click", () => {
+    tags.push("x");
+    $$updateContent4();
+  });
+  const [$$content4, $$updateContent4] = $$content(() => tags.map((tag) => {
+    const $$li5 = document.createElement("li");
+    $$li5.append(tag);
+    return $$li5;
+  }));
+  $$ul3.append($$content4);
+  $$tags1 = $$ul3;
+}
+document.body.append($$tags1);`);
   });
 
   it('leaves components without state as they were', () => {

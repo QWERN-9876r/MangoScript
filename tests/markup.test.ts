@@ -48,6 +48,7 @@ function markup(node: ast.ElementExpression): string {
   const children = node.children.map((child) => {
     if (child.kind === 'JsxText') return JSON.stringify(child.value);
     if (child.kind === 'JsxExpressionContainer') return `{${child.expression.kind}}`;
+    if (child.kind === 'JsxStatementContainer') return `{${child.statement.kind}}`;
     return markup(child);
   });
   const tag = node.tag?.name ?? '';

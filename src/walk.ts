@@ -183,6 +183,12 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'JsxExpressionContainer':
       visit(node.expression);
       break;
+    case 'JsxStatementContainer':
+      visit(node.statement);
+      break;
+    case 'JsxElementStatement':
+      visit(node.element);
+      break;
     case 'JsxAttribute':
       visit(node.name);
       optional(node.value);

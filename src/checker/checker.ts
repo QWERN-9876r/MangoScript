@@ -34,6 +34,7 @@ import {
   NULL,
   nullable,
   NUMBER,
+  spreadFields,
   STRING,
   substitute,
   typesEqual,
@@ -731,6 +732,9 @@ class Checker {
         break;
       case 'ExpressionStatement':
         this.checkExpression(node.expression, null);
+        break;
+      case 'JsxElementStatement':
+        this.checkExpression(node.element, null);
         break;
       case 'AssignmentStatement':
         this.checkAssignment(node);
@@ -1706,6 +1710,11 @@ class Checker {
   private checkChildren(children: readonly ast.JsxChild[]): void {
     for (const child of children) {
       if (child.kind === 'JsxText') continue;
+      if (child.kind === 'JsxStatementContainer') {
+        // Checked like any if/for/switch, so conditions narrow types in the blocks.
+        this.checkStatement(child.statement);
+        continue;
+      }
       if (child.kind === 'ElementExpression') {
         this.checkExpression(child, null);
         continue;
@@ -1930,9 +1939,10 @@ class Checker {
     this.checkHygiene(info, tag);
 
     const given = new Set<string>();
+    const spread = new Set<string>();
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxSpreadAttribute') {
-        this.error('spreading properties into a component is not supported yet', attribute);
+        this.checkSpreadProps(attribute.argument, info, tag.name, spread);
         continue;
       }
       const name = attribute.name.name;
@@ -1951,7 +1961,7 @@ class Checker {
       }
     }
     for (const [name, prop] of info.props) {
-      if (!prop.optional && !given.has(name)) {
+      if (!prop.optional && !given.has(name) && !spread.has(name)) {
         this.error(`<${tag.name}> needs the property "${name}"`, tag);
       }
     }
@@ -1960,6 +1970,42 @@ class Checker {
     }
     this.checkChildren(node.children);
     return this.componentResult(info, new Set());
+  }
+
+  /**
+   * `<Product {...product} />`: fields of the object with the names of properties are passed as
+   * those properties; other fields are ignored. Adds the names of the given properties to `given`.
+   */
+  private checkSpreadProps(
+    argument: ast.Expression,
+    info: ComponentInfo,
+    component: string,
+    given: Set<string>,
+  ): void {
+    const type = this.checkValue(argument);
+    if (isUntyped(type)) {
+      for (const name of info.props.keys()) given.add(name);
+      return;
+    }
+    const fields = isNullable(type) ? null : spreadFields(type);
+    if (!fields) {
+      if (isNullable(type)) this.nullError(argument);
+      else {
+        this.error(
+          `cannot spread ${typeToString(type)} into the properties of <${component}>`,
+          argument,
+        );
+      }
+      // After the error, missing properties would only repeat it.
+      for (const name of info.props.keys()) given.add(name);
+      return;
+    }
+    for (const [name, prop] of info.props) {
+      const field = fields.get(name);
+      if (field === undefined || name === 'children') continue;
+      given.add(name);
+      this.expectAssignable(field, prop.type, argument, ` for "${name}" of <${component}>`);
+    }
   }
 
   private checkProp(attribute: ast.JsxAttribute, type: Type, component: string): void {

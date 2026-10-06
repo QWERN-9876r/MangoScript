@@ -20,6 +20,12 @@ export class FakeNode {
     if (data !== undefined) this.data = data;
   }
 
+  get nextSibling(): FakeNode | null {
+    if (!this.parentNode) return null;
+    const siblings = this.parentNode.childNodes;
+    return siblings[siblings.indexOf(this) + 1] ?? null;
+  }
+
   append(...items: unknown[]): void {
     this.insertBefore(null, items);
   }

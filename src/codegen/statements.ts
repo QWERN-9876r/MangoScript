@@ -15,6 +15,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   /** `const link = <a>...</a>`: creates the element right in the variable; see ElementEmitter. */
   protected abstract elementDeclaration(declaration: string, node: ast.ElementExpression): void;
 
+  /** An element in the block of `{if ...}` / `{for ...}` in markup; see ElementEmitter. */
+  protected abstract elementStatement(node: ast.JsxElementStatement): void;
+
   protected statements(list: readonly ast.Statement[]): void {
     let previous: ast.Statement | undefined;
     for (const statement of list) {
@@ -88,6 +91,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         break;
       case 'ExpressionStatement':
         this.line(`${this.expressionStatement(node.expression)};`);
+        break;
+      case 'JsxElementStatement':
+        this.elementStatement(node);
         break;
       case 'AssignmentStatement':
         this.line(`${this.assignment(node)};`);

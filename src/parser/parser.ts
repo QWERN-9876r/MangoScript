@@ -137,6 +137,8 @@ interface Context {
   noObjectLiteral: boolean;
   /** Inside a component, for the error about `state` in a nested block. */
   inComponent: boolean;
+  /** In the blocks of `{if ...}` and `{for ...}` inside markup, where elements are statements. */
+  inMarkup: boolean;
 }
 
 const FUNCTION_BODY: Partial<Context> = {
@@ -146,6 +148,7 @@ const FUNCTION_BODY: Partial<Context> = {
   inBreakable: false,
   inDefer: false,
   noObjectLiteral: false,
+  inMarkup: false,
 };
 
 /** Thrown to abandon the current statement after its syntax error has been reported. */
@@ -226,6 +229,7 @@ class Parser {
     inDefer: false,
     noObjectLiteral: false,
     inComponent: false,
+    inMarkup: false,
   };
   /** Expressions written in parentheses, which the tree itself does not record. */
   private readonly parenthesized = new WeakSet<ast.Expression>();
@@ -393,6 +397,38 @@ class Parser {
   }
 
   private parseStatement(): ast.Statement {
+    if (!this.context.inMarkup) return this.parseOrdinaryStatement();
+    const start = this.peek().start;
+    if (this.check('JsxTagOpen')) {
+      const element = this.parseJsxElement();
+      this.endStatement();
+      return { kind: 'JsxElementStatement', element, ...this.span(start) };
+    }
+    const statement = this.parseOrdinaryStatement();
+    const allowed =
+      statement.kind === 'IfStatement' ||
+      statement.kind === 'ForStatement' ||
+      statement.kind === 'ForInStatement' ||
+      statement.kind === 'SwitchStatement' ||
+      (statement.kind === 'VariableDeclaration' && statement.keyword === 'const');
+    if (statement.kind === 'BreakStatement' || statement.kind === 'ContinueStatement') {
+      const word = statement.kind === 'BreakStatement' ? 'break' : 'continue';
+      this.error(
+        `"${word}" cannot be used inside markup: put the content in an if instead`,
+        statement.start,
+        statement.end,
+      );
+    } else if (!allowed) {
+      this.error(
+        'inside markup only elements, if, for, switch and const can be written',
+        statement.start,
+        statement.end,
+      );
+    }
+    return statement;
+  }
+
+  private parseOrdinaryStatement(): ast.Statement {
     const token = this.peek();
     const declaration = this.parseDeclaration(token.start, false);
     if (declaration) return declaration;
@@ -1660,10 +1696,23 @@ class Parser {
     return { kind: 'EventHandler', body, ...this.span(start) };
   }
 
-  /** `{expression}` among element children; `null` for `{}` or `{/* comment *\/}`. */
-  private parseJsxExpressionContainer(): ast.JsxExpressionContainer | null {
+  /**
+   * `{expression}` or `{if ...}` / `{for ...}` / `{switch ...}` among element children; `null` for
+   * `{}` or `{/* comment *\/}`.
+   */
+  private parseJsxExpressionContainer():
+    ast.JsxExpressionContainer | ast.JsxStatementContainer | null {
     const start = this.expect('{').start;
     if (this.accept('}')) return null;
+    if (this.check('if') || this.check('for') || this.check('switch')) {
+      // `{for todo in todos { <li>{todo.title}</li> }}`: the blocks hold markup.
+      const statement = this.withContext({ inMarkup: true, noObjectLiteral: false }, () =>
+        this.parseOrdinaryStatement(),
+      ) as ast.JsxStatementContainer['statement'];
+      this.accept(';');
+      this.expect('}');
+      return { kind: 'JsxStatementContainer', statement, ...this.span(start) };
+    }
     const expression = this.nested(() => this.parseExpression());
     this.expect('}');
     return { kind: 'JsxExpressionContainer', expression, ...this.span(start) };

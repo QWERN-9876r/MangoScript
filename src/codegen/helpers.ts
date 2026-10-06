@@ -1,6 +1,6 @@
 // Small functions that a module gets only when its code needs them.
 
-export type Helper = 'runDeferred' | 'append' | 'swap' | 'attribute';
+export type Helper = 'runDeferred' | 'append' | 'attribute' | 'content' | 'branches' | 'list';
 
 export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   /** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
@@ -29,27 +29,128 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '}',
   ],
   /**
-   * Replaces the nodes of a changing part of markup, which are kept before `anchor`. Nodes that
-   * stay are moved rather than created again. Returns the new nodes.
+   * Nodes of markup that change, `{list}` or `{ok ? <b /> : null}`: they are kept before an end
+   * marker. Nodes that stay are moved rather than created again. Returns the markers with the
+   * first nodes, to be inserted, and the update.
    */
-  swap: [
-    'function $$swap(old, anchor, value) {',
-    '  const nodes = [];',
-    '  const add = (item) => {',
-    '    if (item == null || item === false) return;',
-    '    if (Array.isArray(item)) {',
-    '      for (const each of item) add(each);',
-    '    } else if (item.nodeType === 11) {',
-    '      nodes.push(...item.childNodes);',
-    '    } else {',
-    '      nodes.push(typeof item === "object" ? item : document.createTextNode(String(item)));',
+  content: [
+    'function $$content(value) {',
+    '  const end = document.createTextNode("");',
+    '  const fragment = document.createDocumentFragment();',
+    '  fragment.append(end);',
+    '  let nodes = [];',
+    '  const update = () => {',
+    '    const next = [];',
+    '    const add = (item) => {',
+    '      if (item == null || item === false) return;',
+    '      if (Array.isArray(item)) {',
+    '        for (const each of item) add(each);',
+    '      } else if (item.nodeType === 11) {',
+    '        next.push(...item.childNodes);',
+    '      } else {',
+    '        next.push(typeof item === "object" ? item : document.createTextNode(String(item)));',
+    '      }',
+    '    };',
+    '    add(value());',
+    '    const kept = new Set(next);',
+    '    for (const node of nodes) if (!kept.has(node)) node.remove();',
+    '    end.before(...next);',
+    '    nodes = next;',
+    '  };',
+    '  update();',
+    '  return [fragment, update];',
+    '}',
+  ],
+  /**
+   * `{if ...}` and `{switch ...}` in markup: shows the block that `choose` picks (-1 for none)
+   * between two markers. The block is created again only when the choice changes; otherwise it is
+   * updated.
+   */
+  branches: [
+    'function $$branches(choose, blocks) {',
+    '  const start = document.createTextNode("");',
+    '  const end = document.createTextNode("");',
+    '  const fragment = document.createDocumentFragment();',
+    '  fragment.append(start, end);',
+    '  let current = null;',
+    '  let update;',
+    '  const render = () => {',
+    '    const next = choose();',
+    '    if (next === current) {',
+    '      update?.();',
+    '      return;',
+    '    }',
+    '    current = next;',
+    '    while (start.nextSibling !== end) start.nextSibling.remove();',
+    '    update = undefined;',
+    '    if (next >= 0) {',
+    '      const [content, blockUpdate] = blocks[next]();',
+    '      end.before(content);',
+    '      update = blockUpdate;',
     '    }',
     '  };',
-    '  add(value);',
-    '  const kept = new Set(nodes);',
-    '  for (const node of old) if (!kept.has(node)) node.remove();',
-    '  anchor.before(...nodes);',
-    '  return nodes;',
+    '  render();',
+    '  return [fragment, render];',
+    '}',
+  ],
+  /**
+   * `{for item in items { ... }}` in markup: a block for each item, between its own markers. On
+   * updates the blocks are found again by the item itself: blocks of items that stay are updated
+   * and moved into place, others are created or removed.
+   */
+  list: [
+    'function $$list(items, create) {',
+    '  const end = document.createTextNode("");',
+    '  const fragment = document.createDocumentFragment();',
+    '  fragment.append(end);',
+    '  let blocks = [];',
+    '  const nodesOf = (block) => {',
+    '    const nodes = [];',
+    '    for (let node = block.start; node !== block.end; node = node.nextSibling) nodes.push(node);',
+    '    nodes.push(block.end);',
+    '    return nodes;',
+    '  };',
+    '  const update = () => {',
+    '    const old = new Map();',
+    '    for (const block of blocks) {',
+    '      const same = old.get(block.item);',
+    '      if (same) same.push(block);',
+    '      else old.set(block.item, [block]);',
+    '    }',
+    '    const next = [];',
+    '    let index = 0;',
+    '    for (const item of items()) {',
+    '      let block = old.get(item)?.shift();',
+    '      if (block) {',
+    '        block.update?.(index);',
+    '      } else {',
+    '        const [content, blockUpdate] = create(item, index);',
+    '        block = { item, start: document.createTextNode(""), end: document.createTextNode("") };',
+    '        block.update = blockUpdate;',
+    '        block.content = document.createDocumentFragment();',
+    '        block.content.append(block.start, content, block.end);',
+    '      }',
+    '      next.push(block);',
+    '      index++;',
+    '    }',
+    '    for (const same of old.values()) {',
+    '      for (const block of same) for (const node of nodesOf(block)) node.remove();',
+    '    }',
+    '    let before = end;',
+    '    for (let i = next.length - 1; i >= 0; i--) {',
+    '      const block = next[i];',
+    '      if (block.content) {',
+    '        before.before(block.content);',
+    '        block.content = null;',
+    '      } else if (block.end.nextSibling !== before) {',
+    '        before.before(...nodesOf(block));',
+    '      }',
+    '      before = block.start;',
+    '    }',
+    '    blocks = next;',
+    '  };',
+    '  update();',
+    '  return [fragment, update];',
     '}',
   ],
   /** Sets an attribute whose value may be null: then the attribute is removed. */
