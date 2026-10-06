@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
-import { relative, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { build, displayPath } from './build.ts';
 import { formatDiagnostic, type Diagnostic } from './diagnostics.ts';
 import { compile } from './index.ts';
 import { tokenize } from './lexer/lexer.ts';
@@ -19,16 +20,18 @@ const { version } = JSON.parse(
 const HELP = `MangoScript ${version}
 
 Usage:
-  mango build <file.mango> [-o <out.js>]   Compile to JavaScript (stdout by default)
-  mango run <file.mango>                   Compile and run, with imports of other .mango files
-  mango tokens <file.mango>                Print lexer tokens (for debugging)
-  mango ast <file.mango>                   Print the syntax tree (for debugging)
+  mango build <file.mango | dir>...   Compile to .js files, with the .mango files they import
+  mango run <file.mango>              Compile and run, with the .mango files it imports
+  mango tokens <file.mango>           Print lexer tokens (for debugging)
+  mango ast <file.mango>              Print the syntax tree (for debugging)
 
 Options:
-  -o, --out <file>   Output file
-      --no-check     Skip type checking
-  -h, --help         Show this help
-  -v, --version      Show version`;
+      --out-dir <dir>   build: write the .js files to <dir>, keeping the folder structure
+                        (by default they go next to the .mango files)
+      --stdout          build: print the JS of a single file instead of writing files
+      --no-check        Skip type checking
+  -h, --help            Show this help
+  -v, --version         Show version`;
 
 /** A mistake in how the CLI was called. */
 class UsageError extends Error {}
@@ -40,7 +43,8 @@ async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
-      out: { type: 'string', short: 'o' },
+      'out-dir': { type: 'string' },
+      stdout: { type: 'boolean' },
       'no-check': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
@@ -52,23 +56,34 @@ async function main(): Promise<void> {
     return;
   }
 
-  const [command, file] = positionals;
+  const [command, ...files] = positionals;
   if (values.help || !command) {
     console.log(HELP);
     return;
   }
-  if (!file) throw new UsageError(`missing input file for "${command}"`);
-  if (!existsSync(file)) throw new UsageError(`file not found: ${file}`);
+  if (files.length === 0) throw new UsageError(`missing input file for "${command}"`);
+  for (const path of files) {
+    if (!existsSync(path)) throw new UsageError(`file not found: ${path}`);
+  }
+  if (command !== 'build' && files.length > 1) {
+    throw new UsageError(`"${command}" takes a single file`);
+  }
+  const file = files[0]!;
+  const typeCheck = !values['no-check'];
 
   switch (command) {
-    case 'build': {
-      const code = compileFile(file, { rewriteImports: true, typeCheck: !values['no-check'] });
-      if (values.out) writeFileSync(values.out, code);
-      else process.stdout.write(code);
+    case 'build':
+      if (values.stdout) {
+        if (files.length > 1 || statSync(file).isDirectory()) {
+          throw new UsageError('--stdout needs a single .mango file');
+        }
+        process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck }));
+      } else {
+        buildFiles(files, values['out-dir'], typeCheck);
+      }
       break;
-    }
     case 'run':
-      registerMangoLoader(!values['no-check']);
+      registerMangoLoader(typeCheck);
       await import(pathToFileURL(resolve(file)).href);
       break;
     case 'tokens':
@@ -79,6 +94,27 @@ async function main(): Promise<void> {
       break;
     default:
       throw new UsageError(`unknown command "${command}"`);
+  }
+}
+
+/** Builds the files and directories and writes the `.js` files, or none if there are errors. */
+function buildFiles(entries: string[], outDir: string | undefined, typeCheck: boolean): void {
+  for (const entry of entries) {
+    if (!statSync(entry).isDirectory() && !entry.endsWith('.mango')) {
+      throw new UsageError(`not a .mango file: ${entry}`);
+    }
+  }
+  const { outputs, errors } = build(entries, { outDir, typeCheck });
+  if (errors.length > 0) {
+    const messages = errors.flatMap(({ file, diagnostics }) =>
+      diagnostics.map((diagnostic) => formatDiagnostic(file, diagnostic)),
+    );
+    throw new CompileError(messages.join('\n\n'));
+  }
+  for (const { source, output, code } of outputs) {
+    mkdirSync(dirname(output), { recursive: true });
+    writeFileSync(output, code);
+    console.log(`${displayPath(source)} → ${displayPath(output)}`);
   }
 }
 
@@ -100,10 +136,7 @@ function registerMangoLoader(typeCheck: boolean): void {
   registerHooks({
     load(url, context, nextLoad) {
       if (!url.startsWith('file:') || !url.endsWith('.mango')) return nextLoad(url, context);
-      // Error messages show paths relative to the current directory when that is shorter.
-      const absolute = fileURLToPath(url);
-      const fromCwd = relative(process.cwd(), absolute);
-      const path = fromCwd.startsWith('..') ? absolute : fromCwd;
+      const path = displayPath(fileURLToPath(url));
       const source = compileFile(path, { rewriteImports: false, typeCheck });
       return { format: 'module', source, shortCircuit: true };
     },

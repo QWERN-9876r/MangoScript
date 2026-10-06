@@ -1,3 +1,4 @@
+import type * as ast from './ast.ts';
 import { check } from './checker/checker.ts';
 import { generateJs } from './codegen/js.ts';
 import type { Diagnostic } from './diagnostics.ts';
@@ -24,11 +25,14 @@ export interface CompileResult {
   /** The generated ES module; empty when there are diagnostics. */
   code: string;
   diagnostics: Diagnostic[];
+  /** Relative paths of the `.mango` modules this file imports, as written in the imports. */
+  dependencies: string[];
 }
 
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
   const { program, diagnostics } = parse(source);
-  if (diagnostics.length > 0) return { code: '', diagnostics };
+  if (diagnostics.length > 0) return { code: '', diagnostics, dependencies: [] };
+  const dependencies = mangoImports(program);
 
   if (options.typeCheck ?? true) {
     const { filename } = options;
@@ -36,9 +40,21 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
       ? (specifier: string) => loadModuleExports(filename, specifier)
       : undefined;
     const checked = check(program, importModule ? { importModule } : {});
-    if (checked.diagnostics.length > 0) return { code: '', diagnostics: checked.diagnostics };
+    if (checked.diagnostics.length > 0) {
+      return { code: '', diagnostics: checked.diagnostics, dependencies };
+    }
   }
 
   const code = generateJs(program, { source, rewriteImports: options.rewriteImports ?? true });
-  return { code, diagnostics: [] };
+  return { code, diagnostics: [], dependencies };
+}
+
+function mangoImports(program: ast.Program): string[] {
+  const specifiers = new Set<string>();
+  for (const statement of program.body) {
+    if (statement.kind !== 'ImportDeclaration') continue;
+    const path = statement.source.value;
+    if (/^\.{1,2}\//.test(path) && path.endsWith('.mango')) specifiers.add(path);
+  }
+  return [...specifiers];
 }

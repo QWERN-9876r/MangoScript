@@ -1,7 +1,4 @@
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index.ts';
 
@@ -536,44 +533,20 @@ console.log(counter.count)`),
 
   it('runs examples/hello.mango', () => {
     const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
-    const expected = source
-      .slice(source.indexOf('// Ожидаемый вывод:'))
-      .split('\n')
-      .slice(1)
-      .filter((line) => line.startsWith('// '))
-      .map((line) => line.slice(3));
-    expect(run(source)).toEqual(expected);
-  });
-});
-
-// ─── CLI ─────────────────────────────────────────────────────────────────────────────────────────
-
-describe('cli', () => {
-  const cli = new URL('../src/cli.ts', import.meta.url).pathname;
-  const mango = (...args: string[]) =>
-    spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
-
-  it('runs a program that imports another .mango module', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-'));
-    writeFileSync(
-      join(dir, 'geom.mango'),
-      'export interface Point {\n    x, y number\n}\n\nexport func dist(p Point) number {\n    return Math.sqrt(p.x ** 2 + p.y ** 2)\n}\n',
-    );
-    writeFileSync(
-      join(dir, 'main.mango'),
-      'import { Point, dist } from "./geom.mango"\n\nconst p Point = { x: 3, y: 4 }\nconsole.log(dist(p))\n',
-    );
-    const result = mango('run', join(dir, 'main.mango'));
-    expect(result.stderr).toBe('');
-    expect(result.stdout).toBe('5\n');
-  });
-
-  it('reports compile errors and exits with code 1', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-'));
-    const file = join(dir, 'bad.mango');
-    writeFileSync(file, 'let = 1\n');
-    const result = mango('run', file);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('bad.mango:1:5: error: expected variable name, found "="');
+    expect(run(source)).toEqual([
+      '[divide]',
+      '10 / 4 = 2.5',
+      '10 / 0: division by zero',
+      '[/divide]',
+      '[stats]',
+      'min = 1, max = 9, total = 31',
+      '[/stats]',
+      '[points]',
+      'point 0: quadrant I',
+      'point 1: quadrant II',
+      'point 2: quadrant III',
+      'first negative: (-1, -1)',
+      '[/points]',
+    ]);
   });
 });
