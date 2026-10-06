@@ -34,7 +34,8 @@ interface FunctionContext {
  * The base of the JS generator: the output buffer, scopes of declared names and the state of the
  * current function. The generator is split into layers, each adding to the previous one:
  *
- *     Emitter → ExpressionEmitter → StatementEmitter → FunctionEmitter → JsGenerator
+ *     Emitter → ExpressionEmitter → StatementEmitter → UpdateEmitter → ElementEmitter
+ *       → ControlFlowEmitter → ComponentEmitter → FunctionEmitter → JsGenerator
  */
 export abstract class Emitter {
   protected readonly program: ast.Program;

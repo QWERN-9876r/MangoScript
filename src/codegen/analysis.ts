@@ -214,3 +214,43 @@ export function collectValueNames(node: ast.Node, names: Set<string>): void {
       forEachChild(node, visit);
   }
 }
+
+/** The variable at the start of `a.b.c`, or `null`. */
+export function rootName(node: ast.Expression): string | null {
+  if (node.kind === 'Identifier') return node.name;
+  return node.kind === 'MemberExpression' ? rootName(node.object) : null;
+}
+
+/** Literals, which can be put into inlined code as they are. */
+export function isConstant(node: ast.Expression): boolean {
+  switch (node.kind) {
+    case 'NumberLiteral':
+    case 'StringLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+      return true;
+    case 'TemplateLiteral':
+      return node.expressions.length === 0;
+    case 'UnaryExpression':
+      return node.operator === '-' && node.argument.kind === 'NumberLiteral';
+    default:
+      return false;
+  }
+}
+
+/** Expressions without side effects, which may be evaluated more than once. */
+export function isSimple(node: ast.Expression): boolean {
+  switch (node.kind) {
+    case 'Identifier':
+    case 'NumberLiteral':
+    case 'StringLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+    case 'ThisExpression':
+      return true;
+    case 'MemberExpression':
+      return isSimple(node.object);
+    default:
+      return false;
+  }
+}

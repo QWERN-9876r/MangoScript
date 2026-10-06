@@ -63,3 +63,17 @@ export function arrayPattern(elements: readonly string[]): string {
   while (end > 0 && elements[end - 1] === '') end--;
   return `[${elements.slice(0, end).join(', ')}]`;
 }
+
+/** A statement written at block level goes one level deeper into a function. */
+export function indentMore(text: string): string {
+  return text.replace(/\n/g, '\n  ');
+}
+
+/** `count` → `Count`, for generated names like `$$updateCount3`. */
+export function upperFirst(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+export function lowerFirst(name: string): string {
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
