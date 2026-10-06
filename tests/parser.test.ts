@@ -87,6 +87,8 @@ function sx(node: ast.Expression | ast.SpreadElement | ast.Property): string {
       return `(${node.optional ? '?.' : '.'} ${sx(node.object)} ${node.property.name})`;
     case 'IndexExpression':
       return `(${node.optional ? '?[]' : '[]'} ${sx(node.object)} ${sx(node.index)})`;
+    case 'ElementExpression':
+      return `<${node.tag?.name ?? ''}>`;
   }
 }
 

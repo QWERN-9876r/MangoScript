@@ -1,5 +1,6 @@
 import type * as ast from './ast.ts';
 import { check } from './checker/checker.ts';
+import type { Type } from './checker/types.ts';
 import { generateJs } from './codegen/js.ts';
 import type { Diagnostic } from './diagnostics.ts';
 import { loadModuleExports } from './modules.ts';
@@ -34,6 +35,7 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
   if (diagnostics.length > 0) return { code: '', diagnostics, dependencies: [] };
   const dependencies = mangoImports(program);
 
+  let types: WeakMap<ast.Expression, Type> | undefined;
   if (options.typeCheck ?? true) {
     const { filename } = options;
     const importModule = filename
@@ -43,9 +45,14 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
     if (checked.diagnostics.length > 0) {
       return { code: '', diagnostics: checked.diagnostics, dependencies };
     }
+    types = checked.types;
   }
 
-  const code = generateJs(program, { source, rewriteImports: options.rewriteImports ?? true });
+  const code = generateJs(program, {
+    source,
+    rewriteImports: options.rewriteImports ?? true,
+    types,
+  });
   return { code, diagnostics: [], dependencies };
 }
 

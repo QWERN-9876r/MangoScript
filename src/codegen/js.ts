@@ -1,7 +1,8 @@
 import type * as ast from '../ast.ts';
 import { declarationsOf } from './analysis.ts';
 import type { JsOptions } from './emitter.ts';
-import { FunctionEmitter, RUN_DEFERRED } from './functions.ts';
+import { FunctionEmitter } from './functions.ts';
+import { HELPERS } from './helpers.ts';
 
 export type { JsOptions } from './emitter.ts';
 
@@ -10,12 +11,15 @@ export function generateJs(program: ast.Program, options: JsOptions): string {
   return new JsGenerator(program, options).generate();
 }
 
-/** The whole module: its statements, plus the $$runDeferred helper when a function needs it. */
+/** The whole module: its statements, plus the helpers that its code needs. */
 class JsGenerator extends FunctionEmitter {
   generate(): string {
     this.withScope(declarationsOf(this.program.body), () => this.statements(this.program.body));
     let lines = this.lines;
-    if (this.usesRunDeferred) {
+    if (this.helpers.size > 0) {
+      const helpers = [...this.helpers]
+        .sort()
+        .flatMap((helper, i) => [...(i > 0 ? [''] : []), ...HELPERS[helper]]);
       let imports = 0;
       while (lines[imports]?.startsWith('import ')) imports++;
       const rest = lines.slice(imports);
@@ -23,7 +27,7 @@ class JsGenerator extends FunctionEmitter {
       lines = [
         ...lines.slice(0, imports),
         ...(imports > 0 ? [''] : []),
-        ...RUN_DEFERRED,
+        ...helpers,
         ...(rest.length > 0 ? [''] : []),
         ...rest,
       ];

@@ -171,6 +171,34 @@ function plural(count: number, word: string): string {
 }
 
 /** The text of a template part without its delimiters: "`" or "}" before it, "`" or "${" after it. */
+/**
+ * Whitespace in markup text as in JSX: lines are trimmed and joined with a space, and lines with
+ * only whitespace disappear. Text without line breaks is kept as it is.
+ */
+function cleanJsxText(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const kept: string[] = [];
+  lines.forEach((line, i) => {
+    let part = line.replace(/\t/g, ' ');
+    if (i > 0) part = part.trimStart();
+    if (i < lines.length - 1) part = part.trimEnd();
+    if (part !== '') kept.push(part);
+  });
+  return kept.join(' ');
+}
+
+/** In `on*` attributes, these are the handler itself rather than code to run. */
+function isHandlerReference(node: ast.Expression): boolean {
+  if (
+    node.kind === 'Identifier' ||
+    node.kind === 'ArrowFunction' ||
+    node.kind === 'FuncExpression'
+  ) {
+    return true;
+  }
+  return node.kind === 'MemberExpression' && !node.optional && isHandlerReference(node.object);
+}
+
 function templateElement(token: StringToken): ast.TemplateElement {
   const text = token.text;
   const end = text.endsWith('${') ? -2 : text.length > 1 && text.endsWith('`') ? -1 : text.length;
@@ -1273,6 +1301,8 @@ class Parser {
         return this.parseFuncExpression();
       case 'new':
         return this.parseNew();
+      case 'JsxTagOpen':
+        return this.parseJsxElement();
       default:
         if (RESERVED.has(token.kind)) this.fail(`"${token.text}" is reserved for future use`);
         return this.fail(`expected expression, found ${describe(token)}`);
@@ -1431,6 +1461,138 @@ class Parser {
     }
     this.next();
     return { kind: 'Identifier', name: token.text, start: token.start, end: token.end };
+  }
+
+  // ─── Markup ────────────────────────────────────────────────────────────────────────────────────
+
+  /** `<tag attributes>children</tag>`, `<tag ... />` or a fragment `<>children</>`. */
+  private parseJsxElement(): ast.ElementExpression {
+    const start = this.expect('JsxTagOpen').start;
+    const tag = this.check('JsxTagEnd') ? null : this.parseJsxName('tag name');
+    const attributes: (ast.JsxAttribute | ast.JsxSpreadAttribute)[] = [];
+    while (tag && !this.check('JsxTagEnd') && !this.check('JsxSelfClose')) {
+      attributes.push(this.parseJsxAttribute());
+    }
+    if (tag && this.accept('JsxSelfClose')) {
+      return { kind: 'ElementExpression', tag, attributes, children: [], ...this.span(start) };
+    }
+    this.expect('JsxTagEnd', tag ? '">" or "/>"' : '">"');
+
+    const children: ast.JsxChild[] = [];
+    while (!this.check('JsxCloseTagOpen')) {
+      const token = this.peek();
+      if (token.kind === 'JsxText') {
+        this.next();
+        const value = cleanJsxText(token.value);
+        if (value !== '')
+          children.push({ kind: 'JsxText', value, start: token.start, end: token.end });
+      } else if (token.kind === 'JsxTagOpen') {
+        children.push(this.parseJsxElement());
+      } else if (token.kind === '{') {
+        const container = this.parseJsxExpressionContainer();
+        if (container) children.push(container);
+      } else {
+        this.fail(`expected element content or a closing tag, found ${describe(token)}`);
+      }
+    }
+
+    // The closing tag must match the opening one.
+    const closeStart = this.expect('JsxCloseTagOpen').start;
+    const closing = this.check('JsxName') ? this.next().text : null;
+    if (closing !== (tag?.name ?? null)) {
+      this.failAt(
+        `expected </${tag?.name ?? ''}> to close <${tag?.name ?? ''}>`,
+        closeStart,
+        this.span(closeStart).end,
+      );
+    }
+    this.expect('JsxTagEnd');
+    return { kind: 'ElementExpression', tag, attributes, children, ...this.span(start) };
+  }
+
+  private parseJsxName(what: string): ast.Identifier {
+    const token = this.peek();
+    if (token.kind !== 'JsxName') this.fail(`expected ${what}, found ${describe(token)}`);
+    this.next();
+    return { kind: 'Identifier', name: token.text, start: token.start, end: token.end };
+  }
+
+  private parseJsxAttribute(): ast.JsxAttribute | ast.JsxSpreadAttribute {
+    const start = this.peek().start;
+    if (this.accept('{')) {
+      this.expect('...', '"..." (attributes in braces are spread: {...attrs})');
+      const argument = this.nested(() => this.parseExpression());
+      this.expect('}');
+      return { kind: 'JsxSpreadAttribute', argument, ...this.span(start) };
+    }
+    const name = this.parseJsxName('attribute name');
+    let value: ast.JsxAttribute['value'] = null;
+    if (this.accept('=')) {
+      const token = this.peek();
+      if (token.kind === 'JsxString') {
+        this.next();
+        // Attribute strings have no escapes, so the JS literal is built from the value.
+        value = {
+          kind: 'StringLiteral',
+          value: token.value,
+          raw: JSON.stringify(token.value),
+          start: token.start,
+          end: token.end,
+        };
+      } else if (token.kind === '{') {
+        this.next();
+        value = /^on[A-Z]/.test(name.name)
+          ? this.parseEventHandler()
+          : this.nested(() => this.parseExpression());
+        this.expect('}');
+      } else {
+        this.fail(`expected "..." or {...} after "${name.name}=", found ${describe(token)}`);
+      }
+    }
+    return { kind: 'JsxAttribute', name, value, ...this.span(start) };
+  }
+
+  /**
+   * The value of an `on*` attribute: a function is the handler itself; anything else is a list of
+   * statements to run on the event, e.g. `{count++}` or `{event.preventDefault(); send()}`.
+   */
+  private parseEventHandler(): ast.Expression | ast.EventHandler {
+    const start = this.peek().start;
+    const body: ast.SimpleStatement[] = [];
+    this.withContext(
+      { noObjectLiteral: false, inFunction: true, inLoop: false, inBreakable: false },
+      () => {
+        do {
+          if (this.check('}')) break;
+          body.push(this.parseSimpleStatement());
+        } while (this.accept(';'));
+      },
+    );
+    const [only] = body;
+    if (body.length === 1 && only?.kind === 'ExpressionStatement') {
+      if (isHandlerReference(only.expression)) return only.expression;
+    }
+    for (const statement of body) {
+      if (statement.kind !== 'ExpressionStatement') continue;
+      const { expression } = statement;
+      if (expression.kind !== 'CallExpression' && expression.kind !== 'NewExpression') {
+        this.error(
+          'this expression does nothing: only function calls can be used as statements',
+          expression.start,
+          expression.end,
+        );
+      }
+    }
+    return { kind: 'EventHandler', body, ...this.span(start) };
+  }
+
+  /** `{expression}` among element children; `null` for `{}` or `{/* comment *\/}`. */
+  private parseJsxExpressionContainer(): ast.JsxExpressionContainer | null {
+    const start = this.expect('{').start;
+    if (this.accept('}')) return null;
+    const expression = this.nested(() => this.parseExpression());
+    this.expect('}');
+    return { kind: 'JsxExpressionContainer', expression, ...this.span(start) };
   }
 
   private parseStringLiteral(what = 'string'): ast.StringLiteral {

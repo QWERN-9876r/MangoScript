@@ -1,6 +1,8 @@
 import type * as ast from '../ast.ts';
+import type { Type } from '../checker/types.ts';
 import { assignedNames } from '../walk.ts';
 import { collectValueNames, type BindingKind } from './analysis.ts';
+import type { Helper } from './helpers.ts';
 import { JS_RESERVED, JS_UNDECLARABLE } from './syntax.ts';
 
 export interface JsOptions {
@@ -8,6 +10,8 @@ export interface JsOptions {
   source: string;
   /** Replace `.mango` with `.js` in relative import paths, for output written next to the sources. */
   rewriteImports: boolean;
+  /** Types from the checker, when it ran; without them the generated code is more general. */
+  types?: WeakMap<ast.Expression, Type> | undefined;
 }
 
 /** How a function implements its `defer` statements. */
@@ -40,8 +44,14 @@ export abstract class Emitter {
 
   private readonly scopes: Map<string, BindingKind>[] = [];
   protected fn: FunctionContext = { deferMode: 'none', temps: 0, breakTargets: [] };
-  /** Some function uses $$runDeferred, so the module must define it. */
-  protected usesRunDeferred = false;
+  /** Helpers that the module must define, such as $$runDeferred. */
+  protected readonly helpers = new Set<Helper>();
+  /**
+   * Whether code for the current expression may be written before the statement that contains it.
+   * Elements use this to be created in statements of their own; it is off where an expression is
+   * not always evaluated exactly once (branches of `?:`, loop conditions and so on).
+   */
+  protected hoist = false;
 
   /** Top-level `type` aliases, to find the zero value of `let id ID`. */
   protected readonly typeAliases = new Map<string, ast.TypeNode>();
@@ -157,6 +167,21 @@ export abstract class Emitter {
     } finally {
       this.fn = saved;
     }
+  }
+
+  protected withHoisting<T>(hoist: boolean, emit: () => T): T {
+    const saved = this.hoist;
+    this.hoist = hoist;
+    try {
+      return emit();
+    } finally {
+      this.hoist = saved;
+    }
+  }
+
+  /** A fresh temporary name: `$$0`, `$$1`, ... */
+  protected temp(): string {
+    return `$$${this.fn.temps++}`;
   }
 
   protected withBreakTarget<T>(label: string | null, emit: () => T): T {

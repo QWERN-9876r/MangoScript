@@ -101,12 +101,28 @@ export type Punctuator = (typeof PUNCTUATORS)[number];
 /**
  * Token kinds whose `value` holds string contents. Template literals are split around
  * substitutions: `a${x}b${y}c` becomes TemplateHead("a") x TemplateMiddle("b") y TemplateTail("c"),
- * and a template without substitutions is a single Template token.
+ * and a template without substitutions is a single Template token. In markup, JsxText is the text
+ * between tags and JsxString an attribute value in quotes; both have HTML entities decoded.
  */
-export type StringKind = 'String' | 'Template' | 'TemplateHead' | 'TemplateMiddle' | 'TemplateTail';
+export type StringKind =
+  | 'String'
+  | 'Template'
+  | 'TemplateHead'
+  | 'TemplateMiddle'
+  | 'TemplateTail'
+  | 'JsxText'
+  | 'JsxString';
+
+/**
+ * Tokens of markup such as `<a href="/">text</a>`: JsxTagOpen `<`, JsxCloseTagOpen `</`, JsxName
+ * (tag and attribute names, which may contain `-` and `:`), JsxTagEnd `>` and JsxSelfClose `/>`.
+ * Expressions inside markup use the ordinary `{`, `}` and `=` tokens.
+ */
+export type JsxKind = 'JsxTagOpen' | 'JsxCloseTagOpen' | 'JsxName' | 'JsxTagEnd' | 'JsxSelfClose';
 
 /** Keywords and punctuators use their own text as the kind, e.g. `func` or `+=`. */
-export type TokenKind = 'Identifier' | 'Number' | StringKind | 'EOF' | Keyword | Punctuator;
+export type TokenKind =
+  'Identifier' | 'Number' | StringKind | JsxKind | 'EOF' | Keyword | Punctuator;
 
 interface TokenBase {
   /** Source text. Empty for automatically inserted semicolons and EOF. */

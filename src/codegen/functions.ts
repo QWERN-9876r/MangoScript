@@ -1,26 +1,11 @@
 import type * as ast from '../ast.ts';
 import { declarationsOf, findDefers } from './analysis.ts';
 import type { DeferMode } from './emitter.ts';
-import { StatementEmitter } from './statements.ts';
+import { ElementEmitter } from './elements.ts';
 import { ARROW, POSTFIX } from './syntax.ts';
 
-/** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
-export const RUN_DEFERRED = [
-  'function $$runDeferred(deferred) {',
-  '  let failure;',
-  '  for (let i = deferred.length - 1; i >= 0; i--) {',
-  '    try {',
-  '      deferred[i]();',
-  '    } catch (error) {',
-  '      failure = { error };',
-  '    }',
-  '  }',
-  '  if (failure) throw failure.error;',
-  '}',
-];
-
 /** Function bodies and `defer`. */
-export abstract class FunctionEmitter extends StatementEmitter {
+export abstract class FunctionEmitter extends ElementEmitter {
   /** Parameters and body of a function, method or func literal. */
   protected override func(params: ast.Parameter[], body: ast.BlockStatement): [string, string] {
     const defers = findDefers(body);
@@ -38,7 +23,7 @@ export abstract class FunctionEmitter extends StatementEmitter {
           if (mode === 'try') {
             this.statementsWithDefers(body.body);
           } else if (mode === 'stack') {
-            this.usesRunDeferred = true;
+            this.helpers.add('runDeferred');
             this.line('const $$defer = [];');
             const statements = this.block(() => this.statements(body.body));
             const finalizer = this.block(() => this.line('$$runDeferred($$defer);'));
@@ -122,7 +107,7 @@ export abstract class FunctionEmitter extends StatementEmitter {
   /** The expression itself if its value cannot change before the deferred call runs. */
   private stable(node: ast.Expression, precedence: number): string {
     if (this.isStable(node)) return this.expression(node, precedence);
-    const temp = `$$${this.fn.temps++}`;
+    const temp = this.temp();
     this.line(`const ${temp} = ${this.expression(node, ARROW)};`);
     return temp;
   }

@@ -12,6 +12,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   /** A `defer` inside an if/loop/switch; implemented by FunctionEmitter. */
   protected abstract deferStatement(node: ast.DeferStatement): void;
 
+  /** `const link = <a>...</a>`: creates the element right in the variable; see ElementEmitter. */
+  protected abstract elementDeclaration(declaration: string, node: ast.ElementExpression): void;
+
   protected statements(list: readonly ast.Statement[]): void {
     let previous: ast.Statement | undefined;
     for (const statement of list) {
@@ -34,6 +37,10 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   }
 
   private statement(node: ast.Statement): void {
+    this.withHoisting(true, () => this.emitStatement(node));
+  }
+
+  private emitStatement(node: ast.Statement): void {
     switch (node.kind) {
       case 'ImportDeclaration':
         this.importDeclaration(node);
@@ -44,7 +51,14 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         this.line(`${exported}function ${this.name(node.name.name)}(${params}) ${body}`);
         break;
       }
-      case 'VariableDeclaration':
+      case 'VariableDeclaration': {
+        const [name] = node.names;
+        const [value] = node.values;
+        if (node.names.length === 1 && value?.kind === 'ElementExpression' && name?.name !== '_') {
+          const exported = node.exported ? 'export ' : '';
+          this.elementDeclaration(`${exported}${node.keyword} ${this.name(name!.name)}`, value);
+          break;
+        }
         if (node.names.every((name) => name.name === '_') && !node.exported) {
           // `const _ = f()` only evaluates the values.
           for (const value of node.values) this.line(`${this.expressionStatement(value)};`);
@@ -52,6 +66,7 @@ export abstract class StatementEmitter extends ExpressionEmitter {
           this.line(`${node.exported ? 'export ' : ''}${this.variableDeclaration(node)};`);
         }
         break;
+      }
       case 'ClassDeclaration':
         this.classDeclaration(node);
         break;
@@ -185,7 +200,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   private ifStatement(node: ast.IfStatement): string {
     let text = `if (${this.expression(node.condition, 0)}) ${this.blockStatement(node.consequent)}`;
     if (node.alternate?.kind === 'IfStatement') {
-      text += ` else ${this.ifStatement(node.alternate)}`;
+      // The condition of `else if` is evaluated only when the first one is false.
+      const alternate = node.alternate;
+      text += ` else ${this.withHoisting(false, () => this.ifStatement(alternate))}`;
     } else if (node.alternate) {
       text += ` else ${this.blockStatement(node.alternate)}`;
     }
@@ -202,13 +219,16 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         ? node.init.names.map((name): [string, BindingKind] => [name.name, 'let'])
         : [];
     this.withScope(bindings, () => {
-      const condition = node.condition ? this.expression(node.condition, 0) : '';
+      const init = node.init ? this.simpleStatement(node.init) : '';
+      // The condition and the update run on every iteration.
+      const [condition, update] = this.withHoisting(false, () => [
+        node.condition ? this.expression(node.condition, 0) : '',
+        node.update ? this.simpleStatement(node.update) : '',
+      ]);
       if (node.init === null && node.update === null) {
         this.line(`while (${condition || 'true'}) ${this.loopBody(node.body)}`);
         return;
       }
-      const init = node.init ? this.simpleStatement(node.init) : '';
-      const update = node.update ? this.simpleStatement(node.update) : '';
       this.line(`for (${init}; ${condition}; ${update}) ${this.loopBody(node.body)}`);
     });
   }
@@ -251,10 +271,13 @@ export abstract class StatementEmitter extends ExpressionEmitter {
     const body = this.withBreakTarget(null, () =>
       this.block(() => {
         node.cases.forEach((switchCase, i) => {
+          // Case values are evaluated only until one matches.
           const labels =
             switchCase.tests.length === 0
               ? ['default:']
-              : switchCase.tests.map((test) => `case ${this.expression(test, 0)}:`);
+              : this.withHoisting(false, () =>
+                  switchCase.tests.map((test) => `case ${this.expression(test, 0)}:`),
+                );
           for (const label of labels.slice(0, -1)) this.line(label);
 
           const isLast = i === node.cases.length - 1;
@@ -291,10 +314,12 @@ export abstract class StatementEmitter extends ExpressionEmitter {
     const text = this.withBreakTarget(label, () => {
       const caseBlock = (body: ast.Statement[]) => this.block(() => this.blockStatements(body));
       const branches = cases.map((switchCase) => {
-        const condition =
+        // Later conditions are evaluated only if the earlier ones are false.
+        const condition = this.withHoisting(false, () =>
           switchCase.tests.length === 1
             ? this.expression(switchCase.tests[0]!, 0)
-            : switchCase.tests.map((test) => this.expression(test, BINARY['||'] + 1)).join(' || ');
+            : switchCase.tests.map((test) => this.expression(test, BINARY['||'] + 1)).join(' || '),
+        );
         return `if (${condition}) ${caseBlock(switchCase.body)}`;
       });
       if (fallback) branches.push(caseBlock(fallback.body));
@@ -380,8 +405,10 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   private classMember(member: ast.ClassMember): void {
     switch (member.kind) {
       case 'FieldDeclaration': {
-        const value = member.value
-          ? this.expression(member.value, ARROW)
+        // Field values are part of the class body, where no statements can go.
+        const fieldValue = member.value;
+        const value = fieldValue
+          ? this.withHoisting(false, () => this.expression(fieldValue, ARROW))
           : member.type
             ? this.zeroValue(member.type)
             : null;

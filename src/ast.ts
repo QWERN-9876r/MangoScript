@@ -323,7 +323,8 @@ export type Expression =
   | CallExpression
   | NewExpression
   | MemberExpression
-  | IndexExpression;
+  | IndexExpression
+  | ElementExpression;
 
 export interface Identifier extends NodeBase {
   kind: 'Identifier';
@@ -498,6 +499,54 @@ export interface IndexExpression extends NodeBase {
   optional: boolean;
 }
 
+// ─── Markup ──────────────────────────────────────────────────────────────────────────────────────
+
+/** `<a href="/">Ссылка {name}</a>`: creates a DOM element. `tag` is `null` for a fragment `<>...</>`. */
+export interface ElementExpression extends NodeBase {
+  kind: 'ElementExpression';
+  /** The tag name as written: `div`, `my-widget`. */
+  tag: Identifier | null;
+  attributes: (JsxAttribute | JsxSpreadAttribute)[];
+  children: JsxChild[];
+}
+
+export type JsxChild = JsxText | JsxExpressionContainer | ElementExpression;
+
+/** Text between tags, with whitespace already cleaned up as in JSX. */
+export interface JsxText extends NodeBase {
+  kind: 'JsxText';
+  value: string;
+}
+
+/** `{expression}` among the children. Empty ones (`{/* comment *\/}`) are left out. */
+export interface JsxExpressionContainer extends NodeBase {
+  kind: 'JsxExpressionContainer';
+  expression: Expression;
+}
+
+/**
+ * `href="/"`, `href={url}` or just `disabled` (then `value` is `null`). Attributes `on*` hold an
+ * EventHandler, unless they are given a function (a name, `obj.method` or a function literal).
+ */
+export interface JsxAttribute extends NodeBase {
+  kind: 'JsxAttribute';
+  /** The attribute name as written: `class`, `data-id`, `onClick`. */
+  name: Identifier;
+  value: StringLiteral | Expression | EventHandler | null;
+}
+
+/** `{...attrs}` */
+export interface JsxSpreadAttribute extends NodeBase {
+  kind: 'JsxSpreadAttribute';
+  argument: Expression;
+}
+
+/** `onClick={count++}`: statements that run when the event happens, with `event` available. */
+export interface EventHandler extends NodeBase {
+  kind: 'EventHandler';
+  body: SimpleStatement[];
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────────────────────────
 
 export type TypeNode = TypeReference | ArrayType | NullableType | FuncType | ObjectType;
@@ -566,6 +615,11 @@ export type Node =
   | CatchClause
   | Property
   | SpreadElement
-  | TemplateElement;
+  | TemplateElement
+  | JsxText
+  | JsxExpressionContainer
+  | JsxAttribute
+  | JsxSpreadAttribute
+  | EventHandler;
 
 export type NodeKind = Node['kind'];

@@ -1,4 +1,5 @@
-// Страница: связывает модель с DOM. Объекты браузера (document и т. п.) имеют тип any.
+// Страница: связывает модель с DOM. Элементы списка создаются разметкой; объекты браузера
+// (document и т. п.) имеют тип any.
 
 import { Todo, TodoList, parseTitle } from "./todos.mango"
 import { load, save } from "./storage.mango"
@@ -36,31 +37,12 @@ func render() {
     save(todos.all())
 }
 
-func renderItem(todo Todo) any {
-    const item = document.createElement("li")
-    item.className = todo.done ? "todo done" : "todo"
-
-    const checkbox = document.createElement("input")
-    checkbox.type = "checkbox"
-    checkbox.checked = todo.done
-    checkbox.addEventListener("change", () => {
-        todos.toggle(todo.id)
-        render()
-    })
-
-    const title = document.createElement("span")
-    title.textContent = todo.title
-
-    const remove = document.createElement("button")
-    remove.textContent = "×"
-    remove.title = "Удалить"
-    remove.addEventListener("click", () => {
-        todos.remove(todo.id)
-        render()
-    })
-
-    item.append(checkbox, title, remove)
-    return item
+func renderItem(todo Todo) HTMLLIElement {
+    return <li class={todo.done ? "todo done" : "todo"}>
+        <input type="checkbox" checked={todo.done} onChange={todos.toggle(todo.id); render()} />
+        <span>{todo.title}</span>
+        <button title="Удалить" onClick={todos.remove(todo.id); render()}>×</button>
+    </li>
 }
 
 form.addEventListener("submit", event => {

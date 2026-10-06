@@ -1,5 +1,5 @@
 import type * as ast from '../ast.ts';
-import { startsWithObjectLiteral } from './analysis.ts';
+import { containsElement, hasOptionalLink, startsWithObjectLiteral } from './analysis.ts';
 import { Emitter } from './emitter.ts';
 import { ARROW, BINARY, CONDITIONAL, POSTFIX, PRIMARY, UNARY } from './syntax.ts';
 
@@ -7,6 +7,9 @@ import { ARROW, BINARY, CONDITIONAL, POSTFIX, PRIMARY, UNARY } from './syntax.ts
 export abstract class ExpressionEmitter extends Emitter {
   /** Parameters and body of a function; implemented by FunctionEmitter. */
   protected abstract func(params: ast.Parameter[], body: ast.BlockStatement): [string, string];
+
+  /** Code that creates an element, as an expression; implemented by ElementEmitter. */
+  protected abstract element(node: ast.ElementExpression): string;
 
   /** The expression, in parentheses if it binds weaker than `minPrecedence`. */
   protected expression(node: ast.Expression, minPrecedence: number, forceParens = false): string {
@@ -61,8 +64,11 @@ export abstract class ExpressionEmitter extends Emitter {
         return [this.binary(node), BINARY[node.operator]];
       case 'ConditionalExpression': {
         const test = this.expression(node.test, CONDITIONAL + 1);
-        const consequent = this.expression(node.consequent, ARROW);
-        const alternate = this.expression(node.alternate, ARROW);
+        // Only one branch runs, so neither may create elements in advance.
+        const [consequent, alternate] = this.withHoisting(false, () => [
+          this.expression(node.consequent, ARROW),
+          this.expression(node.alternate, ARROW),
+        ]);
         return [`${test} ? ${consequent} : ${alternate}`, CONDITIONAL];
       }
       case 'CallExpression':
@@ -78,11 +84,15 @@ export abstract class ExpressionEmitter extends Emitter {
         const index = this.expression(node.index, 0);
         return [`${object}${node.optional ? '?.[' : '['}${index}]`, POSTFIX];
       }
+      case 'ElementExpression':
+        return [this.element(node), POSTFIX];
     }
   }
 
   private call(node: ast.CallExpression): string {
-    const args = this.elements(node.arguments);
+    // After `?.` the arguments may not be evaluated at all.
+    const conditional = node.optional || hasOptionalLink(node.callee);
+    const args = this.withHoisting(this.hoist && !conditional, () => this.elements(node.arguments));
     if (this.isBuiltinError(node.callee) && !node.optional) return `new Error(${args})`;
     return `${this.expression(node.callee, POSTFIX)}${node.optional ? '?.' : ''}(${args})`;
   }
@@ -148,6 +158,13 @@ export abstract class ExpressionEmitter extends Emitter {
     }
     return this.withFunction('none', node.params, () => {
       const params = this.params(node.params);
+      if (containsElement(body)) {
+        // Elements are created by statements, so the body becomes a block.
+        const block = this.withHoisting(true, () =>
+          this.block(() => this.line(`return ${this.expression(body, 0)};`)),
+        );
+        return `(${params}) => ${block}`;
+      }
       // `() => ({ ... })`: a body starting with `{` would be read as a block.
       const text = this.expression(body, ARROW, startsWithObjectLiteral(body));
       return `(${params}) => ${text}`;
@@ -179,10 +196,14 @@ export abstract class ExpressionEmitter extends Emitter {
       rightAssociative ? precedence + 1 : precedence,
       (operator === '**' && node.left.kind === 'UnaryExpression') || nullishMix(node.left),
     );
-    const right = this.expression(
-      node.right,
-      rightAssociative ? precedence : precedence + 1,
-      nullishMix(node.right),
+    // The right side of `&&`, `||` and `??` may not be evaluated.
+    const shortCircuits = operator === '&&' || operator === '||' || operator === '??';
+    const right = this.withHoisting(this.hoist && !shortCircuits, () =>
+      this.expression(
+        node.right,
+        rightAssociative ? precedence : precedence + 1,
+        nullishMix(node.right),
+      ),
     );
 
     let jsOperator: string = operator;

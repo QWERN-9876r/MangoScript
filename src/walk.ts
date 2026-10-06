@@ -169,6 +169,24 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       visit(node.object);
       visit(node.index);
       break;
+    case 'ElementExpression':
+      optional(node.tag);
+      each(node.attributes);
+      each(node.children);
+      break;
+    case 'JsxExpressionContainer':
+      visit(node.expression);
+      break;
+    case 'JsxAttribute':
+      visit(node.name);
+      optional(node.value);
+      break;
+    case 'JsxSpreadAttribute':
+      visit(node.argument);
+      break;
+    case 'EventHandler':
+      each(node.body);
+      break;
     case 'TypeReference':
       visit(node.name);
       break;
@@ -196,6 +214,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       break;
     case 'BreakStatement':
     case 'ContinueStatement':
+    case 'JsxText':
     case 'Identifier':
     case 'NumberLiteral':
     case 'StringLiteral':

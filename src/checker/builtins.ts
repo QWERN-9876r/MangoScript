@@ -1,3 +1,4 @@
+import { DOM_TYPES, EVENT } from './dom.ts';
 import {
   ANY,
   arrayOf,
@@ -308,4 +309,6 @@ export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['error', ERROR],
   ['Error', ERROR_CLASS.instance],
   ...['Date', 'RegExp', 'Map', 'Set', 'Promise', 'URL'].map((name): [string, Type] => [name, ANY]),
+  ...DOM_TYPES,
+  ['Event', EVENT],
 ]);

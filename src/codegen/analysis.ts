@@ -55,6 +55,35 @@ export function findDefers(body: ast.BlockStatement): ast.DeferStatement[] {
   return defers;
 }
 
+/** Whether markup appears in an expression, not counting nested functions (they handle theirs). */
+export function containsElement(node: ast.Node): boolean {
+  let found = false;
+  const visit = (child: ast.Node): void => {
+    if (found) return;
+    if (child.kind === 'ElementExpression') {
+      found = true;
+      return;
+    }
+    if (child.kind === 'FuncExpression' || child.kind === 'ArrowFunction') return;
+    forEachChild(child, visit);
+  };
+  visit(node);
+  return found;
+}
+
+/** Whether a member chain has `?.` somewhere: then the rest of it may not be evaluated. */
+export function hasOptionalLink(node: ast.Expression): boolean {
+  switch (node.kind) {
+    case 'MemberExpression':
+    case 'IndexExpression':
+      return node.optional || hasOptionalLink(node.object);
+    case 'CallExpression':
+      return node.optional || hasOptionalLink(node.callee);
+    default:
+      return false;
+  }
+}
+
 export function endsWithJump(statements: readonly ast.Statement[]): boolean {
   const kind = statements.at(-1)?.kind;
   return (

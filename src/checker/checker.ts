@@ -9,6 +9,7 @@ import {
   numberMember,
   stringMember,
 } from './builtins.ts';
+import { DOCUMENT_FRAGMENT, domProperty, elementType, eventType, NODE } from './dom.ts';
 import {
   ANY,
   arrayOf,
@@ -63,6 +64,8 @@ export interface CheckOptions {
 export interface CheckResult {
   diagnostics: Diagnostic[];
   exports: ModuleExports;
+  /** Types of checked expressions, for code generation (e.g. how to insert element children). */
+  types: WeakMap<ast.Expression, Type>;
 }
 
 export function check(program: ast.Program, options: CheckOptions = {}): CheckResult {
@@ -153,7 +156,11 @@ class Checker {
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
     this.diagnostics.sort((a, b) => a.start - b.start);
-    return { diagnostics: this.diagnostics, exports: this.collectExports() };
+    return {
+      diagnostics: this.diagnostics,
+      exports: this.collectExports(),
+      types: this.checkedTypes,
+    };
   }
 
   // ─── Diagnostics ───────────────────────────────────────────────────────────────────────────────
@@ -1298,6 +1305,8 @@ class Checker {
         return this.checkConditional(node, expected);
       case 'NewExpression':
         return this.checkNew(node);
+      case 'ElementExpression':
+        return this.checkElement(node);
       case 'MemberExpression':
       case 'IndexExpression':
       case 'CallExpression': {
@@ -1594,6 +1603,117 @@ class Checker {
     return UNKNOWN;
   }
 
+  // ─── Markup ────────────────────────────────────────────────────────────────────────────────────
+
+  private checkElement(node: ast.ElementExpression): Type {
+    if (node.tag && /^[A-Z]/.test(node.tag.name)) {
+      this.error('components (<Counter />) are not supported yet', node.tag);
+      return UNKNOWN;
+    }
+    const tag = node.tag?.name ?? null;
+    const type = tag === null ? DOCUMENT_FRAGMENT : elementType(tag);
+    for (const attribute of node.attributes) {
+      if (attribute.kind === 'JsxSpreadAttribute') {
+        const spread = this.checkValue(attribute.argument);
+        if (!isUntyped(spread) && spread.kind !== 'object') {
+          this.error(`cannot spread ${typeToString(spread)} into attributes`, attribute.argument);
+        }
+      } else if (tag !== null) {
+        this.checkAttribute(attribute, tag, type);
+      }
+    }
+    for (const child of node.children) {
+      if (child.kind === 'JsxText') continue;
+      if (child.kind === 'ElementExpression') {
+        this.checkExpression(child, null);
+        continue;
+      }
+      const content = this.checkValue(child.expression);
+      if (!isContent(content)) {
+        this.error(
+          `cannot use ${typeToString(content)} as element content` +
+            (content.kind === 'bool' ? ': use a condition, e.g. {ok ? <b>yes</b> : null}' : ''),
+          child.expression,
+        );
+      }
+    }
+    return type;
+  }
+
+  private checkAttribute(attribute: ast.JsxAttribute, tag: string, element: Type): void {
+    const name = attribute.name.name;
+    const { value } = attribute;
+    if (name.startsWith('bind:')) {
+      this.error('bind: needs component state, which is not supported yet', attribute.name);
+      return;
+    }
+    if (/^on[A-Z]/.test(name)) {
+      this.checkEventAttribute(attribute, eventType(element));
+      return;
+    }
+    if (value?.kind === 'EventHandler') return;
+    const valueType =
+      value === null ? BOOL : value.kind === 'StringLiteral' ? STRING : this.checkValue(value);
+
+    if (name === 'style') {
+      if (!isUntyped(valueType) && valueType.kind !== 'string' && valueType.kind !== 'object') {
+        this.error(
+          `style must be a string or an object, not ${typeToString(valueType)}`,
+          attribute,
+        );
+      }
+      return;
+    }
+    // `<a download>` without a value sets an empty attribute, whatever the property type is.
+    if (value === null) return;
+    const property = domProperty(tag, name);
+    if (property) {
+      this.expectAssignable(valueType, property.type, value, ` for attribute "${name}"`);
+    } else if (!isAttributeValue(valueType)) {
+      this.error(
+        `attribute "${name}" needs a string, number or bool, not ${typeToString(valueType)}`,
+        value,
+      );
+    }
+  }
+
+  /** `onClick={...}`: code to run on the event, or a function that gets the event. */
+  private checkEventAttribute(attribute: ast.JsxAttribute, event: Type): void {
+    const name = attribute.name.name;
+    const { value } = attribute;
+    if (value === null || value.kind === 'StringLiteral') {
+      this.error(`"${name}" needs code or a function in braces, e.g. ${name}={save()}`, attribute);
+    } else if (value.kind === 'EventHandler') {
+      this.checkEventHandler(value, event);
+    } else {
+      const handler = func([event], []);
+      const type = this.checkValue(value, handler);
+      this.expectAssignable(type, handler, value, ` as the "${name}" handler`);
+    }
+  }
+
+  /** The statements of `onClick={count++}`, with `event` declared. */
+  private checkEventHandler(handler: ast.EventHandler, event: Type): void {
+    const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
+    this.scope = new Scope(this.scope);
+    this.flow = this.stableFlow();
+    this.fn = { results: [], returns: [], isConstructor: false };
+    try {
+      const name: ast.Identifier = {
+        kind: 'Identifier',
+        name: 'event',
+        start: handler.start,
+        end: handler.start,
+      };
+      this.declareValue(name, 'param', event);
+      for (const statement of handler.body) this.checkStatement(statement);
+    } finally {
+      this.scope = saved.scope;
+      this.flow = saved.flow;
+      this.fn = saved.fn;
+    }
+  }
+
   // ─── Member access and calls ───────────────────────────────────────────────────────────────────
 
   /**
@@ -1838,6 +1958,41 @@ class Checker {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────────────────────
+
+/** Values that can be element children: text, numbers, nodes, lists of them, or null. */
+function isContent(type: Type): boolean {
+  switch (type.kind) {
+    case 'string':
+    case 'number':
+    case 'any':
+    case 'unknown':
+    case 'never':
+    case 'null':
+      return true;
+    case 'nullable':
+      return isContent(type.type);
+    case 'array':
+      return isContent(type.element);
+    case 'object':
+    case 'class':
+      return isAssignable(type, NODE);
+    default:
+      return false;
+  }
+}
+
+/** Values that setAttribute accepts: text, numbers, bools, or null to leave it out. */
+function isAttributeValue(type: Type): boolean {
+  const value = nonNull(type);
+  return (
+    isUntyped(value) ||
+    value.kind === 'string' ||
+    value.kind === 'number' ||
+    value.kind === 'bool' ||
+    value.kind === 'null' ||
+    value.kind === 'never'
+  );
+}
 
 function isUntyped(type: Type): boolean {
   return type.kind === 'any' || type.kind === 'unknown';

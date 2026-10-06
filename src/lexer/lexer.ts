@@ -33,7 +33,64 @@ const ENDS_STATEMENT: ReadonlySet<TokenKind> = new Set<TokenKind>([
   ')',
   ']',
   '}',
+  'JsxTagEnd',
+  'JsxSelfClose',
 ]);
+
+/**
+ * Tokens that end a value: after them `<` means "less than", elsewhere it starts markup. The
+ * language has no `<...>` generics or casts, so this is never ambiguous.
+ */
+const ENDS_VALUE: ReadonlySet<TokenKind> = new Set<TokenKind>([
+  'Identifier',
+  'Number',
+  'String',
+  'Template',
+  'TemplateTail',
+  'true',
+  'false',
+  'null',
+  'this',
+  'super',
+  '++',
+  '--',
+  ')',
+  ']',
+  '}',
+  'JsxTagEnd',
+  'JsxSelfClose',
+]);
+
+/** Tag and attribute names: `div`, `my-widget`, `aria-label`, `bind:value`. */
+const JSX_NAME = /[\p{ID_Start}$_][\p{ID_Continue}$\-:.]*/uy;
+
+const ENTITIES: Readonly<Record<string, string>> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: '\u00a0',
+  copy: '©',
+  times: '×',
+  middot: '·',
+  hellip: '…',
+  mdash: '—',
+  ndash: '–',
+  laquo: '«',
+  raquo: '»',
+};
+
+/** Decodes HTML entities in markup text: `&amp;`, `&#169;`, `&#xA9;`. */
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);/g, (entity, name: string) => {
+    if (name.startsWith('#')) {
+      const code = name[1] === 'x' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+      return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+    }
+    return Object.hasOwn(ENTITIES, name) ? ENTITIES[name]! : entity;
+  });
+}
 
 const IDENTIFIER = /[\p{ID_Start}$_][\p{ID_Continue}$‌‍]*/uy;
 
@@ -59,11 +116,23 @@ const isHexDigit: CharTest = (c) => c !== undefined && /^[0-9a-fA-F]$/.test(c);
 const isOctalDigit: CharTest = (c) => c !== undefined && c >= '0' && c <= '7';
 const isBinaryDigit: CharTest = (c) => c === '0' || c === '1';
 
-interface OpenTemplate {
-  /** Offset of the opening backtick, for error messages. */
-  start: number;
-  /** Number of unclosed `{` inside the current substitution. */
-  braces: number;
+/**
+ * What the lexer is inside of, innermost last. `start` is where the template or element begins,
+ * for error messages; `braces` counts unclosed `{` inside a substitution or expression.
+ */
+type Mode =
+  | { kind: 'template'; start: number; braces: number }
+  // `{ ... }` inside markup: an attribute value, a spread or a child expression.
+  | { kind: 'expression'; braces: number }
+  // `<tag attributes`, element content between the tags, and `</tag`.
+  | { kind: 'tag'; start: number }
+  | { kind: 'content'; start: number }
+  | { kind: 'closingTag'; start: number };
+
+type MarkupMode = Extract<Mode, { kind: 'tag' | 'content' | 'closingTag' }>;
+
+function isMarkup(mode: Mode | undefined): mode is MarkupMode {
+  return mode?.kind === 'tag' || mode?.kind === 'content' || mode?.kind === 'closingTag';
 }
 
 class Lexer {
@@ -71,8 +140,7 @@ class Lexer {
   private pos = 0;
   private readonly tokens: Token[] = [];
   private readonly diagnostics: Diagnostic[] = [];
-  /** Templates whose `${ ... }` substitution we are inside, innermost last. */
-  private readonly templates: OpenTemplate[] = [];
+  private readonly modes: Mode[] = [];
 
   constructor(text: string) {
     this.text = text;
@@ -81,6 +149,14 @@ class Lexer {
   run(): LexResult {
     if (this.text.startsWith('﻿')) this.pos = 1;
     for (;;) {
+      const mode = this.modes.at(-1);
+      if (isMarkup(mode)) {
+        // Markup has its own rules for whitespace and no automatic semicolons.
+        if (this.pos >= this.text.length) break;
+        if (mode.kind === 'content') this.scanContent(mode);
+        else this.scanTag(mode);
+        continue;
+      }
       const sawNewline = this.skipTrivia();
       if (sawNewline && this.lastEndsStatement() && !this.nextLineContinues()) {
         this.insertSemicolon();
@@ -89,9 +165,14 @@ class Lexer {
       this.scanToken();
     }
     if (this.lastEndsStatement()) this.insertSemicolon();
-    for (const template of this.templates) {
-      this.error('unterminated template literal', template.start, template.start + 1);
+    for (const mode of this.modes) {
+      if (mode.kind === 'template') {
+        this.error('unterminated template literal', mode.start, mode.start + 1);
+      }
     }
+    // Nested elements are inside the first one, so it is enough to report that.
+    const element = this.modes.find(isMarkup);
+    if (element) this.error('unterminated element', element.start, element.start + 1);
     this.tokens.push({ kind: 'EOF', text: '', start: this.pos, end: this.pos });
     this.diagnostics.sort((a, b) => a.start - b.start);
     return { tokens: this.tokens, diagnostics: this.diagnostics };
@@ -163,8 +244,15 @@ class Lexer {
       this.scanString(start, c);
     } else if (c === '`') {
       this.scanTemplate(start, false);
-    } else if (c === '}' && this.templates.at(-1)?.braces === 0) {
+    } else if (c === '}' && this.top()?.kind === 'template' && this.braces() === 0) {
       this.scanTemplate(start, true);
+    } else if (c === '}' && this.top()?.kind === 'expression' && this.braces() === 0) {
+      // The end of `{ ... }` inside markup: back to the tag or the element content.
+      this.push('}', start, start + 1);
+      this.modes.pop();
+    } else if (c === '<' && this.startsElement()) {
+      this.push('JsxTagOpen', start, start + 1);
+      this.modes.push({ kind: 'tag', start });
     } else if (!this.scanWord(start) && !this.scanPunctuator(start)) {
       const char = String.fromCodePoint(t.codePointAt(start) ?? 0);
       this.error(`unexpected character "${char}"`, start, start + char.length);
@@ -207,9 +295,11 @@ class Lexer {
       if (!isPunctuator(candidate) || (candidate === '?.' && isDigit(t[start + 2]))) continue;
       this.pos = start + length;
       this.tokens.push({ kind: candidate, text: candidate, start, end: this.pos });
-      const template = this.templates.at(-1);
-      if (template && candidate === '{') template.braces++;
-      if (template && candidate === '}') template.braces--;
+      const top = this.top();
+      if (top?.kind === 'template' || top?.kind === 'expression') {
+        if (candidate === '{') top.braces++;
+        if (candidate === '}') top.braces--;
+      }
       return true;
     }
     return false;
@@ -326,24 +416,21 @@ class Lexer {
     for (;;) {
       const c = t[pos];
       if (c === undefined) {
-        const template = continued ? this.templates.pop() : undefined;
-        this.error(
-          'unterminated template literal',
-          template?.start ?? start,
-          (template?.start ?? start) + 1,
-        );
+        const template = continued ? this.modes.pop() : undefined;
+        const templateStart = template?.kind === 'template' ? template.start : start;
+        this.error('unterminated template literal', templateStart, templateStart + 1);
         kind = continued ? 'TemplateTail' : 'Template';
         break;
       }
       if (c === '`') {
         pos++;
-        if (continued) this.templates.pop();
+        if (continued) this.modes.pop();
         kind = continued ? 'TemplateTail' : 'Template';
         break;
       }
       if (c === '$' && t[pos + 1] === '{') {
         pos += 2;
-        if (!continued) this.templates.push({ start, braces: 0 });
+        if (!continued) this.modes.push({ kind: 'template', start, braces: 0 });
         kind = continued ? 'TemplateMiddle' : 'TemplateHead';
         break;
       }
@@ -403,6 +490,93 @@ class Lexer {
     const char = String.fromCodePoint(t.codePointAt(pos + 1) ?? 0);
     this.error(`unknown escape sequence "\\${char}"`, pos, pos + 1 + char.length);
     return { value: char, end: pos + 1 + char.length };
+  }
+
+  private top(): Mode | undefined {
+    return this.modes.at(-1);
+  }
+
+  private braces(): number {
+    const top = this.top();
+    return top?.kind === 'template' || top?.kind === 'expression' ? top.braces : 0;
+  }
+
+  private push(kind: Exclude<TokenKind, 'Number' | StringKind>, start: number, end: number): void {
+    this.tokens.push({ kind, text: this.text.slice(start, end), start, end });
+    this.pos = end;
+  }
+
+  /** `<` starts markup where a value is expected and is "less than" after a value. */
+  private startsElement(): boolean {
+    const last = this.tokens.at(-1);
+    if (last && ENDS_VALUE.has(last.kind)) return false;
+    const next = this.text[this.pos + 1];
+    return next === '>' || (next !== undefined && /^[\p{ID_Start}$_]$/u.test(next));
+  }
+
+  /** Inside `<tag ...>` or `</tag>`: names, `=`, attribute values, `{`, `>` and `/>`. */
+  private scanTag(mode: MarkupMode): void {
+    const t = this.text;
+    while (/^\s$/.test(t[this.pos] ?? '')) this.pos++;
+    const start = this.pos;
+    const c = t[start];
+    if (c === undefined) return;
+    const opening = mode.kind === 'tag';
+
+    if (c === '>') {
+      this.push('JsxTagEnd', start, start + 1);
+      // After an opening tag comes the content; a closing tag ends the element.
+      if (opening) this.modes[this.modes.length - 1] = { kind: 'content', start: mode.start };
+      else this.modes.pop();
+    } else if (opening && c === '/' && t[start + 1] === '>') {
+      this.push('JsxSelfClose', start, start + 2);
+      this.modes.pop();
+    } else if (opening && c === '{') {
+      this.push('{', start, start + 1);
+      this.modes.push({ kind: 'expression', braces: 0 });
+    } else if (opening && c === '=') {
+      this.push('=', start, start + 1);
+    } else if (opening && (c === '"' || c === "'")) {
+      // Attribute values are taken as written, as in HTML: no backslash escapes.
+      const close = t.indexOf(c, start + 1);
+      const end = close === -1 ? t.length : close + 1;
+      if (close === -1) this.error('unterminated attribute value', start, end);
+      const text = t.slice(start, end);
+      const raw = text.slice(1, close === -1 ? undefined : -1);
+      this.tokens.push({ kind: 'JsxString', value: decodeEntities(raw), text, start, end });
+      this.pos = end;
+    } else {
+      JSX_NAME.lastIndex = start;
+      const name = JSX_NAME.exec(t)?.[0];
+      if (name !== undefined) {
+        this.push('JsxName', start, start + name.length);
+      } else {
+        this.error(`unexpected character "${c}" in a tag`, start, start + 1);
+        this.pos++;
+      }
+    }
+  }
+
+  /** Element content: text, `{expression}`, child elements and the closing tag. */
+  private scanContent(mode: MarkupMode): void {
+    const t = this.text;
+    const start = this.pos;
+    if (t.startsWith('</', start)) {
+      this.push('JsxCloseTagOpen', start, start + 2);
+      this.modes[this.modes.length - 1] = { kind: 'closingTag', start: mode.start };
+    } else if (t[start] === '<') {
+      this.push('JsxTagOpen', start, start + 1);
+      this.modes.push({ kind: 'tag', start });
+    } else if (t[start] === '{') {
+      this.push('{', start, start + 1);
+      this.modes.push({ kind: 'expression', braces: 0 });
+    } else {
+      let end = start;
+      while (end < t.length && t[end] !== '<' && t[end] !== '{') end++;
+      const text = t.slice(start, end);
+      this.tokens.push({ kind: 'JsxText', value: decodeEntities(text), text, start, end });
+      this.pos = end;
+    }
   }
 
   private error(message: string, start: number, end: number): void {
