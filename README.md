@@ -38,6 +38,20 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 Опции `build`: `--out-dir dir` — писать `.js` в отдельную папку, `--stdout` — вывести JS одного
 файла в консоль, `--no-check` — без проверки типов.
 
+## Тестовый сайт
+
+В [site/](site/) лежит список задач, где и страница, и сервер написаны на MangoScript:
+
+- [site/src/todos.mango](site/src/todos.mango) — модель: интерфейс, класс, `?Todo` из `find`,
+  ошибки вторым возвращаемым значением;
+- [site/src/storage.mango](site/src/storage.mango) — сохранение в `localStorage`;
+- [site/src/app.mango](site/src/app.mango) — работа с DOM;
+- [site/server.mango](site/server.mango) — статический сервер на `node:http` с логом через `defer`.
+
+```sh
+npm run site    # собирает site/src в site/dist и запускает сервер на http://localhost:3000
+```
+
 ## Соглашения
 
 - Импорты пишутся с расширением `.ts` (`import { x } from './lexer.ts'`).

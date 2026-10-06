@@ -1,0 +1,156 @@
+:root {
+  --mango: #ffb000;
+  --mango-dark: #e07b00;
+  --leaf: #3f8f3a;
+  --text: #2b2118;
+  --muted: #8a7a6a;
+  --card: #fffdf8;
+  --line: #f1e4cc;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: var(--text);
+  background: linear-gradient(160deg, #fff4d6, #ffe0b0);
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  padding: 48px 16px;
+}
+
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 28px;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgb(224 123 0 / 18%);
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+header p {
+  margin: 4px 0 24px;
+  color: var(--muted);
+}
+
+form {
+  display: flex;
+  gap: 8px;
+}
+
+input,
+button {
+  font: inherit;
+}
+
+#title {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+}
+
+#title:focus {
+  border-color: var(--mango);
+}
+
+button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--line);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover {
+  background: #ead6b0;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+form button {
+  background: var(--mango);
+  font-weight: 600;
+}
+
+form button:hover {
+  background: var(--mango-dark);
+  color: white;
+}
+
+#message {
+  margin: 10px 0 0;
+  color: #c0392b;
+}
+
+nav {
+  display: flex;
+  gap: 6px;
+  margin: 20px 0 8px;
+}
+
+nav button.active {
+  background: var(--leaf);
+  color: white;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.todo input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--leaf);
+}
+
+.todo span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.todo.done span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.todo button {
+  padding: 2px 10px;
+  background: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.todo button:hover {
+  color: #c0392b;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  color: var(--muted);
+}

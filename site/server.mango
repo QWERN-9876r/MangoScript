@@ -1,0 +1,83 @@
+// Статический сервер для сайта, тоже на MangoScript. Запуск из корня репозитория:
+//   npm run site
+// Браузер не загружает ES-модули с file://, поэтому страницу нужно отдавать по HTTP.
+
+import { readFileSync } from "node:fs"
+import { createServer } from "node:http"
+import { extname, resolve, sep } from "node:path"
+
+const ROOT = resolve("site")
+const PORT = Number(process.env.PORT ?? "3000")
+
+func contentType(path string) string {
+    switch extname(path) {
+    case ".html":
+        return "text/html; charset=utf-8"
+    case ".css":
+        return "text/css; charset=utf-8"
+    case ".js":
+        return "text/javascript; charset=utf-8"
+    case ".svg":
+        return "image/svg+xml"
+    default:
+        return "application/octet-stream"
+    }
+}
+
+// Путь к файлу для URL запроса; ошибка, если URL испорчен или выходит за пределы сайта.
+func resolvePath(url string) (string, error) {
+    let pathname = url.split("?")[0]
+    if pathname.endsWith("/") {
+        pathname += "index.html"
+    }
+    let decoded string
+    try {
+        decoded = decodeURIComponent(pathname)
+    } catch {
+        return "", error("malformed URL")
+    }
+    const path string = resolve(ROOT, `.${decoded}`)
+    if !path.startsWith(ROOT + sep) {
+        return "", error("outside of the site")
+    }
+    return path, null
+}
+
+// readFileSync бросает исключение, если файла нет, — превращаем его в ошибку-значение.
+func readStatic(path string) (any, error) {
+    try {
+        return readFileSync(path), null
+    } catch e {
+        return null, error(e.message)
+    }
+}
+
+func send(response any, status number, mime string, body any) {
+    response.writeHead(status, { "Content-Type": mime })
+    response.end(body)
+}
+
+func handle(request any, response any) {
+    const started = Date.now()
+    // Блок выполнится при выходе из функции, когда ответ уже отправлен.
+    defer {
+        const time = Date.now() - started
+        console.log(`${request.method} ${request.url} → ${response.statusCode} (${time} ms)`)
+    }
+
+    const path, pathError = resolvePath(request.url)
+    if pathError != null {
+        send(response, 400, "text/plain; charset=utf-8", `Bad request: ${pathError.message}`)
+        return
+    }
+    const body, readError = readStatic(path)
+    if readError != null {
+        send(response, 404, "text/plain; charset=utf-8", "Not found")
+        return
+    }
+    send(response, 200, contentType(path), body)
+}
+
+createServer(handle).listen(PORT, () => {
+    console.log(`MangoScript site: http://localhost:${PORT}`)
+})

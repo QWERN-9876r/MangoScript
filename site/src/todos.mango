@@ -1,0 +1,79 @@
+// Модель списка задач: без DOM, поэтому её можно проверить тестами.
+
+export interface Todo {
+    id number
+    title string
+    done bool
+}
+
+const MAX_TITLE = 80
+
+// Ошибка ввода — второе возвращаемое значение, как в Go.
+export func parseTitle(input string) (string, error) {
+    const title = input.trim()
+    if title == "" {
+        return "", error("Сначала напишите задачу")
+    }
+    if title.length > MAX_TITLE {
+        return "", error(`Слишком длинно: можно не больше ${MAX_TITLE} символов, сейчас ${title.length}`)
+    }
+    return title, null
+}
+
+export class TodoList {
+    private items []Todo
+    private nextId = 1
+
+    constructor(items []Todo) {
+        this.items = items
+        for todo in items {
+            if todo.id >= this.nextId {
+                this.nextId = todo.id + 1
+            }
+        }
+    }
+
+    add(title string) Todo {
+        const todo Todo = { id: this.nextId, title, done: false }
+        this.nextId++
+        this.items.push(todo)
+        return todo
+    }
+
+    toggle(id number) {
+        // find возвращает ?Todo: без проверки на null компилятор не даст обратиться к полям.
+        const todo = this.items.find(t => t.id == id)
+        if todo != null {
+            todo.done = !todo.done
+        }
+    }
+
+    remove(id number) {
+        this.items = this.items.filter(t => t.id != id)
+    }
+
+    clearDone() {
+        this.items = this.items.filter(t => !t.done)
+    }
+
+    visible(filter string) []Todo {
+        switch filter {
+        case "active":
+            return this.items.filter(t => !t.done)
+        case "done":
+            return this.items.filter(t => t.done)
+        default:
+            return this.items
+        }
+    }
+
+    // Сколько осталось и сколько сделано.
+    counts() (number, number) {
+        const done = this.items.filter(t => t.done).length
+        return this.items.length - done, done
+    }
+
+    all() []Todo {
+        return this.items
+    }
+}

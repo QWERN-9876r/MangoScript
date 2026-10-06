@@ -1,0 +1,91 @@
+// Страница: связывает модель с DOM. Объекты браузера (document и т. п.) имеют тип any.
+
+import { Todo, TodoList, parseTitle } from "./todos.mango"
+import { load, save } from "./storage.mango"
+
+const form = document.querySelector("#new-todo")
+const input = document.querySelector("#title")
+const list = document.querySelector("#list")
+const message = document.querySelector("#message")
+const summary = document.querySelector("#summary")
+const clearButton = document.querySelector("#clear-done")
+const filterButtons = document.querySelectorAll("[data-filter]")
+
+const saved, loadError = load()
+const todos = new TodoList(saved)
+let filter = "all"
+
+if loadError != null {
+    showMessage(loadError.message)
+}
+
+func showMessage(text string) {
+    message.textContent = text
+    message.hidden = text == ""
+}
+
+func render() {
+    list.replaceChildren(...todos.visible(filter).map(renderItem))
+
+    const left, done = todos.counts()
+    summary.textContent = `Осталось: ${left} · готово: ${done}`
+    clearButton.disabled = done == 0
+    for button in filterButtons {
+        button.classList.toggle("active", button.dataset.filter == filter)
+    }
+    save(todos.all())
+}
+
+func renderItem(todo Todo) any {
+    const item = document.createElement("li")
+    item.className = todo.done ? "todo done" : "todo"
+
+    const checkbox = document.createElement("input")
+    checkbox.type = "checkbox"
+    checkbox.checked = todo.done
+    checkbox.addEventListener("change", () => {
+        todos.toggle(todo.id)
+        render()
+    })
+
+    const title = document.createElement("span")
+    title.textContent = todo.title
+
+    const remove = document.createElement("button")
+    remove.textContent = "×"
+    remove.title = "Удалить"
+    remove.addEventListener("click", () => {
+        todos.remove(todo.id)
+        render()
+    })
+
+    item.append(checkbox, title, remove)
+    return item
+}
+
+form.addEventListener("submit", event => {
+    event.preventDefault()
+    const title, err = parseTitle(input.value)
+    if err != null {
+        showMessage(err.message)
+        return
+    }
+    todos.add(title)
+    input.value = ""
+    showMessage("")
+    render()
+})
+
+for button in filterButtons {
+    button.addEventListener("click", () => {
+        filter = button.dataset.filter
+        render()
+    })
+}
+
+clearButton.addEventListener("click", () => {
+    todos.clearDone()
+    render()
+})
+
+render()

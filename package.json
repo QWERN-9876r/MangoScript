@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "mango": "node src/cli.ts",
+    "site": "node src/cli.ts build site/src --out-dir site/dist && node src/cli.ts run site/server.mango",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

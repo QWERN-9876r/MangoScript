@@ -6,3 +6,6 @@ coverage/
 
 # Output of `mango build` next to the examples
 examples/**/*.js
+
+# Output of `mango build` for the test site
+site/dist/
