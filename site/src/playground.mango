@@ -1,0 +1,91 @@
+// Песочница: редактор с подсветкой, сгенерированный JS и запуск программы. Под прозрачным полем
+// ввода лежит <pre> с тем же текстом, но с подсветкой.
+
+import { highlight } from "./highlight.mango"
+import { compiledView, consoleView, runProgram } from "./sandbox.mango"
+
+const START = `// Код компилируется при каждом изменении. «Запустить» выполнит его:
+// document.body — это область результата, а console.log выводит текст под ней.
+
+comp Fruit(name string, price number) {
+    state count = 0
+    return <li>
+        {name}: {count} × {price} ₽ = {count * price} ₽
+        <button onClick={count++}>+</button>
+    </li>
+}
+
+const fruits = [
+    { name: "Манго", price: 120 },
+    { name: "Личи", price: 300 },
+]
+
+document.body.append(<ul>{for fruit in fruits { <Fruit {...fruit} /> }}</ul>)
+console.log("Фруктов:", fruits.length)`
+
+// Примеры открываются в песочнице через openInPlayground; функцию подставляет компонент.
+let openHandler = func(code string) {}
+
+export func openInPlayground(code string) {
+    openHandler(code)
+}
+
+comp Playground() {
+    state source = START
+    state tab = "js"
+    state lines []string = []
+    const preview = <div class="preview" />
+
+    openHandler = func(code string) {
+        source = code
+        tab = "js"
+        document.getElementById("playground").scrollIntoView({ behavior: "smooth" })
+    }
+
+    func run() {
+        lines = runProgram(source, preview)
+        tab = "result"
+    }
+
+    // Tab вставляет отступ, а не уводит фокус из редактора.
+    func indent(event any) {
+        if event.key != "Tab" {
+            return
+        }
+        event.preventDefault()
+        const input = event.currentTarget
+        input.setRangeText("    ", input.selectionStart, input.selectionEnd, "end")
+        source = input.value
+    }
+
+    return <div class="playground">
+        <div class="editor">
+            <pre class="editor-code" aria-hidden="true">{highlight(source, "mango")} </pre>
+            <textarea
+                class="editor-input"
+                aria-label="Код на MangoScript"
+                bind:value={source}
+                rows={source.split("\n").length}
+                wrap="off"
+                spellcheck={false}
+                onKeyDown={indent(event)}
+            />
+        </div>
+        <div class="output">
+            <div class="tabs">
+                <button class={tab == "js" ? "tab active" : "tab"} onClick={tab = "js"}>JavaScript</button>
+                <button class={tab == "result" ? "tab active" : "tab"} onClick={run()}>▶ Запустить</button>
+                <button class="tab" onClick={source = START}>Сбросить</button>
+            </div>
+            {if tab == "js" {
+                <div class="output-body">{compiledView(source)}</div>
+            } else {
+                <div class="output-body result">{preview}{consoleView(lines)}</div>
+            }}
+        </div>
+    </div>
+}
+
+export func playground() Node {
+    return <Playground />
+}

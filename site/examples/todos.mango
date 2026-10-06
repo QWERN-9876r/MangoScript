@@ -1,0 +1,28 @@
+comp Todos() {
+    state todos = ["Купить манго", "Выучить MangoScript"]
+    state title = ""
+
+    func add() {
+        if title.trim() != "" {
+            todos.push(title.trim())
+            title = ""
+        }
+    }
+
+    // Список обновляется сам: блоки задач, которые остались, не создаются заново
+    return <div>
+        <form onSubmit={event.preventDefault(); add()}>
+            <input bind:value={title} placeholder="Новая задача" />
+            <button>Добавить</button>
+        </form>
+        {if todos.length == 0 {
+            <p>Задач нет</p>
+        } else {
+            <ul>{for i, todo in todos {
+                <li>{todo} <button onClick={todos.splice(i, 1)}>×</button></li>
+            }}</ul>
+        }}
+    </div>
+}
+
+document.body.append(<Todos />)

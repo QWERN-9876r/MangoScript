@@ -1,0 +1,12 @@
+const fruits = ["манго", "папайя", "личи", "маракуйя"]
+
+// if, for и switch внутри {...}: элементы в их блоках становятся содержимым
+document.body.append(<ul>
+    {for i, fruit in fruits {
+        if fruit.length > 4 {
+            <li>{i + 1}. {fruit}</li>
+        } else {
+            <li><s>{fruit}</s> — короткое название</li>
+        }
+    }}
+</ul>)

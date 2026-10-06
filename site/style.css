@@ -1,156 +1,475 @@
 :root {
-  --mango: #ffb000;
-  --mango-dark: #e07b00;
-  --leaf: #3f8f3a;
+  --bg: #fffdf8;
+  --surface: #ffffff;
   --text: #2b2118;
-  --muted: #8a7a6a;
-  --card: #fffdf8;
-  --line: #f1e4cc;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
+  --muted: #7d6d5e;
+  --line: #f0e3cb;
+  --accent: #e07b00;
+  --accent-soft: #fff1d6;
+  --leaf: #3f8f3a;
+  --danger: #c0392b;
+  --code-bg: #fbf6ec;
+  --code-text: #3b2f25;
+  --inline-code: #f6ecda;
+
+  --hl-kw: #a626a4;
+  --hl-type: #0f7b8a;
+  --hl-fn: #b05a00;
+  --hl-str: #3f8f3a;
+  --hl-num: #c2410c;
+  --hl-com: #9a8a78;
+  --hl-tag: #c2185b;
+  --hl-attr: #8a6500;
+
+  --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --topbar: 56px;
+
+  color-scheme: light;
+  font-family: var(--sans);
   color: var(--text);
-  background: linear-gradient(160deg, #fff4d6, #ffe0b0);
-  min-height: 100vh;
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1713;
+    --surface: #231e19;
+    --text: #f3eadf;
+    --muted: #a8998a;
+    --line: #3a3128;
+    --accent: #ffad42;
+    --accent-soft: #3a2a14;
+    --leaf: #8fcf6f;
+    --danger: #ff8a7a;
+    --code-bg: #15120f;
+    --code-text: #eadfd1;
+    --inline-code: #2e2720;
+
+    --hl-kw: #d7a1f2;
+    --hl-type: #63d2df;
+    --hl-fn: #ffc66d;
+    --hl-str: #a5d67f;
+    --hl-num: #f9a35e;
+    --hl-com: #8c7d6b;
+    --hl-tag: #f48fb1;
+    --hl-attr: #e6c07b;
+
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: 48px 16px;
+  line-height: 1.6;
 }
 
-main {
-  max-width: 520px;
-  margin: 0 auto;
-  padding: 28px;
-  background: var(--card);
-  border-radius: 20px;
-  box-shadow: 0 20px 50px rgb(224 123 0 / 18%);
+a {
+  color: var(--accent);
 }
 
-h1 {
-  margin: 0;
-  font-size: 2rem;
-}
+/* ── Верхняя панель и меню ─────────────────────────────────────────────────────────────── */
 
-header p {
-  margin: 4px 0 24px;
-  color: var(--muted);
-}
-
-form {
-  display: flex;
-  gap: 8px;
-}
-
-input,
-button {
-  font: inherit;
-}
-
-#title {
-  flex: 1;
-  padding: 10px 14px;
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  outline: none;
-}
-
-#title:focus {
-  border-color: var(--mango);
-}
-
-button {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 12px;
-  background: var(--line);
-  color: var(--text);
-  cursor: pointer;
-}
-
-button:hover {
-  background: #ead6b0;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-form button {
-  background: var(--mango);
-  font-weight: 600;
-}
-
-form button:hover {
-  background: var(--mango-dark);
-  color: white;
-}
-
-#message {
-  margin: 10px 0 0;
-  color: #c0392b;
-}
-
-nav {
-  display: flex;
-  gap: 6px;
-  margin: 20px 0 8px;
-}
-
-nav button.active {
-  background: var(--leaf);
-  color: white;
-}
-
-ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.todo {
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 4px;
+  gap: 16px;
+  height: var(--topbar);
+  padding: 0 24px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
 
-.todo input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--leaf);
+.brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
 }
 
-.todo span {
-  flex: 1;
-  overflow-wrap: anywhere;
-}
-
-.todo.done span {
+.tagline {
   color: var(--muted);
-  text-decoration: line-through;
+  font-size: 0.9rem;
 }
 
-.todo button {
-  padding: 2px 10px;
-  background: none;
-  color: var(--muted);
-  font-size: 1.2rem;
+.topbar-link {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-.todo button:hover {
-  color: #c0392b;
+.layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 860px);
+  justify-content: center;
+  gap: 40px;
+  padding: 0 24px;
 }
 
-footer {
+.sidebar {
+  position: sticky;
+  top: var(--topbar);
+  align-self: start;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 2px;
+  max-height: calc(100vh - var(--topbar));
+  overflow-y: auto;
+  padding: 28px 0;
+}
+
+.sidebar a {
+  padding: 6px 12px;
+  border-radius: 8px;
   color: var(--muted);
+  text-decoration: none;
+}
+
+.sidebar a:hover {
+  color: var(--text);
+}
+
+.sidebar a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Текст ────────────────────────────────────────────────────────────────────────────── */
+
+.content {
+  padding: 28px 0 64px;
+  min-width: 0;
+}
+
+.doc-section {
+  scroll-margin-top: calc(var(--topbar) + 16px);
+  padding-bottom: 24px;
+}
+
+/* Последний раздел можно прокрутить к верху экрана: «В песочницу» показывает редактор целиком. */
+#playground {
+  min-height: calc(100vh - var(--topbar));
+}
+
+.doc-section + .doc-section {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+h2 {
+  font-size: 1.6rem;
+  margin: 24px 0 12px;
+}
+
+.lead {
+  font-size: 1.15rem;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--inline-code);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.footer {
+  margin-top: 40px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ── Код и подсветка ──────────────────────────────────────────────────────────────────── */
+
+pre.code,
+.console,
+.editor-code,
+.editor-input {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+pre.code {
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  max-height: 520px;
+  color: var(--code-text);
+  background: var(--code-bg);
+  border-radius: 12px;
+}
+
+.kw {
+  color: var(--hl-kw);
+}
+.type {
+  color: var(--hl-type);
+}
+.fn {
+  color: var(--hl-fn);
+}
+.str {
+  color: var(--hl-str);
+}
+.num,
+.lit {
+  color: var(--hl-num);
+}
+.com {
+  color: var(--hl-com);
+  font-style: italic;
+}
+.tag {
+  color: var(--hl-tag);
+}
+.attr {
+  color: var(--hl-attr);
+}
+
+/* ── Примеры ──────────────────────────────────────────────────────────────────────────── */
+
+.example {
+  margin: 20px 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+
+.example pre.code {
+  border-radius: 0;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.tab {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.tab.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.tab.open {
+  margin-left: auto;
+}
+
+.output-body {
+  background: var(--code-bg);
+}
+
+.errors {
+  margin: 0;
+  padding: 16px 18px 16px 36px;
+  color: var(--danger);
+  font-family: var(--mono);
+  font-size: 13.5px;
+}
+
+.result {
+  padding: 16px 18px;
+}
+
+.console {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--leaf);
+  background: var(--surface);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+.console-empty {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Область результата: сюда программа добавляет элементы через document.body. */
+.preview {
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.preview:empty::before {
+  content: 'Программа ничего не добавила на страницу.';
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.preview button,
+.preview input:not([type]) {
+  font: inherit;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.preview button {
+  cursor: pointer;
+}
+
+.preview .card {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-left: 4px solid var(--leaf);
+  background: var(--bg);
+}
+
+.preview .card.warning {
+  border-left-color: var(--accent);
+}
+
+.preview .card h4 {
+  margin: 0 0 4px;
+}
+
+/* ── Песочница ────────────────────────────────────────────────────────────────────────── */
+
+/* Редактор и вывод друг под другом: в колонке текста рядом им не хватило бы ширины. */
+.playground {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* Поле ввода с прозрачным текстом лежит поверх <pre> с подсветкой того же кода. */
+.editor {
+  display: grid;
+  grid-template-columns: minmax(100%, max-content);
+  max-height: 440px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--code-bg);
+}
+
+.editor-code,
+.editor-input {
+  grid-area: 1 / 1;
+  margin: 0;
+  padding: 16px 18px;
+  border: 0;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.editor-code {
+  color: var(--code-text);
+  pointer-events: none;
+}
+
+.editor-input {
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+
+.editor-input::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.output {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--code-bg);
+  align-self: start;
+}
+
+.output pre.code {
+  border-radius: 0;
+}
+
+/* ── Узкие экраны ─────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .sidebar {
+    top: var(--topbar);
+    z-index: 5;
+    flex-direction: row;
+    overflow-x: auto;
+    max-height: none;
+    padding: 8px 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  .doc-section {
+    scroll-margin-top: calc(var(--topbar) + 64px);
+  }
+
+  .tagline {
+    display: none;
+  }
 }

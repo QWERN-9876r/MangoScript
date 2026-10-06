@@ -1,0 +1,29 @@
+const fruits = ["манго", "папайя", "личи"]
+
+// for x in xs — значения, for i, x in xs — индексы и значения
+for i, fruit in fruits {
+    console.log(i + 1, fruit)
+}
+
+// Цикл один — for: и как while, и с тремя частями
+let left = 3
+for left > 0 {
+    left--
+}
+for let i = 0; i < 2; i++ {
+    console.log("шаг", i)
+}
+
+// В switch нет break; без выражения он работает как цепочка if
+func grade(score number) string {
+    switch {
+    case score >= 90:
+        return "отлично"
+    case score >= 60:
+        return "зачёт"
+    default:
+        return "незачёт"
+    }
+}
+
+console.log(grade(95), grade(70), grade(10))

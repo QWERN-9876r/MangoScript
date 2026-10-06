@@ -1,0 +1,91 @@
+// Компиляция и запуск кода прямо на странице. Компилятор — тот же, что у mango build, собранный
+// для браузера (см. tsconfig.site.json). Импорты он не проверяет: модулей с диска здесь нет.
+
+import { compile } from "./compiler/browser.js"
+import { highlight } from "./highlight.mango"
+
+export interface Compiled {
+    code string
+    errors []string
+}
+
+export func compileMango(source string) Compiled {
+    const result = compile(source)
+    return {
+        code: result.code,
+        errors: result.diagnostics.map(d => `строка ${d.line}, столбец ${d.column}: ${d.message}`),
+    }
+}
+
+/**
+ * Выполняет программу: console.log пишет в возвращаемые строки, а document.body — это `preview`.
+ * Ошибки компиляции и исключения тоже возвращаются строками.
+ */
+export func runProgram(source string, preview HTMLElement) []string {
+    const compiled = compileMango(source)
+    if compiled.errors.length > 0 {
+        return compiled.errors
+    }
+    if source.includes("import ") {
+        return ["Импорты в песочнице не работают: здесь нет модулей, кроме самой программы."]
+    }
+
+    const lines []string = []
+    // Параметров ...rest в языке пока нет, поэтому лишние аргументы console.log отбрасываются.
+    const print = func(a any, b any, c any, d any, e any, f any) {
+        const values []any = [a, b, c, d, e, f]
+        let count = values.length
+        for count > 0 && typeof values[count - 1] == "undefined" {
+            count--
+        }
+        lines.push(values.slice(0, count).map(show).join(" "))
+    }
+    const sandboxConsole = { log: print, info: print, warn: print, error: print }
+    const sandboxDocument = {
+        body: preview,
+        createElement: (tag string) => document.createElement(tag),
+        createTextNode: (text string) => document.createTextNode(text),
+        createDocumentFragment: () => document.createDocumentFragment(),
+        querySelector: (selector string) => preview.querySelector(selector),
+    }
+
+    preview.replaceChildren()
+    try {
+        const program = globalThis.Function("console", "document", compiled.code)
+        program(sandboxConsole, sandboxDocument)
+    } catch e {
+        lines.push(`Исключение: ${e.message}`)
+    }
+    return lines
+}
+
+func show(value any) string {
+    if typeof value == "string" {
+        return value
+    }
+    if value != null && typeof value == "object" && typeof value.nodeName == "string" {
+        return `<${value.nodeName.toLowerCase()}>`
+    }
+    return JSON.stringify(value)
+}
+
+/** Сгенерированный JS с подсветкой или ошибки компиляции. */
+export func compiledView(source string) Node {
+    const compiled = compileMango(source)
+    if compiled.errors.length > 0 {
+        return <ul class="errors">
+            {for message in compiled.errors {
+                <li>{message}</li>
+            }}
+        </ul>
+    }
+    return <pre class="code">{highlight(compiled.code, "js")}</pre>
+}
+
+/** Что программа вывела в консоль. */
+export func consoleView(lines []string) Node {
+    if lines.length == 0 {
+        return <p class="console-empty">Программа ничего не вывела в консоль.</p>
+    }
+    return <pre class="console">{lines.join("\n")}</pre>
+}

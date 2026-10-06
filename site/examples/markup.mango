@@ -1,0 +1,10 @@
+// Разметка — выражение, которое создаёт настоящий DOM-элемент
+const name = "MangoScript"
+const link = <a href="#markup">Привет, {name}!</a>
+
+// В on* — код, который выполнится при событии, а не при создании элемента
+let clicks = 0
+const counter = <b>0</b>
+const button = <button onClick={clicks++; counter.textContent = String(clicks)}>Нажми</button>
+
+document.body.append(link, <p>{button} Нажатий: {counter}</p>)

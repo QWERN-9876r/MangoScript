@@ -1,0 +1,127 @@
+// Подсветка кода лексером самого компилятора: токены MangoScript размечаются так же, как их
+// видит компилятор. Сгенерированный JS тоже размечается этим лексером, но со своими ключевыми
+// словами: синтаксис у них почти общий.
+
+import { tokenize, KEYWORDS } from "./compiler/browser.js"
+
+const MANGO_TYPES = ["number", "string", "bool", "any", "error", "void", "Content"]
+
+const JS_KEYWORDS = [
+    "function", "return", "if", "else", "for", "of", "in", "while", "do", "const", "let", "var",
+    "new", "class", "extends", "throw", "try", "catch", "finally", "switch", "case", "default",
+    "break", "continue", "import", "export", "from", "typeof", "instanceof", "this", "super",
+    "static", "async", "await",
+]
+
+const LITERALS = ["true", "false", "null", "undefined"]
+
+// Между токенами — пробелы и комментарии; split с группой оставляет комментарии в результате.
+const COMMENT = new RegExp("(//[^\\n]*|/\\*[\\s\\S]*?\\*/)")
+
+export func highlight(code string, language string) DocumentFragment {
+    const fragment = <></>
+    let tokens any
+    try {
+        tokens = tokenize(code).tokens
+    } catch {
+        fragment.append(code)
+        return fragment
+    }
+    let pos = 0
+    for i, token in tokens {
+        // Точки с запятой, которые вставил лексер, и конец файла не занимают места в тексте.
+        if token.text == "" {
+            continue
+        }
+        if token.start > pos {
+            appendGap(fragment, code.slice(pos, token.start))
+        }
+        const kind = tokenClass(tokens, i, language)
+        if kind == "" {
+            fragment.append(token.text)
+        } else {
+            fragment.append(<span class={kind}>{token.text}</span>)
+        }
+        pos = token.end
+    }
+    if pos < code.length {
+        appendGap(fragment, code.slice(pos))
+    }
+    return fragment
+}
+
+func appendGap(fragment DocumentFragment, text string) {
+    for i, part in text.split(COMMENT) {
+        if part == "" {
+            continue
+        }
+        if i % 2 == 1 {
+            fragment.append(<span class="com">{part}</span>)
+        } else {
+            fragment.append(part)
+        }
+    }
+}
+
+func tokenClass(tokens any, i number, language string) string {
+    const token = tokens[i]
+    const kind string = token.kind
+    const text string = token.text
+    // После точки любое имя — свойство, даже если совпадает с ключевым словом: event.type
+    if i > 0 && (tokens[i - 1].kind == "." || tokens[i - 1].kind == "?.") {
+        return tokens[i + 1].kind == "(" ? "fn" : ""
+    }
+    switch kind {
+    case "Number":
+        return "num"
+    case "String", "Template", "TemplateHead", "TemplateMiddle", "TemplateTail", "JsxString":
+        return "str"
+    case "JsxText":
+        return ""
+    case "JsxTagOpen", "JsxCloseTagOpen", "JsxTagEnd", "JsxSelfClose":
+        return "tag"
+    case "JsxName":
+        const previous string = tokens[i - 1].kind
+        if previous == "JsxTagOpen" || previous == "JsxCloseTagOpen" {
+            return isCapitalized(text) ? "type" : "tag"
+        }
+        return "attr"
+    case "Identifier":
+        return identifierClass(text, tokens[i + 1].kind, language)
+    }
+    if LITERALS.includes(text) {
+        return "lit"
+    }
+    if KEYWORDS.includes(kind) {
+        return "kw"
+    }
+    return ""
+}
+
+func identifierClass(text string, next string, language string) string {
+    if language == "js" {
+        if JS_KEYWORDS.includes(text) {
+            return "kw"
+        }
+        if LITERALS.includes(text) {
+            return "lit"
+        }
+    } else {
+        if MANGO_TYPES.includes(text) {
+            return "type"
+        }
+        // state — ключевое слово только в начале объявления: state count = 0
+        if text == "state" && next == "Identifier" {
+            return "kw"
+        }
+    }
+    if next == "(" {
+        return "fn"
+    }
+    return isCapitalized(text) ? "type" : ""
+}
+
+func isCapitalized(text string) bool {
+    const first = text.charAt(0)
+    return first != first.toLowerCase()
+}

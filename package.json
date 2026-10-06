@@ -22,7 +22,8 @@
   ],
   "scripts": {
     "mango": "node src/cli.ts",
-    "site": "node src/cli.ts build site/src --out-dir site/dist && node src/cli.ts run site/server.mango",
+    "site:build": "tsc -p tsconfig.site.json && node src/cli.ts build site/src --out-dir site/dist",
+    "site": "npm run site:build && node src/cli.ts run site/server.mango",
     "vscode:package": "cd editors/vscode && npx --yes @vscode/vsce@4 package --allow-missing-repository --skip-license --out mangoscript.vsix",
     "vscode:install": "npm run vscode:package && code --install-extension editors/vscode/mangoscript.vsix --force",
     "build": "tsc -p tsconfig.build.json",

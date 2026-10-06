@@ -1,0 +1,12 @@
+// bind: связывает поле ввода с состоянием в обе стороны
+comp Greeting() {
+    state name = ""
+    state loud = false
+    return <div>
+        <input bind:value={name} placeholder="Ваше имя" />
+        <label><input type="checkbox" bind:checked={loud} /> громко</label>
+        <p>Привет, {name == "" ? "незнакомец" : name}{loud ? "!!!" : "."}</p>
+    </div>
+}
+
+document.body.append(<Greeting />)

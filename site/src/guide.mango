@@ -1,0 +1,270 @@
+// Текст руководства. Каждый раздел — функция, которая возвращает его разметку; примеры кода
+// лежат отдельными файлами в site/examples.
+
+import { example } from "./example.mango"
+
+export interface Section {
+    id string
+    title string
+    content func() Node
+}
+
+export const SECTIONS []Section = [
+    { id: "intro", title: "Что такое MangoScript", content: intro },
+    { id: "variables", title: "Переменные и типы", content: variables },
+    { id: "null", title: "null и сужение типов", content: nullSafety },
+    { id: "functions", title: "Функции", content: functions },
+    { id: "errors", title: "Ошибки и defer", content: errors },
+    { id: "control", title: "Условия и циклы", content: control },
+    { id: "classes", title: "Классы и интерфейсы", content: classes },
+    { id: "modules", title: "Модули", content: modules },
+    { id: "markup", title: "Разметка", content: markup },
+    { id: "components", title: "Компоненты", content: components },
+    { id: "state", title: "Состояние", content: reactivity },
+    { id: "tools", title: "Инструменты", content: tools },
+]
+
+func intro() Node {
+    return <>
+        <p class="lead">
+            MangoScript — язык с семантикой JavaScript, синтаксисом в духе Go и статической
+            типизацией. Он компилируется в читаемый JavaScript без рантайма: что написано, то и
+            выполняется.
+        </p>
+        <ul>
+            <li>
+                <b>Как в JavaScript:</b> те же значения, объекты, массивы, классы и модули. Можно
+                использовать любые JS-библиотеки.
+            </li>
+            <li>
+                <b>Как в Go:</b> <code>func</code>, тип после имени, несколько результатов, ошибки
+                вторым значением, <code>defer</code> и один цикл <code>for</code>.
+            </li>
+            <li>
+                <b>Типы:</b> компилятор проверяет программу до запуска, включая <code>null</code>:
+                значение типа <code>?User</code> нельзя использовать без проверки.
+            </li>
+            <li>
+                <b>Разметка и компоненты:</b> <code>&lt;button&gt;</code> в коде создаёт настоящий
+                DOM-элемент, а компонент с <code>state</code> сам обновляет свою разметку.
+            </li>
+        </ul>
+        <p>
+            У каждого примера есть вкладка <b>JavaScript</b> — это код, который генерирует
+            компилятор, запущенный прямо на этой странице. <b>Запустить</b> выполняет пример,
+            а <b>В песочницу</b> открывает его в редакторе внизу страницы.
+        </p>
+        {example("hello")}
+    </>
+}
+
+func variables() Node {
+    return <>
+        <p>
+            Переменные объявляются как в JavaScript — через <code>let</code> и <code>const</code>,
+            а тип пишется после имени, как в Go. Если есть значение, тип можно не писать:
+            компилятор выведет его сам.
+        </p>
+        <p>
+            У <code>let</code> без значения — нулевое значение типа, как в Go: <code>0</code>,
+            {" "}<code>""</code>, <code>false</code>, пустой массив или <code>null</code>.
+        </p>
+        {example("variables")}
+        <table>
+            <thead>
+                <tr><th>Тип</th><th>Что это</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>number</code>, <code>string</code>, <code>bool</code></td>
+                    <td>числа, строки и логические значения</td>
+                </tr>
+                <tr><td><code>[]T</code></td><td>массив значений типа <code>T</code></td></tr>
+                <tr><td><code>?T</code></td><td><code>T</code> или <code>null</code></td></tr>
+                <tr>
+                    <td><code>func(number) string</code></td>
+                    <td>функция с параметром <code>number</code> и результатом <code>string</code></td>
+                </tr>
+                <tr>
+                    <td><code>interface User {"{ ... }"}</code></td>
+                    <td>объект с перечисленными полями и методами</td>
+                </tr>
+                <tr><td><code>type ID number</code></td><td>другое имя для типа</td></tr>
+                <tr><td><code>any</code></td><td>что угодно, без проверок — например, значения из JS</td></tr>
+            </tbody>
+        </table>
+        {example("types")}
+    </>
+}
+
+func nullSafety() Node {
+    return <>
+        <p>
+            Значение типа <code>?T</code> может быть <code>null</code>, а значение типа
+            {" "}<code>T</code> — нет. Обратиться к полям <code>?T</code> без проверки нельзя:
+            ошибка будет при компиляции, а не в браузере у пользователя.
+        </p>
+        <p>
+            После проверки <code>if todo != null</code> тип сужается до <code>Todo</code>. С
+            {" "}<code>?T</code> работают и привычные <code>?.</code> и <code>??</code>.
+        </p>
+        {example("null-safety")}
+    </>
+}
+
+func functions() Node {
+    return <>
+        <p>
+            Функция объявляется через <code>func</code>. Параметры одного типа можно перечислить
+            через запятую, а результатов может быть несколько — их распаковывают в несколько
+            переменных.
+        </p>
+        <p>
+            Литералы <code>{"func(x number) number { ... }"}</code> и стрелочные функции
+            {" "}<code>x =&gt; x * 2</code> компилируются в стрелочные функции JS, поэтому
+            {" "}<code>this</code> в них — тот же, что снаружи.
+        </p>
+        {example("functions")}
+    </>
+}
+
+func errors() Node {
+    return <>
+        <p>
+            Для обычных ошибок исключения не нужны: функция возвращает ошибку вторым значением, а
+            вызывающий код её проверяет. Ошибка создаётся функцией <code>error("...")</code>.
+        </p>
+        {example("errors")}
+        <p>
+            Исключения из JS-кода ловят через <code>try</code> / <code>catch</code>.
+            {" "}<code>defer</code> откладывает вызов до выхода из функции — удобно для очистки
+            ресурсов: вызов выполнится и после <code>return</code>, и после исключения.
+        </p>
+        {example("defer")}
+    </>
+}
+
+func control() Node {
+    return <>
+        <p>
+            Условия и циклы — как в Go: без скобок вокруг условия и всегда с фигурными скобками.
+            Цикл один — <code>for</code>: перебор массива, цикл с условием и классический цикл с
+            тремя частями. В <code>switch</code> нет <code>break</code>: каждая ветка заканчивается
+            сама.
+        </p>
+        {example("control")}
+    </>
+}
+
+func classes() Node {
+    return <>
+        <p>
+            Классы — как в TypeScript: поля с типами, <code>constructor</code>,
+            {" "}<code>extends</code>, модификаторы <code>private</code> и <code>protected</code>.
+        </p>
+        <p>
+            Интерфейсы структурные: класс или объект подходит, если у него есть нужные поля и
+            методы. <code>implements</code> только просит компилятор проверить это в объявлении
+            класса.
+        </p>
+        {example("classes")}
+    </>
+}
+
+func modules() Node {
+    return <>
+        <p>
+            Модули — это ES-модули: <code>import</code> и <code>export</code> как в JS. Импорт
+            {" "}<code>.mango</code>-модуля проверяется: компилятор читает его экспорты и знает их
+            типы. Всё, что импортировано из JS, имеет тип <code>any</code>.
+        </p>
+        <p>
+            <code>mango build</code> компилирует файл вместе со всеми <code>.mango</code>-модулями,
+            которые он импортирует, и заменяет в путях <code>.mango</code> на <code>.js</code>.
+            Песочница на этой странице модулей не загружает, поэтому пример ниже не запускается.
+        </p>
+        {example("modules")}
+    </>
+}
+
+func markup() Node {
+    return <>
+        <p>
+            Разметка — обычное выражение: <code>&lt;a href="/"&gt;</code> создаёт настоящий
+            {" "}<code>HTMLAnchorElement</code>, без виртуального DOM. Синтаксис как в JSX, но имена
+            атрибутов — как в HTML: <code>class</code>, а не <code>className</code>. Типы тоже
+            проверяются: у <code>&lt;input&gt;</code> тип <code>HTMLInputElement</code>, а
+            {" "}<code>{"checked={1}"}</code> — ошибка.
+        </p>
+        <p>
+            В атрибутах <code>on*</code> пишется код, который выполнится при событии:
+            {" "}<code>{"onClick={save()}"}</code> вызывает <code>save</code> по клику, а не при
+            создании элемента. Внутри доступна переменная <code>event</code>.
+        </p>
+        {example("markup")}
+        <p>
+            Внутри <code>{"{...}"}</code> можно писать обычные <code>if</code>, <code>for</code> и
+            {" "}<code>switch</code>: элементы в их блоках становятся содержимым.
+        </p>
+        {example("markup-flow")}
+    </>
+}
+
+func components() Node {
+    return <>
+        <p>
+            Компонент объявляется через <code>comp</code> и используется как тег с заглавной буквы.
+            Параметры — это свойства: они проверяются как аргументы функции, у них бывают значения
+            по умолчанию, а <code>children Content</code> получает разметку между тегами. Объект со
+            свойствами можно передать целиком: <code>{"<Product {...product} />"}</code>.
+        </p>
+        <p>
+            Компонента нет в JS: каждое использование заменяется его кодом. Во вкладке
+            {" "}<b>JavaScript</b> — только создание элементов.
+        </p>
+        {example("components")}
+    </>
+}
+
+func reactivity() Node {
+    return <>
+        <p>
+            <code>state</code> объявляет переменную, от которой зависит разметка. Компилятор знает,
+            какие части разметки её читают и где она меняется, и после каждого изменения обновляет
+            ровно эти части. Подписок и сравнения DOM нет — это видно во вкладке
+            {" "}<b>JavaScript</b>.
+        </p>
+        {example("counter")}
+        <p>
+            <code>bind:value</code> и <code>bind:checked</code> связывают поле ввода с состоянием в
+            обе стороны.
+        </p>
+        {example("bind")}
+        <p>
+            <code>{"{if ...}"}</code> и <code>{"{for ...}"}</code> тоже обновляются. Ветка создаётся
+            заново, только когда меняется условие, а блоки списка находятся по самому элементу
+            массива и переставляются, а не создаются заново.
+        </p>
+        {example("todos")}
+    </>
+}
+
+const COMMANDS = `npm run mango -- build app.mango            # app.js рядом с исходником
+npm run mango -- build src --out-dir dist   # все модули папки
+npm run mango -- run app.mango              # скомпилировать и запустить
+npm run vscode:install                      # подсветка синтаксиса в VS Code`
+
+func tools() Node {
+    return <>
+        <p>
+            Компилятор написан на TypeScript и работает в Node.js 24. Команды запускаются из корня
+            репозитория:
+        </p>
+        <pre class="code">{COMMANDS}</pre>
+        <p>
+            Спецификация языка с обоснованиями решений — в <code>docs/spec.md</code>, концепция
+            компонентов — в <code>docs/components.md</code>. Эта страница тоже написана на
+            MangoScript: её код — в <code>site/src</code>, а сервер — <code>site/server.mango</code>.
+        </p>
+    </>
+}

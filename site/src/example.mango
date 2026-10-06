@@ -1,0 +1,47 @@
+// Пример кода в руководстве: сам код, сгенерированный из него JS и результат запуска. Код лежит
+// в site/examples/<name>.mango — так тесты проверяют, что все примеры компилируются.
+
+import { highlight } from "./highlight.mango"
+import { openInPlayground } from "./playground.mango"
+import { compiledView, consoleView, runProgram } from "./sandbox.mango"
+
+comp Example(name string) {
+    state code = ""
+    state tab = "code"
+    state lines []string = []
+    const preview = <div class="preview" />
+
+    fetch(`/examples/${name}.mango`)
+        .then(response => response.text())
+        .then(text => {
+            code = text.trimEnd()
+        })
+
+    func run() {
+        lines = runProgram(code, preview)
+        tab = "result"
+    }
+
+    return <figure class="example">
+        <div class="tabs">
+            <button class={tab == "code" ? "tab active" : "tab"} onClick={tab = "code"}>MangoScript</button>
+            <button class={tab == "js" ? "tab active" : "tab"} onClick={tab = "js"}>JavaScript</button>
+            {if !code.includes("import ") {
+                <button class={tab == "result" ? "tab active" : "tab"} onClick={run()}>▶ Запустить</button>
+            }}
+            <button class="tab open" onClick={openInPlayground(code)}>В песочницу</button>
+        </div>
+        {switch tab {
+        case "code":
+            <pre class="code">{highlight(code, "mango")}</pre>
+        case "js":
+            <div class="output-body">{compiledView(code)}</div>
+        default:
+            <div class="output-body result">{preview}{consoleView(lines)}</div>
+        }}
+    </figure>
+}
+
+export func example(name string) Node {
+    return <Example name={name} />
+}

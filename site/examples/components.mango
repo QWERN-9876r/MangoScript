@@ -1,0 +1,13 @@
+// Компонент существует только при компиляции: каждое использование
+// заменяется его кодом, поэтому в JS нет ни функции Card, ни библиотеки
+comp Card(title string, kind string = "info", children Content) {
+    return <section class={`card ${kind}`}>
+        <h4>{title}</h4>
+        {children}
+    </section>
+}
+
+document.body.append(
+    <Card title="Манго">Сладкий тропический фрукт.</Card>,
+    <Card title="Осторожно" kind="warning">Косточка несъедобна.</Card>,
+)

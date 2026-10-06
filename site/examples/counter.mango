@@ -1,0 +1,8 @@
+// state — переменная, от которой зависит разметка. После count++ компилятор
+// сам обновит текст кнопки: без виртуального DOM и без библиотеки
+comp Counter(start number) {
+    state count = start
+    return <button onClick={count++}>Нажато {count} раз</button>
+}
+
+document.body.append(<Counter start={0} />)

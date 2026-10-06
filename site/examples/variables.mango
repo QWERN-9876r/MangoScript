@@ -1,0 +1,9 @@
+let count number           // без значения — нулевое значение типа: 0
+let title = "Манго"        // тип выведен из значения: string
+const prices []number = [120, 90, 250]
+
+let a, b = 1, 2
+a, b = b, a                // обмен значениями
+
+count += prices.length
+console.log(count, title, a, b)

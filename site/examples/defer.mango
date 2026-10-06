@@ -1,0 +1,22 @@
+// defer выполнит вызов при выходе из функции — даже после return или исключения
+func report(title string) {
+    console.log("начало:", title)
+    defer console.log("конец:", title)
+    console.log("работаем…")
+}
+
+report("отчёт")
+
+// Исключения из JS-кода ловит try / catch
+func parseJson(text string) (any, error) {
+    try {
+        return JSON.parse(text), null
+    } catch e {
+        return null, error(e.message)
+    }
+}
+
+const _, err = parseJson("{ не json }")
+if err != null {
+    console.log("не разобрали:", err.message)
+}

@@ -1,0 +1,18 @@
+// Импорт из JS-модуля: компилятор не знает его типов, поэтому всё из него — any
+import { readFileSync } from "node:fs"
+
+// Импорт из .mango-модуля проверяется: компилятор читает его экспорты
+// import { Todo, parseTitle } from "./todos.mango"
+
+export interface Config {
+    name string
+    port number
+}
+
+export func loadConfig(path string) (Config, error) {
+    try {
+        return JSON.parse(readFileSync(path, "utf8")), null
+    } catch {
+        return { name: "", port: 0 }, error(`не удалось прочитать ${path}`)
+    }
+}

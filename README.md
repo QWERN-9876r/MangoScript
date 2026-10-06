@@ -45,19 +45,25 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 и разметка. `npm run vscode:install` собирает его и устанавливает через `code`; подробности — в
 [editors/vscode/README.md](editors/vscode/README.md).
 
-## Тестовый сайт
+## Сайт с документацией
 
-В [site/](site/) лежит список задач, где и страница, и сервер написаны на MangoScript:
+В [site/](site/) лежит руководство по MangoScript. И страница, и сервер написаны на MangoScript, а
+компилятор работает прямо в браузере: у каждого примера есть вкладка с JavaScript, который из него
+получается, и кнопка запуска, а внизу страницы — песочница.
 
-- [site/src/todos.mango](site/src/todos.mango) — модель: интерфейс, класс, `?Todo` из `find`,
-  ошибки вторым возвращаемым значением;
-- [site/src/storage.mango](site/src/storage.mango) — сохранение в `localStorage`;
-- [site/src/app.mango](site/src/app.mango) — работа с DOM; строка списка — компонент `TodoItem` с
-  разметкой;
+- [site/src/guide.mango](site/src/guide.mango) — текст разделов;
+- [site/examples/](site/examples/) — примеры кода; тесты проверяют, что все они компилируются;
+- [site/src/example.mango](site/src/example.mango) и
+  [site/src/playground.mango](site/src/playground.mango) — пример с вкладками и песочница,
+  компоненты со `state`, `bind:` и `{if}` / `{for}`;
+- [site/src/highlight.mango](site/src/highlight.mango) — подсветка кода лексером компилятора;
 - [site/server.mango](site/server.mango) — статический сервер на `node:http` с логом через `defer`.
 
+Для браузера компилятор собирается из [src/browser.ts](src/browser.ts) в `site/dist/compiler`
+(`tsconfig.site.json`).
+
 ```sh
-npm run site    # собирает site/src в site/dist и запускает сервер на http://localhost:3000
+npm run site    # собирает компилятор и site/src в site/dist и запускает сервер на http://localhost:3000
 ```
 
 ## Соглашения

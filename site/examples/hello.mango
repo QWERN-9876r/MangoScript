@@ -1,0 +1,6 @@
+// Функции объявляются через func, тип пишется после имени — как в Go
+func greet(name string) string {
+    return `Привет, ${name}!`
+}
+
+console.log(greet("MangoScript"))

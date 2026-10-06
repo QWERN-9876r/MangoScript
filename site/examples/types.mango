@@ -1,0 +1,16 @@
+type ID number
+
+interface User {
+    id ID
+    name string
+    email ?string          // ?T — значение может быть null
+}
+
+const users []User = [
+    { id: 1, name: "Аня", email: null },
+    { id: 2, name: "Борис", email: "boris@example.com" },
+]
+
+for user in users {
+    console.log(user.name, user.email ?? "почты нет")
+}

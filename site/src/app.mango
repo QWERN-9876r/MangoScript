@@ -1,87 +1,74 @@
-// Страница — один компонент TodoApp. Его состояние объявлено через state: после каждого изменения
-// компилятор сам обновляет те узлы, которые от него зависят. Функции render() больше нет.
+// Страница документации MangoScript. Она сама написана на MangoScript: разделы руководства — в
+// guide.mango, примеры с вкладками «JavaScript» и «Запустить» — в example.mango, песочница — в
+// playground.mango. Компилятор работает прямо в браузере.
 
-import { Todo, TodoList, parseTitle } from "./todos.mango"
-import { load, save } from "./storage.mango"
+import { SECTIONS } from "./guide.mango"
+import { playground } from "./playground.mango"
 
-const FILTERS = [
-    { id: "all", label: "Все" },
-    { id: "active", label: "Активные" },
-    { id: "done", label: "Готовые" },
-]
+interface Link {
+    id string
+    title string
+}
 
-comp TodoApp() {
-    const saved, loadError = load()
-    state todos = new TodoList(saved)
-    state title = ""
-    state message = loadError?.message ?? ""
-    state filter = "all"
+const NAV []Link = [...SECTIONS, { id: "playground", title: "Песочница" }]
 
-    // Разметка ниже вызывает эти функции, поэтому зависит от того, что они читают.
-    func summary() string {
-        const left, done = todos.counts()
-        return `Осталось: ${left} · готово: ${done}`
-    }
+comp DocsPage() {
+    state active = NAV[0].id
 
-    func hasDone() bool {
-        const _, done = todos.counts()
-        return done > 0
-    }
-
-    func add() {
-        const text, err = parseTitle(title)
-        if err != null {
-            message = err.message
-            return
+    // В меню выделен раздел, заголовок которого последним ушёл за верх экрана, а в самом низу
+    // страницы — последний раздел.
+    func updateActive() {
+        let current = NAV[0].id
+        for link in NAV {
+            const element = document.getElementById(link.id)
+            if element != null && element.getBoundingClientRect().top < 120 {
+                current = link.id
+            }
         }
-        todos.add(text)
-        save(todos)
-        title = ""
-        message = ""
+        if window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2 {
+            current = NAV[NAV.length - 1].id
+        }
+        active = current
     }
 
-    // Вызов метода todos (add, toggle, remove, clearDone) считается изменением списка. save его
-    // только читает; когда появится effect, сохранение переедет туда.
+    window.addEventListener("scroll", updateActive, { passive: true })
+    window.addEventListener("load", updateActive)
+
     return <>
-        <form id="new-todo" onSubmit={event.preventDefault(); add()}>
-            <input id="title" bind:value={title} placeholder="Что сделать?" autocomplete="off" autofocus />
-            <button>Добавить</button>
-        </form>
-        {if message != "" {
-            <p id="message" role="alert">{message}</p>
-        }}
-
-        <nav aria-label="Фильтр">
-            {for f in FILTERS {
-                <button class={f.id == filter ? "active" : ""} onClick={filter = f.id}>{f.label}</button>
-            }}
-        </nav>
-
-        <ul id="list">
-            {for todo in todos.visible(filter) {
-                <TodoItem
-                    todo={todo}
-                    onToggle={todos.toggle(todo.id); save(todos)}
-                    onRemove={todos.remove(todo.id); save(todos)}
-                />
-            }}
-        </ul>
-
-        <footer>
-            <span id="summary">{summary()}</span>
-            <button id="clear-done" disabled={!hasDone()} onClick={todos.clearDone(); save(todos)}>
-                Убрать готовые
-            </button>
-        </footer>
+        <header class="topbar">
+            <a class="brand" href="#intro"><span aria-hidden="true">🥭</span> MangoScript</a>
+            <span class="tagline">JavaScript с синтаксисом Go, типами и компонентами</span>
+            <a class="topbar-link" href="#playground">Песочница</a>
+        </header>
+        <div class="layout">
+            <nav class="sidebar" aria-label="Разделы">
+                {for link in NAV {
+                    <a href={`#${link.id}`} class={link.id == active ? "active" : ""}>{link.title}</a>
+                }}
+            </nav>
+            <main class="content">
+                {for section in SECTIONS {
+                    <section id={section.id} class="doc-section">
+                        <h2>{section.title}</h2>
+                        {section.content()}
+                    </section>
+                }}
+                <section id="playground" class="doc-section">
+                    <h2>Песочница</h2>
+                    <p>
+                        Пишите код в редакторе — под ним сразу появится JavaScript, который из него
+                        получился, или ошибки компиляции. Кнопка «В песочницу» в любом примере выше
+                        открывает его здесь.
+                    </p>
+                    {playground()}
+                </section>
+                <footer class="footer">
+                    Эта страница написана на MangoScript и собрана компилятором из этого
+                    репозитория.
+                </footer>
+            </main>
+        </div>
     </>
 }
 
-comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
-    return <li class={todo.done ? "todo done" : "todo"}>
-        <input type="checkbox" checked={todo.done} onChange={onToggle} />
-        <span>{todo.title}</span>
-        <button title="Удалить" onClick={onRemove}>×</button>
-    </li>
-}
-
-document.querySelector("main").append(<TodoApp />)
+document.body.append(<DocsPage />)

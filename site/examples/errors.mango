@@ -1,0 +1,17 @@
+// Ошибка — второе возвращаемое значение, как в Go
+func parseAge(text string) (number, error) {
+    const age = Number(text)
+    if isNaN(age) || age < 0 {
+        return 0, error(`«${text}» — это не возраст`)
+    }
+    return age, null
+}
+
+for text in ["42", "сорок два"] {
+    const age, err = parseAge(text)
+    if err != null {
+        console.log("ошибка:", err.message)
+        continue
+    }
+    console.log("возраст:", age)
+}

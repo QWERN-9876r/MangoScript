@@ -1,4 +1,4 @@
-// Статический сервер для сайта, тоже на MangoScript. Запуск из корня репозитория:
+// Статический сервер для сайта документации, тоже на MangoScript. Запуск из корня репозитория:
 //   npm run site
 // Браузер не загружает ES-модули с file://, поэтому страницу нужно отдавать по HTTP.
 
@@ -19,6 +19,9 @@ func contentType(path string) string {
         return "text/javascript; charset=utf-8"
     case ".svg":
         return "image/svg+xml"
+    case ".mango":
+        // Примеры кода, которые страница загружает и компилирует сама.
+        return "text/plain; charset=utf-8"
     default:
         return "application/octet-stream"
     }
@@ -52,8 +55,9 @@ func readStatic(path string) (any, error) {
     }
 }
 
+// no-cache: после пересборки сайта браузер сразу получит новые файлы.
 func send(response any, status number, mime string, body any) {
-    response.writeHead(status, { "Content-Type": mime })
+    response.writeHead(status, { "Content-Type": mime, "Cache-Control": "no-cache" })
     response.end(body)
 }
 
