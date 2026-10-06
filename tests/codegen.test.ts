@@ -5,8 +5,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index.ts';
 
+/** Generated code, without type checking: the snippets use names they do not declare. */
 function js(source: string, options?: { rewriteImports?: boolean }): string {
-  const { code, diagnostics } = compile(source, options);
+  const { code, diagnostics } = compile(source, { ...options, typeCheck: false });
   expect(diagnostics).toEqual([]);
   return code.trimEnd();
 }
@@ -20,8 +21,10 @@ function jsExpression(source: string): string {
 function run(source: string): string[] {
   const output: string[] = [];
   const fakeConsole = { log: (...args: unknown[]) => output.push(args.map(String).join(' ')) };
+  const { code, diagnostics } = compile(source);
+  expect(diagnostics).toEqual([]);
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const program = new Function('console', `"use strict";\n${js(source)}`) as (
+  const program = new Function('console', `"use strict";\n${code}`) as (
     console: typeof fakeConsole,
   ) => void;
   program(fakeConsole);

@@ -1,0 +1,1960 @@
+import type * as ast from '../ast.ts';
+import type { Diagnostic } from '../diagnostics.ts';
+import { assignedNames, containsBreak } from '../walk.ts';
+import {
+  arrayMember,
+  boolMember,
+  GLOBAL_TYPES,
+  GLOBAL_VALUES,
+  numberMember,
+  stringMember,
+} from './builtins.ts';
+import {
+  ANY,
+  arrayOf,
+  BOOL,
+  commonType,
+  constructorOf,
+  containsTypeParam,
+  createClass,
+  explainMismatch,
+  findClassMember,
+  func,
+  hasUntypedBase,
+  hasZeroValue,
+  inferTypeParams,
+  instanceMembers,
+  isAssignable,
+  isComparable,
+  isNullable,
+  isSubclass,
+  NEVER,
+  nonNull,
+  NULL,
+  nullable,
+  NUMBER,
+  STRING,
+  substitute,
+  typesEqual,
+  typeToString,
+  UNKNOWN,
+  VOID,
+  type ClassInfo,
+  type FunctionType,
+  type Member,
+  type ObjectType,
+  type Type,
+  type TypeParam,
+} from './types.ts';
+
+export interface ModuleExports {
+  values: Map<string, Type>;
+  types: Map<string, Type>;
+}
+
+/** What `importModule` found: the module's exports, an error for the import, or nothing (untyped). */
+export type ImportResult = { exports: ModuleExports } | { error: string } | undefined;
+
+export interface CheckOptions {
+  /** Called for imports of `.mango` modules; without it, every import is untyped (`any`). */
+  importModule?: (specifier: string) => ImportResult;
+}
+
+export interface CheckResult {
+  diagnostics: Diagnostic[];
+  exports: ModuleExports;
+}
+
+export function check(program: ast.Program, options: CheckOptions = {}): CheckResult {
+  return new Checker(program, options).run();
+}
+
+type BindingKind =
+  'let' | 'const' | 'param' | 'function' | 'class' | 'import' | 'loop' | 'catch' | 'builtin';
+
+interface Binding {
+  name: string;
+  kind: BindingKind;
+  /** `null` while a variable is declared but its declaration has not been checked yet. */
+  type: Type | null;
+}
+
+/** A `type` alias, resolved when first used. */
+interface AliasEntry {
+  kind: 'alias';
+  node: ast.TypeAliasDeclaration;
+  scope: Scope;
+  resolved: Type | null;
+  resolving: boolean;
+}
+
+class Scope {
+  readonly parent: Scope | null;
+  readonly values = new Map<string, Binding>();
+  readonly types = new Map<string, Type | AliasEntry>();
+
+  constructor(parent: Scope | null) {
+    this.parent = parent;
+  }
+}
+
+interface FunctionContext {
+  /** Declared result types, or `null` when they are inferred from the `return` statements. */
+  results: Type[] | null;
+  /** Types of the `return` statements, for inferring the results. */
+  returns: Type[][];
+  isConstructor: boolean;
+}
+
+interface ClassContext {
+  info: ClassInfo;
+  isStatic: boolean;
+}
+
+/**
+ * Types of variables narrowed by the code before the current point, e.g. `?User` → `User`
+ * after `if user == null { return }`.
+ */
+type Flow = Map<Binding, Type>;
+type Narrowing = [Binding, Type][];
+
+const NARROWABLE: ReadonlySet<BindingKind> = new Set(['let', 'const', 'param', 'catch', 'loop']);
+
+function globalScope(): Scope {
+  const scope = new Scope(null);
+  for (const [name, type] of GLOBAL_VALUES) scope.values.set(name, { name, kind: 'builtin', type });
+  for (const [name, type] of GLOBAL_TYPES) scope.types.set(name, type);
+  return scope;
+}
+
+class Checker {
+  private readonly program: ast.Program;
+  private readonly options: CheckOptions;
+  private readonly diagnostics: Diagnostic[] = [];
+  private readonly moduleScope: Scope;
+  private scope: Scope;
+  private flow: Flow = new Map();
+  private fn: FunctionContext | null = null;
+  private cls: ClassContext | null = null;
+  /** Names assigned somewhere in the module: their narrowing does not carry into closures. */
+  private readonly assigned: Set<string>;
+  /** Classes whose members are not resolved yet, with the code that resolves them. */
+  private readonly unresolvedClasses = new Map<ClassInfo, () => void>();
+  private readonly resolvingClasses = new Set<ClassInfo>();
+
+  constructor(program: ast.Program, options: CheckOptions) {
+    this.program = program;
+    this.options = options;
+    this.moduleScope = new Scope(globalScope());
+    this.scope = this.moduleScope;
+    this.assigned = assignedNames(program);
+  }
+
+  run(): CheckResult {
+    this.checkStatementList(this.program.body, true);
+    this.diagnostics.sort((a, b) => a.start - b.start);
+    return { diagnostics: this.diagnostics, exports: this.collectExports() };
+  }
+
+  // ─── Diagnostics ───────────────────────────────────────────────────────────────────────────────
+
+  private error(message: string, node: ast.NodeBase): void {
+    if (this.diagnostics.some((d) => d.start === node.start)) return;
+    this.diagnostics.push({ message, start: node.start, end: node.end });
+  }
+
+  private expectAssignable(source: Type, target: Type, node: ast.NodeBase, context = ''): void {
+    if (isAssignable(source, target)) return;
+    let message = `cannot use ${typeToString(source)} as ${typeToString(target)}${context}`;
+    const reason = explainMismatch(nonNull(source), nonNull(target));
+    if (source.kind === 'nullable' && isAssignable(nonNull(source), target)) {
+      message += ': it may be null, check it first';
+    } else if (reason !== null) {
+      message += `: ${reason}`;
+    }
+    this.error(message, node);
+  }
+
+  private nullError(node: ast.Expression): void {
+    const name = node.kind === 'Identifier' ? node.name : null;
+    this.error(
+      name !== null
+        ? `"${name}" may be null: check it with "if ${name} != null" or use "?."`
+        : 'this value may be null: check it for null or use "?."',
+      node,
+    );
+  }
+
+  // ─── Scopes ────────────────────────────────────────────────────────────────────────────────────
+
+  private withScope<T>(check: () => T): T {
+    const saved = this.scope;
+    this.scope = new Scope(saved);
+    try {
+      return check();
+    } finally {
+      this.scope = saved;
+    }
+  }
+
+  private withClass<T>(context: ClassContext | null, check: () => T): T {
+    const saved = this.cls;
+    this.cls = context;
+    try {
+      return check();
+    } finally {
+      this.cls = saved;
+    }
+  }
+
+  private lookupValue(name: string): Binding | undefined {
+    for (let scope: Scope | null = this.scope; scope; scope = scope.parent) {
+      const binding = scope.values.get(name);
+      if (binding) return binding;
+    }
+    return undefined;
+  }
+
+  private lookupType(name: string): Type | AliasEntry | undefined {
+    for (let scope: Scope | null = this.scope; scope; scope = scope.parent) {
+      const entry = scope.types.get(name);
+      if (entry) return entry;
+    }
+    return undefined;
+  }
+
+  private declareValue(id: ast.Identifier, kind: BindingKind, type: Type | null): Binding {
+    const binding: Binding = { name: id.name, kind, type };
+    if (id.name === '_') return binding;
+    if (this.scope.values.has(id.name)) {
+      this.error(`"${id.name}" is already declared in this scope`, id);
+    }
+    this.scope.values.set(id.name, binding);
+    return binding;
+  }
+
+  private declareType(id: ast.Identifier, entry: Type | AliasEntry): void {
+    if (this.scope.types.has(id.name)) this.error(`type "${id.name}" is already declared`, id);
+    this.scope.types.set(id.name, entry);
+  }
+
+  // ─── Declarations ──────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Declares the names of a statement list first (so functions, classes and types can be used
+   * before their declaration), then checks the statements in order. Function and method bodies are
+   * checked last, when every name of the list is known.
+   */
+  private checkStatementList(statements: readonly ast.Statement[], topLevel: boolean): void {
+    const bodies = this.declareStatements(statements, topLevel);
+    for (const statement of statements) this.checkStatement(statement);
+    for (const checkBody of bodies) checkBody();
+  }
+
+  private declareStatements(
+    statements: readonly ast.Statement[],
+    topLevel: boolean,
+  ): (() => void)[] {
+    const classes: [ast.ClassDeclaration, ClassInfo][] = [];
+    const interfaces: [ast.InterfaceDeclaration, ObjectType][] = [];
+    const functions: [ast.FuncDeclaration, Binding][] = [];
+
+    for (const statement of statements) {
+      switch (statement.kind) {
+        case 'ImportDeclaration':
+          this.declareImport(statement);
+          break;
+        case 'ClassDeclaration': {
+          const info = createClass(statement.name.name);
+          this.declareType(statement.name, info.instance);
+          this.declareValue(statement.name, 'class', info.value);
+          classes.push([statement, info]);
+          break;
+        }
+        case 'InterfaceDeclaration': {
+          const object: ObjectType = {
+            kind: 'object',
+            name: statement.name.name,
+            members: new Map(),
+            call: null,
+          };
+          this.declareType(statement.name, object);
+          interfaces.push([statement, object]);
+          break;
+        }
+        case 'TypeAliasDeclaration':
+          this.declareType(statement.name, {
+            kind: 'alias',
+            node: statement,
+            scope: this.scope,
+            resolved: null,
+            resolving: false,
+          });
+          break;
+        case 'FuncDeclaration':
+          functions.push([statement, this.declareValue(statement.name, 'function', null)]);
+          break;
+        case 'VariableDeclaration':
+          // Top-level variables can be used in functions declared before them.
+          if (topLevel) {
+            for (const name of statement.names) this.declareValue(name, statement.keyword, null);
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    for (const [node, object] of interfaces) this.fillMembers(object, node.members);
+    for (const statement of statements) {
+      if (statement.kind === 'TypeAliasDeclaration') this.resolveTypeName(statement.name);
+    }
+    for (const [node, binding] of functions) {
+      binding.type = this.signature(node.params, node.results);
+    }
+    for (const [node, info] of classes) {
+      this.unresolvedClasses.set(info, () => this.resolveClass(node, info));
+    }
+    for (const [, info] of classes) this.ensureClassResolved(info);
+
+    const bodies: (() => void)[] = [];
+    for (const [node, binding] of functions) {
+      const type = binding.type as FunctionType;
+      // A nested `func` declaration is a JS `function`: it has no `this` of its own class.
+      bodies.push(() =>
+        this.withClass(null, () => this.checkFunction(node.params, type, type.results, node.body)),
+      );
+    }
+    for (const [node, info] of classes) bodies.push(() => this.checkClassBodies(node, info));
+    return bodies;
+  }
+
+  private declareImport(node: ast.ImportDeclaration): void {
+    const specifier = node.source.value;
+    const isMango = specifier.endsWith('.mango');
+    const result = isMango ? this.options.importModule?.(specifier) : undefined;
+    if (result && 'error' in result) this.error(result.error, node.source);
+    const exports = result && 'exports' in result ? result.exports : null;
+
+    if (node.defaultImport) {
+      if (exports) {
+        this.error(
+          'MangoScript modules have no default export: use import { ... }',
+          node.defaultImport,
+        );
+      }
+      this.declareValue(node.defaultImport, 'import', exports ? UNKNOWN : ANY);
+      this.scope.types.set(node.defaultImport.name, ANY);
+    }
+    if (node.namespaceImport) {
+      const members = new Map<string, Member>();
+      for (const [name, type] of exports?.values ?? []) {
+        members.set(name, { type, method: false, visibility: 'public', owner: null });
+      }
+      const type: Type = exports ? { kind: 'object', name: specifier, members, call: null } : ANY;
+      this.declareValue(node.namespaceImport, 'import', type);
+    }
+    for (const specifierNode of node.namedImports) {
+      const name = specifierNode.imported.name;
+      if (!exports) {
+        this.declareValue(specifierNode.local, 'import', ANY);
+        this.scope.types.set(specifierNode.local.name, ANY);
+        continue;
+      }
+      const value = exports.values.get(name);
+      const type = exports.types.get(name);
+      if (value === undefined && type === undefined) {
+        this.error(`"${name}" is not exported by "${specifier}"`, specifierNode.imported);
+      }
+      if (value !== undefined) this.declareValue(specifierNode.local, 'import', value);
+      if (type !== undefined) this.declareType(specifierNode.local, type);
+    }
+  }
+
+  /** Members of an interface or object type: `name string; area() number`. */
+  private fillMembers(object: ObjectType, members: readonly ast.TypeMember[]): void {
+    for (const member of members) {
+      if (object.members.has(member.name.name)) {
+        this.error(`duplicate member "${member.name.name}"`, member.name);
+      }
+      object.members.set(member.name.name, {
+        type:
+          member.kind === 'PropertySignature'
+            ? this.resolveType(member.type)
+            : this.signature(member.params, member.results),
+        method: member.kind === 'MethodSignature',
+        visibility: 'public',
+        owner: null,
+      });
+    }
+  }
+
+  private signature(
+    params: readonly ast.Parameter[],
+    results: readonly ast.TypeNode[],
+  ): FunctionType {
+    return func(
+      params.map((param) => (param.type ? this.resolveType(param.type) : UNKNOWN)),
+      results.map((result) => this.resolveType(result)),
+    );
+  }
+
+  private ensureClassResolved(info: ClassInfo): void {
+    const resolve = this.unresolvedClasses.get(info);
+    if (!resolve || this.resolvingClasses.has(info)) return;
+    this.resolvingClasses.add(info);
+    try {
+      resolve();
+    } finally {
+      this.resolvingClasses.delete(info);
+      this.unresolvedClasses.delete(info);
+    }
+  }
+
+  /** Resolves the base class and the types of all members (but does not check method bodies). */
+  private resolveClass(node: ast.ClassDeclaration, info: ClassInfo): void {
+    if (node.superClass) {
+      const base = this.checkValue(node.superClass);
+      if (base.kind === 'classValue') {
+        this.ensureClassResolved(base.info);
+        if (this.resolvingClasses.has(base.info) || isSubclass(base.info, info)) {
+          this.error(`class "${info.name}" cannot extend itself`, node.superClass);
+        } else {
+          info.superClass = base.info;
+        }
+      } else if (base.kind === 'any') {
+        info.untypedBase = true;
+      } else if (base.kind !== 'unknown') {
+        this.error(`cannot extend ${typeToString(base)}: it is not a class`, node.superClass);
+      }
+    }
+
+    for (const member of node.members) {
+      switch (member.kind) {
+        case 'FieldDeclaration': {
+          const declared = member.type ? this.resolveType(member.type) : null;
+          let type = declared ?? UNKNOWN;
+          const { value } = member;
+          if (value) {
+            const valueType = this.withClass({ info, isStatic: member.isStatic }, () =>
+              this.checkValue(value, declared),
+            );
+            if (declared) this.expectAssignable(valueType, declared, value);
+            else type = this.inferredType(valueType, value);
+          }
+          this.declareMember(info, member.isStatic, member.name, {
+            type,
+            method: false,
+            visibility: member.visibility,
+            owner: info,
+          });
+          break;
+        }
+        case 'MethodDeclaration':
+          this.declareMember(info, member.isStatic, member.name, {
+            type: this.signature(member.params, member.results),
+            method: true,
+            visibility: member.visibility,
+            owner: info,
+          });
+          break;
+        case 'ConstructorDeclaration':
+          if (info.ctor) this.error('a class can have only one constructor', member);
+          info.ctor = this.signature(member.params, []);
+          info.ctorVisibility = member.visibility;
+          break;
+      }
+    }
+  }
+
+  private declareMember(
+    info: ClassInfo,
+    isStatic: boolean,
+    name: ast.Identifier,
+    member: Member,
+  ): void {
+    const members = isStatic ? info.statics : info.members;
+    if (members.has(name.name)) this.error(`duplicate member "${name.name}"`, name);
+    members.set(name.name, member);
+  }
+
+  /** Method bodies and the checks that need every member of the class. */
+  private checkClassBodies(node: ast.ClassDeclaration, info: ClassInfo): void {
+    let constructorNode: ast.ConstructorDeclaration | null = null;
+    for (const member of node.members) {
+      if (member.kind === 'MethodDeclaration') {
+        const type = (member.isStatic ? info.statics : info.members).get(member.name.name)?.type;
+        if (type?.kind !== 'function') continue;
+        this.withClass({ info, isStatic: member.isStatic }, () =>
+          this.checkFunction(member.params, type, type.results, member.body),
+        );
+        this.checkOverride(info, member);
+      } else if (member.kind === 'ConstructorDeclaration' && info.ctor) {
+        constructorNode = member;
+        const type = info.ctor;
+        this.withClass({ info, isStatic: false }, () =>
+          this.checkFunction(member.params, type, [], member.body, { isConstructor: true }),
+        );
+        const derived = info.superClass !== null || info.untypedBase;
+        if (derived && !member.body.body.some(isSuperCall)) {
+          this.error('the constructor of a derived class must call super(...)', member);
+        }
+      }
+    }
+
+    // Fields without a zero value must get one at once or in the constructor.
+    for (const member of node.members) {
+      if (member.kind !== 'FieldDeclaration' || member.isStatic || member.value) continue;
+      const type = info.members.get(member.name.name)?.type;
+      if (!type || hasZeroValue(type)) continue;
+      if (constructorNode && assignsField(constructorNode.body, member.name.name)) continue;
+      this.error(
+        `field "${member.name.name}" needs a value: ${typeToString(type)} has no zero value, ` +
+          'so initialize it here or assign it in the constructor',
+        member.name,
+      );
+    }
+
+    for (const reference of node.implements) {
+      const target = this.resolveTypeName(reference.name);
+      if (target.kind === 'unknown') continue;
+      if (target.kind !== 'object' && target.kind !== 'class') {
+        this.error(`cannot implement ${typeToString(target)}: it is not an interface`, reference);
+      } else if (!isAssignable(info.instance, target)) {
+        const reason = explainMismatch(info.instance, target);
+        this.error(
+          `class "${info.name}" does not implement ${typeToString(target)}${reason ? `: ${reason}` : ''}`,
+          reference,
+        );
+      }
+    }
+  }
+
+  private checkOverride(info: ClassInfo, method: ast.MethodDeclaration): void {
+    if (!info.superClass) return;
+    const base = findClassMember(info.superClass, method.name.name, method.isStatic);
+    const own = (method.isStatic ? info.statics : info.members).get(method.name.name);
+    if (!base || !own || isAssignable(own.type, base.type)) return;
+    this.error(
+      `"${method.name.name}" overrides ${base.owner?.name ?? info.superClass.name}.${method.name.name} ` +
+        `with an incompatible type: ${typeToString(own.type)} instead of ${typeToString(base.type)}`,
+      method.name,
+    );
+  }
+
+  private collectExports(): ModuleExports {
+    const values = new Map<string, Type>();
+    const types = new Map<string, Type>();
+    const valueOf = (name: string) => this.moduleScope.values.get(name)?.type ?? UNKNOWN;
+    const typeOf = (name: string) => {
+      const entry = this.moduleScope.types.get(name);
+      if (!entry) return UNKNOWN;
+      return entry.kind === 'alias' ? this.resolveAlias(entry) : entry;
+    };
+    for (const statement of this.program.body) {
+      switch (statement.kind) {
+        case 'FuncDeclaration':
+          if (statement.exported) values.set(statement.name.name, valueOf(statement.name.name));
+          break;
+        case 'VariableDeclaration':
+          if (statement.exported) {
+            for (const name of statement.names) values.set(name.name, valueOf(name.name));
+          }
+          break;
+        case 'ClassDeclaration':
+          if (statement.exported) {
+            values.set(statement.name.name, valueOf(statement.name.name));
+            types.set(statement.name.name, typeOf(statement.name.name));
+          }
+          break;
+        case 'InterfaceDeclaration':
+        case 'TypeAliasDeclaration':
+          if (statement.exported) types.set(statement.name.name, typeOf(statement.name.name));
+          break;
+        default:
+          break;
+      }
+    }
+    return { values, types };
+  }
+
+  // ─── Types ─────────────────────────────────────────────────────────────────────────────────────
+
+  private resolveType(node: ast.TypeNode): Type {
+    switch (node.kind) {
+      case 'TypeReference':
+        return this.resolveTypeName(node.name);
+      case 'ArrayType':
+        return arrayOf(this.resolveType(node.element));
+      case 'NullableType':
+        return nullable(this.resolveType(node.type));
+      case 'FuncType':
+        return func(
+          node.params.map((param) => this.resolveType(param)),
+          node.results.map((result) => this.resolveType(result)),
+        );
+      case 'ObjectType': {
+        const object: ObjectType = { kind: 'object', name: null, members: new Map(), call: null };
+        this.fillMembers(object, node.members);
+        return object;
+      }
+    }
+  }
+
+  private resolveTypeName(name: ast.Identifier): Type {
+    const entry = this.lookupType(name.name);
+    if (entry === undefined) {
+      this.error(
+        this.lookupValue(name.name)
+          ? `"${name.name}" is a value, not a type`
+          : `unknown type "${name.name}"`,
+        name,
+      );
+      return UNKNOWN;
+    }
+    return entry.kind === 'alias' ? this.resolveAlias(entry) : entry;
+  }
+
+  private resolveAlias(entry: AliasEntry): Type {
+    if (entry.resolved) return entry.resolved;
+    const { node } = entry;
+    if (entry.resolving) {
+      this.error(`type "${node.name.name}" refers to itself`, node.name);
+      return UNKNOWN;
+    }
+    const saved = this.scope;
+    this.scope = entry.scope;
+    try {
+      if (node.type.kind === 'ObjectType') {
+        // Registered before its members, so that they can refer to the type itself.
+        const object: ObjectType = {
+          kind: 'object',
+          name: node.name.name,
+          members: new Map(),
+          call: null,
+        };
+        entry.resolved = object;
+        this.fillMembers(object, node.type.members);
+        return object;
+      }
+      entry.resolving = true;
+      entry.resolved = this.resolveType(node.type);
+      return entry.resolved;
+    } finally {
+      entry.resolving = false;
+      this.scope = saved;
+    }
+  }
+
+  /** The type of a variable initialized with a value of type `type`. */
+  private inferredType(type: Type, node: ast.Expression): Type {
+    if (type.kind === 'null') {
+      this.error('cannot infer a type from null: declare it, e.g. "let x ?User = null"', node);
+      return UNKNOWN;
+    }
+    if (type.kind === 'array' && type.element.kind === 'never') {
+      this.error(
+        'cannot infer the type of an empty array: declare it, e.g. "let xs []number"',
+        node,
+      );
+      return UNKNOWN;
+    }
+    return type;
+  }
+
+  // ─── Statements ────────────────────────────────────────────────────────────────────────────────
+
+  private checkStatement(node: ast.Statement): void {
+    switch (node.kind) {
+      case 'VariableDeclaration':
+        this.checkVariableDeclaration(node);
+        break;
+      case 'BlockStatement':
+        this.checkBlock(node.body);
+        break;
+      case 'ExpressionStatement':
+        this.checkExpression(node.expression, null);
+        break;
+      case 'AssignmentStatement':
+        this.checkAssignment(node);
+        break;
+      case 'IncDecStatement': {
+        const type = this.checkTarget(node.target);
+        if (!isNumeric(type)) {
+          this.error(`"${node.operator}" needs a number, not ${typeToString(type)}`, node.target);
+        }
+        this.forget(node.target);
+        break;
+      }
+      case 'ReturnStatement':
+        this.checkReturn(node);
+        break;
+      case 'IfStatement':
+        this.checkIf(node);
+        break;
+      case 'ForStatement':
+        this.checkFor(node);
+        break;
+      case 'ForInStatement':
+        this.checkForIn(node);
+        break;
+      case 'SwitchStatement':
+        this.checkSwitch(node);
+        break;
+      case 'ThrowStatement':
+        this.checkValue(node.argument);
+        break;
+      case 'TryStatement':
+        this.checkTry(node);
+        break;
+      case 'DeferStatement':
+        if (node.body.kind === 'BlockStatement') this.checkBlock(node.body.body);
+        else this.checkExpression(node.body, null);
+        break;
+      case 'ImportDeclaration':
+      case 'FuncDeclaration':
+      case 'ClassDeclaration':
+      case 'InterfaceDeclaration':
+      case 'TypeAliasDeclaration':
+      case 'BreakStatement':
+      case 'ContinueStatement':
+        // Declarations are handled by declareStatements(); jumps were checked by the parser.
+        break;
+    }
+  }
+
+  private checkBlock(statements: readonly ast.Statement[]): void {
+    this.withScope(() => this.checkStatementList(statements, false));
+  }
+
+  private checkVariableDeclaration(node: ast.VariableDeclaration): void {
+    const declared = node.type ? this.resolveType(node.type) : null;
+    const { names, values } = node;
+    let types: Type[];
+
+    if (values.length === 0) {
+      if (declared && !hasZeroValue(declared) && declared.kind !== 'unknown') {
+        const type = typeToString(declared);
+        this.error(
+          `${type} has no zero value: give "${names[0]!.name}" a value or make it nullable with ?${type}`,
+          node.type ?? node,
+        );
+      }
+      types = names.map(() => declared ?? UNKNOWN);
+    } else if (values.length === names.length) {
+      types = values.map((value) => {
+        const type = this.checkValue(value, declared);
+        if (!declared) return this.inferredType(type, value);
+        this.expectAssignable(type, declared, value);
+        return declared;
+      });
+    } else {
+      types = this.unpack(values[0]!, names.length, declared);
+    }
+
+    names.forEach((name, i) => {
+      if (name.name === '_') return;
+      const type = types[i] ?? UNKNOWN;
+      // Top-level variables were declared in advance by declareStatements().
+      const existing = this.scope.values.get(name.name);
+      const binding =
+        existing && existing.type === null && existing.kind === node.keyword
+          ? existing
+          : this.declareValue(name, node.keyword, null);
+      binding.type = type;
+      const value = values.length === names.length ? values[i] : undefined;
+      if (value && isNullable(type) && !isNullable(this.typeOfChecked(value))) {
+        this.flow.set(binding, nonNull(type));
+      }
+    });
+  }
+
+  /**
+   * Remembers the types of checked expressions that may narrow a variable, e.g.
+   * `let u ?User = new User()` makes `u` non-null until it is assigned again.
+   */
+  private readonly checkedTypes = new WeakMap<ast.Expression, Type>();
+
+  private typeOfChecked(node: ast.Expression): Type {
+    return this.checkedTypes.get(node) ?? UNKNOWN;
+  }
+
+  /**
+   * `a, b = f()` or `return f()`: the call must return exactly `count` values. Returns their
+   * types.
+   */
+  private unpack(
+    value: ast.Expression,
+    count: number,
+    declared: Type | null,
+    context: 'assignment' | 'return' = 'assignment',
+  ): Type[] {
+    const type = this.checkExpression(value, null);
+    if (type.kind === 'unknown') return Array<Type>(count).fill(UNKNOWN);
+    const returned = type.kind === 'tuple' ? type.types.length : type.kind === 'void' ? 0 : 1;
+    if (type.kind !== 'tuple' || returned !== count) {
+      const prefix =
+        context === 'return'
+          ? `wrong number of return values: expected ${count}, but`
+          : `assignment mismatch: ${count} variables but`;
+      this.error(`${prefix} ${callName(value)} returns ${countValues(returned)}`, value);
+      return Array<Type>(count).fill(UNKNOWN);
+    }
+    if (declared) {
+      for (const element of type.types) this.expectAssignable(element, declared, value);
+      return type.types.map(() => declared);
+    }
+    return type.types;
+  }
+
+  private checkAssignment(node: ast.AssignmentStatement): void {
+    const { targets, values, operator } = node;
+    if (operator !== '=') {
+      const target = targets[0]!;
+      const targetType = this.checkTarget(target);
+      const valueType = this.checkValue(values[0]!, targetType);
+      const result = this.binaryResult(
+        operator.slice(0, -1) as ast.BinaryOperator,
+        targetType,
+        valueType,
+        node,
+      );
+      this.expectAssignable(result, targetType, values[0]!);
+      this.forget(target);
+      return;
+    }
+
+    const targetTypes = targets.map((target) => this.checkTarget(target));
+    let valueTypes: Type[];
+    if (values.length === targets.length) {
+      valueTypes = values.map((value, i) => {
+        const type = this.checkValue(value, targetTypes[i] ?? null);
+        this.expectAssignable(type, targetTypes[i]!, value);
+        return type;
+      });
+    } else {
+      valueTypes = this.unpack(values[0]!, targets.length, null);
+      valueTypes.forEach((type, i) => this.expectAssignable(type, targetTypes[i]!, values[0]!));
+    }
+
+    targets.forEach((target, i) => {
+      this.forget(target);
+      const binding = this.narrowableBinding(target);
+      const declared = binding?.type;
+      if (binding && declared && isNullable(declared) && !isNullable(valueTypes[i] ?? UNKNOWN)) {
+        this.flow.set(binding, nonNull(declared));
+      }
+    });
+  }
+
+  /** The type a value assigned to `target` must have. */
+  private checkTarget(target: ast.Expression): Type {
+    switch (target.kind) {
+      case 'Identifier': {
+        if (target.name === '_') return ANY;
+        const binding = this.lookupValue(target.name);
+        if (!binding) {
+          this.error(`"${target.name}" is not defined`, target);
+          return UNKNOWN;
+        }
+        if (binding.kind === 'const') {
+          this.error(`cannot assign to "${target.name}": it is a constant`, target);
+        } else if (binding.kind === 'loop') {
+          this.error(`cannot assign to loop variable "${target.name}"`, target);
+        } else if (binding.kind !== 'let' && binding.kind !== 'param' && binding.kind !== 'catch') {
+          this.error(`cannot assign to "${target.name}"`, target);
+        }
+        return binding.type ?? UNKNOWN;
+      }
+      case 'MemberExpression': {
+        const object = this.nonNullValue(target.object);
+        const member = this.findMember(object, target.property.name, target.property);
+        if (member === 'any') return ANY;
+        if (!member) return UNKNOWN;
+        if (member.method) {
+          this.error(`cannot assign to method "${target.property.name}"`, target);
+          return UNKNOWN;
+        }
+        return member.type;
+      }
+      case 'IndexExpression': {
+        const object = this.nonNullValue(target.object);
+        this.expectIndex(target.index);
+        if (object.kind === 'array') return object.element;
+        if (object.kind === 'any' || object.kind === 'unknown') return object;
+        this.error(
+          object.kind === 'string'
+            ? 'cannot assign to a character: strings cannot be changed'
+            : `cannot index ${typeToString(object)}`,
+          target,
+        );
+        return UNKNOWN;
+      }
+      default:
+        this.checkValue(target);
+        return UNKNOWN;
+    }
+  }
+
+  private checkReturn(node: ast.ReturnStatement): void {
+    const fn = this.fn;
+    if (!fn) return;
+    const { values } = node;
+
+    if (fn.results === null) {
+      // Results are inferred: just record what is returned.
+      if (values.length === 1) {
+        const type = this.checkExpression(values[0]!, null);
+        fn.returns.push(type.kind === 'tuple' ? type.types : type.kind === 'void' ? [] : [type]);
+      } else {
+        fn.returns.push(values.map((value) => this.checkValue(value)));
+      }
+      return;
+    }
+
+    const expected = fn.results;
+    if (values.length === 0) {
+      if (expected.length > 0) {
+        this.error(`missing return values: expected ${countValues(expected.length)}`, node);
+      }
+      return;
+    }
+    if (expected.length === 0) {
+      this.error('too many return values: this function returns nothing', values[0]!);
+      for (const value of values) this.checkExpression(value, null);
+      return;
+    }
+    if (values.length === 1 && expected.length > 1 && values[0]!.kind === 'CallExpression') {
+      const types = this.unpack(values[0], expected.length, null, 'return');
+      types.forEach((type, i) =>
+        this.expectAssignable(type, expected[i]!, values[0]!, ' in return'),
+      );
+      return;
+    }
+    if (values.length !== expected.length) {
+      this.error(
+        `wrong number of return values: expected ${expected.length}, got ${values.length}`,
+        node,
+      );
+    }
+    values.forEach((value, i) => {
+      const target = expected[i];
+      const type = this.checkValue(value, target ?? null);
+      if (target) this.expectAssignable(type, target, value, ' in return');
+    });
+  }
+
+  private checkIf(node: ast.IfStatement): void {
+    this.checkCondition(node.condition);
+    const before = this.flow;
+
+    this.flow = withNarrowing(before, this.narrow(node.condition, true));
+    this.checkBlock(node.consequent.body);
+    const afterThen = this.flow;
+
+    this.flow = withNarrowing(before, this.narrow(node.condition, false));
+    const { alternate } = node;
+    if (alternate?.kind === 'IfStatement') this.checkIf(alternate);
+    else if (alternate) this.checkBlock(alternate.body);
+    const afterElse = this.flow;
+
+    // A branch that always leaves (return, throw, break, continue) does not reach the code after
+    // the `if`, so `if x == null { return }` narrows `x` for the rest of the block.
+    const thenLeaves = leaves(node.consequent);
+    const elseLeaves = alternate !== null && leaves(alternate);
+    if (thenLeaves && !elseLeaves) this.flow = afterElse;
+    else if (elseLeaves && !thenLeaves) this.flow = afterThen;
+    else this.flow = mergeFlows(afterThen, afterElse);
+  }
+
+  private checkFor(node: ast.ForStatement): void {
+    this.withScope(() => {
+      if (node.init) this.checkSimpleStatement(node.init);
+      // Variables assigned in the loop may change between iterations.
+      this.dropNarrowing(assignedNames(node));
+      const entry = this.flow;
+      if (node.condition) this.checkCondition(node.condition);
+      this.flow = withNarrowing(entry, node.condition ? this.narrow(node.condition, true) : []);
+      this.checkBlock(node.body.body);
+      if (node.update) this.checkSimpleStatement(node.update);
+      this.flow = entry;
+    });
+  }
+
+  private checkSimpleStatement(node: ast.SimpleStatement): void {
+    this.checkStatement(node);
+  }
+
+  private checkForIn(node: ast.ForInStatement): void {
+    const iterable = this.checkValue(node.iterable);
+    let value: Type = UNKNOWN;
+    let key: Type = NUMBER;
+    if (isNullable(iterable)) {
+      this.nullError(node.iterable);
+    } else if (iterable.kind === 'array') {
+      value = iterable.element;
+    } else if (iterable.kind === 'string') {
+      value = STRING;
+    } else if (iterable.kind === 'any') {
+      value = ANY;
+      key = ANY;
+    } else if (iterable.kind !== 'unknown') {
+      this.error(`cannot iterate over ${typeToString(iterable)}`, node.iterable);
+    }
+
+    this.withScope(() => {
+      if (node.key) this.declareValue(node.key, 'loop', key);
+      this.declareValue(node.value, 'loop', value);
+      this.dropNarrowing(assignedNames(node.body));
+      const entry = this.flow;
+      this.flow = new Map(entry);
+      this.checkBlock(node.body.body);
+      this.flow = entry;
+    });
+  }
+
+  private checkSwitch(node: ast.SwitchStatement): void {
+    const discriminant = node.discriminant ? this.checkValue(node.discriminant) : null;
+    this.dropNarrowing(assignedNames(node));
+    const entry = this.flow;
+    for (const switchCase of node.cases) {
+      for (const test of switchCase.tests) {
+        if (discriminant === null) {
+          this.checkCondition(test);
+          continue;
+        }
+        const type = this.checkValue(test, discriminant);
+        if (!isComparable(type, discriminant)) {
+          this.error(
+            `cannot compare ${typeToString(discriminant)} with ${typeToString(type)}`,
+            test,
+          );
+        }
+      }
+      const narrowing =
+        discriminant === null && switchCase.tests.length === 1
+          ? this.narrow(switchCase.tests[0]!, true)
+          : [];
+      this.flow = withNarrowing(entry, narrowing);
+      this.checkBlock(switchCase.body);
+    }
+    this.flow = entry;
+  }
+
+  private checkTry(node: ast.TryStatement): void {
+    this.dropNarrowing(assignedNames(node));
+    const entry = this.flow;
+    this.flow = new Map(entry);
+    this.checkBlock(node.block.body);
+    const { handler, finalizer } = node;
+    if (handler) {
+      this.flow = new Map(entry);
+      this.withScope(() => {
+        if (handler.param) this.declareValue(handler.param, 'catch', ANY);
+        this.checkStatementList(handler.body.body, false);
+      });
+    }
+    if (finalizer) {
+      this.flow = new Map(entry);
+      this.checkBlock(finalizer.body);
+    }
+    this.flow = entry;
+  }
+
+  private checkCondition(node: ast.Expression): void {
+    const type = this.checkValue(node, BOOL);
+    if (type.kind === 'bool' || type.kind === 'any' || type.kind === 'unknown') return;
+    const hint = isNullable(type)
+      ? ': compare it with null, e.g. "x != null"'
+      : type.kind === 'number'
+        ? ': compare it, e.g. "n != 0"'
+        : type.kind === 'string'
+          ? ': compare it, e.g. s != ""'
+          : '';
+    this.error(`condition must be bool, not ${typeToString(type)}${hint}`, node);
+  }
+
+  // ─── Functions ─────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Checks a function body and returns its result types: the declared ones, or those inferred from
+   * the `return` statements when `results` is `null`.
+   */
+  private checkFunction(
+    params: readonly ast.Parameter[],
+    type: FunctionType,
+    results: Type[] | null,
+    body: ast.BlockStatement | ast.Expression,
+    options: { isConstructor?: boolean; closure?: boolean } = {},
+  ): Type[] {
+    const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
+    this.scope = new Scope(this.scope);
+    // A closure keeps the narrowing of variables that cannot change before it runs.
+    this.flow = options.closure ? this.stableFlow() : new Map<Binding, Type>();
+    this.fn = { results, returns: [], isConstructor: options.isConstructor ?? false };
+    try {
+      params.forEach((param, i) =>
+        this.declareValue(param.name, 'param', type.params[i] ?? UNKNOWN),
+      );
+      if (body.kind === 'BlockStatement') {
+        this.checkStatementList(body.body, false);
+        if (results && results.length > 0 && !isTerminating(body)) {
+          this.error('missing return at the end of the function', {
+            start: body.end - 1,
+            end: body.end,
+          });
+        }
+        return results ?? this.inferResults(this.fn.returns, body);
+      }
+      return this.checkExpressionBody(body, results);
+    } finally {
+      this.scope = saved.scope;
+      this.flow = saved.flow;
+      this.fn = saved.fn;
+    }
+  }
+
+  /** The body of `x => x * 2`. */
+  private checkExpressionBody(body: ast.Expression, results: Type[] | null): Type[] {
+    if (results === null || results.length === 0) {
+      const type = this.checkExpression(body, null);
+      if (results !== null) return [];
+      return type.kind === 'tuple' ? type.types : type.kind === 'void' ? [] : [type];
+    }
+    if (results.length === 1) {
+      const type = this.checkValue(body, results[0] ?? null);
+      this.expectAssignable(type, results[0]!, body, ' in return');
+      return results;
+    }
+    const types = this.unpack(body, results.length, null, 'return');
+    types.forEach((type, i) => this.expectAssignable(type, results[i]!, body, ' in return'));
+    return results;
+  }
+
+  private inferResults(returns: Type[][], body: ast.BlockStatement): Type[] {
+    const first = returns[0];
+    if (first === undefined) return [];
+    const results = [...first];
+    for (const types of returns.slice(1)) {
+      if (types.length !== results.length) {
+        this.error('return statements return different numbers of values', body);
+        return results;
+      }
+      types.forEach((type, i) => {
+        const common = commonType(results[i]!, type);
+        if (common === null) {
+          this.error(
+            `return statements return different types: ${typeToString(results[i]!)} and ${typeToString(type)}`,
+            body,
+          );
+        } else {
+          results[i] = common;
+        }
+      });
+    }
+    return results;
+  }
+
+  private stableFlow(): Flow {
+    const flow: Flow = new Map();
+    for (const [binding, type] of this.flow) {
+      if (binding.kind === 'const' || !this.assigned.has(binding.name)) flow.set(binding, type);
+    }
+    return flow;
+  }
+
+  private checkArrowFunction(node: ast.ArrowFunction, expected: Type | null): Type {
+    const context = expected ? callSignature(nonNull(expected)) : null;
+    // Callbacks passed to untyped JS functions get untyped parameters.
+    const untypedContext = expected !== null && isUntyped(nonNull(expected));
+    const params = node.params.map((param, i) => {
+      if (param.type) return this.resolveType(param.type);
+      const fromContext = context ? (context.params[i] ?? context.rest) : null;
+      if (fromContext && !containsTypeParam(fromContext)) return fromContext;
+      if (untypedContext) return nonNull(expected);
+      this.error(`cannot infer the type of parameter "${param.name.name}": add a type`, param);
+      return UNKNOWN;
+    });
+    // Known result types from the context are checked; otherwise they are inferred.
+    const contextResults =
+      context && context.results.length > 0 && !context.results.some(containsTypeParam)
+        ? context.results
+        : null;
+    const type = func(params, []);
+    type.results = this.checkFunction(node.params, type, contextResults, node.body, {
+      closure: true,
+    });
+    return type;
+  }
+
+  private checkFuncExpression(node: ast.FuncExpression): Type {
+    const type = this.signature(node.params, node.results);
+    this.checkFunction(node.params, type, type.results, node.body, { closure: true });
+    return type;
+  }
+
+  // ─── Narrowing ─────────────────────────────────────────────────────────────────────────────────
+
+  /** Variables whose type is narrowed when `node` evaluates to `assumeTrue`. */
+  private narrow(node: ast.Expression, assumeTrue: boolean): Narrowing {
+    if (node.kind === 'UnaryExpression' && node.operator === '!') {
+      return this.narrow(node.argument, !assumeTrue);
+    }
+    if (node.kind !== 'BinaryExpression') return [];
+    const { operator, left, right } = node;
+    if (operator === '&&') {
+      return assumeTrue ? [...this.narrow(left, true), ...this.narrow(right, true)] : [];
+    }
+    if (operator === '||') {
+      return assumeTrue ? [] : [...this.narrow(left, false), ...this.narrow(right, false)];
+    }
+    // `x != null` when true, `x == null` when false: `x` is not null.
+    if ((operator === '!=' && assumeTrue) || (operator === '==' && !assumeTrue)) {
+      const target =
+        right.kind === 'NullLiteral' ? left : left.kind === 'NullLiteral' ? right : null;
+      const binding = target ? this.narrowableBinding(target) : undefined;
+      if (binding?.type) return [[binding, nonNull(this.flow.get(binding) ?? binding.type)]];
+    }
+    return [];
+  }
+
+  private narrowableBinding(node: ast.Expression): Binding | undefined {
+    if (node.kind !== 'Identifier') return undefined;
+    const binding = this.lookupValue(node.name);
+    return binding && NARROWABLE.has(binding.kind) ? binding : undefined;
+  }
+
+  /** An assignment to a variable ends its narrowing. */
+  private forget(target: ast.Expression): void {
+    const binding = this.narrowableBinding(target);
+    if (binding) this.flow.delete(binding);
+  }
+
+  private dropNarrowing(names: ReadonlySet<string>): void {
+    this.flow = new Map([...this.flow].filter(([binding]) => !names.has(binding.name)));
+  }
+
+  // ─── Expressions ───────────────────────────────────────────────────────────────────────────────
+
+  /** The type of an expression that must be a single value (not `void` or several results). */
+  private checkValue(node: ast.Expression, expected: Type | null = null): Type {
+    return this.single(this.checkExpression(node, expected), node);
+  }
+
+  private single(type: Type, node: ast.Expression): Type {
+    if (type.kind === 'tuple') {
+      this.error(
+        `${callName(node)} returns ${type.types.length} values: unpack them, e.g. "const a, b = ..."`,
+        node,
+      );
+      return UNKNOWN;
+    }
+    if (type.kind === 'void') {
+      this.error(`${callName(node)} does not return a value`, node);
+      return UNKNOWN;
+    }
+    return type;
+  }
+
+  /** `expected` is the type the context wants, used to type literals and arrow functions. */
+  private checkExpression(node: ast.Expression, expected: Type | null): Type {
+    const type = this.computeType(node, expected);
+    this.checkedTypes.set(node, type);
+    return type;
+  }
+
+  private computeType(node: ast.Expression, expected: Type | null): Type {
+    switch (node.kind) {
+      case 'Identifier':
+        return this.checkIdentifier(node);
+      case 'NumberLiteral':
+        return NUMBER;
+      case 'StringLiteral':
+        return STRING;
+      case 'TemplateLiteral':
+        for (const expression of node.expressions) this.checkValue(expression);
+        return STRING;
+      case 'BooleanLiteral':
+        return BOOL;
+      case 'NullLiteral':
+        return NULL;
+      case 'ThisExpression':
+        return this.thisType(node);
+      case 'SuperExpression':
+        return this.superType(node);
+      case 'ArrayLiteral':
+        return this.checkArrayLiteral(node, expected);
+      case 'ObjectLiteral':
+        return this.checkObjectLiteral(node, expected);
+      case 'FuncExpression':
+        return this.checkFuncExpression(node);
+      case 'ArrowFunction':
+        return this.checkArrowFunction(node, expected);
+      case 'UnaryExpression':
+        return this.checkUnary(node);
+      case 'BinaryExpression':
+        return this.checkBinary(node, expected);
+      case 'ConditionalExpression':
+        return this.checkConditional(node, expected);
+      case 'NewExpression':
+        return this.checkNew(node);
+      case 'MemberExpression':
+      case 'IndexExpression':
+      case 'CallExpression': {
+        const [type, shortCircuits] = this.checkChain(node);
+        return shortCircuits && type.kind !== 'tuple' && type.kind !== 'void'
+          ? nullable(type)
+          : type;
+      }
+    }
+  }
+
+  private checkIdentifier(node: ast.Identifier): Type {
+    if (node.name === '_') {
+      this.error('"_" cannot be used as a value', node);
+      return UNKNOWN;
+    }
+    const binding = this.lookupValue(node.name);
+    if (!binding) {
+      this.error(
+        this.lookupType(node.name)
+          ? `"${node.name}" is a type, not a value`
+          : `"${node.name}" is not defined`,
+        node,
+      );
+      return UNKNOWN;
+    }
+    if (binding.type === null) {
+      this.error(`"${node.name}" is used before its declaration`, node);
+      return UNKNOWN;
+    }
+    return this.flow.get(binding) ?? binding.type;
+  }
+
+  private thisType(node: ast.NodeBase): Type {
+    if (!this.cls) {
+      this.error('"this" can only be used inside a class', node);
+      return UNKNOWN;
+    }
+    return this.cls.isStatic ? this.cls.info.value : this.cls.info.instance;
+  }
+
+  /** `super.method()`: the members of the base class. */
+  private superType(node: ast.NodeBase): Type {
+    const info = this.cls?.info;
+    if (!info) {
+      this.error('"super" can only be used inside a class', node);
+      return UNKNOWN;
+    }
+    if (info.superClass)
+      return this.cls?.isStatic ? info.superClass.value : info.superClass.instance;
+    if (hasUntypedBase(info)) return ANY;
+    this.error(`class "${info.name}" has no base class`, node);
+    return UNKNOWN;
+  }
+
+  private checkArrayLiteral(node: ast.ArrayLiteral, expected: Type | null): Type {
+    const context = expected ? nonNull(expected) : null;
+    const expectedElement =
+      context?.kind === 'array' ? context.element : context?.kind === 'any' ? ANY : null;
+    let element: Type = expectedElement ?? NEVER;
+
+    for (const item of node.elements) {
+      let type: Type;
+      if (item.kind === 'SpreadElement') {
+        const spread = this.checkValue(item.argument, expectedElement && arrayOf(expectedElement));
+        if (spread.kind === 'array') type = spread.element;
+        else if (spread.kind === 'any' || spread.kind === 'unknown') type = spread;
+        else {
+          this.error(`cannot spread ${typeToString(spread)}: it is not an array`, item.argument);
+          type = UNKNOWN;
+        }
+      } else {
+        type = this.checkValue(item, expectedElement);
+      }
+
+      if (expectedElement) {
+        this.expectAssignable(
+          type,
+          expectedElement,
+          item.kind === 'SpreadElement' ? item.argument : item,
+        );
+      } else {
+        const common = commonType(element, type);
+        if (common === null) {
+          this.error(
+            `array elements have different types: ${typeToString(element)} and ${typeToString(type)}`,
+            item,
+          );
+          element = UNKNOWN;
+        } else {
+          element = common;
+        }
+      }
+    }
+    return arrayOf(element);
+  }
+
+  private checkObjectLiteral(node: ast.ObjectLiteral, expected: Type | null): Type {
+    const target = expected ? nonNull(expected) : null;
+    const targetMembers =
+      target?.kind === 'object'
+        ? target.members
+        : target?.kind === 'class'
+          ? instanceMembers(target.info)
+          : null;
+    const members = new Map<string, Member>();
+    const written = new Set<string>();
+    let untyped = false;
+
+    for (const property of node.properties) {
+      if (property.kind === 'SpreadElement') {
+        const spread = this.checkValue(property.argument);
+        if (spread.kind === 'object') {
+          for (const [name, member] of spread.members) members.set(name, member);
+        } else if (spread.kind === 'class') {
+          for (const [name, member] of instanceMembers(spread.info)) {
+            if (member.visibility === 'public' && !member.method) members.set(name, member);
+          }
+        } else if (spread.kind === 'any' || spread.kind === 'unknown') {
+          untyped = true;
+        } else {
+          this.error(`cannot spread ${typeToString(spread)} into an object`, property.argument);
+        }
+        continue;
+      }
+
+      const name = property.key.kind === 'Identifier' ? property.key.name : property.key.value;
+      // Fields may override those of a spread object, but not each other.
+      if (written.has(name)) this.error(`duplicate field "${name}"`, property.key);
+      written.add(name);
+      const expectedMember = targetMembers?.get(name);
+      // A field that the expected type does not have is most likely a typo.
+      if (targetMembers && !expectedMember && target) {
+        this.error(`${typeToString(target)} has no field "${name}"`, property.key);
+      }
+      let type = this.checkValue(property.value, expectedMember?.type ?? null);
+      if (expectedMember) {
+        // Reported at the field; the literal then counts as having the expected field type.
+        this.expectAssignable(type, expectedMember.type, property.value, ` for field "${name}"`);
+        type = expectedMember.type;
+      }
+      members.set(name, { type, method: false, visibility: 'public', owner: null });
+    }
+    return untyped ? ANY : { kind: 'object', name: null, members, call: null };
+  }
+
+  private checkUnary(node: ast.UnaryExpression): Type {
+    const type = this.checkValue(node.argument);
+    switch (node.operator) {
+      case 'typeof':
+        return STRING;
+      case '!':
+        this.expectBool(type, node.argument, '"!"');
+        return BOOL;
+      case '-':
+      case '+':
+      case '~':
+        if (!isNumeric(type)) {
+          this.error(`"${node.operator}" needs a number, not ${typeToString(type)}`, node.argument);
+        }
+        return NUMBER;
+    }
+  }
+
+  private expectBool(type: Type, node: ast.NodeBase, operator: string): void {
+    if (type.kind === 'bool' || type.kind === 'any' || type.kind === 'unknown') return;
+    const hint = isNullable(type) ? ': compare it with null, e.g. "x != null"' : '';
+    this.error(`${operator} needs bool, not ${typeToString(type)}${hint}`, node);
+  }
+
+  private checkBinary(node: ast.BinaryExpression, expected: Type | null): Type {
+    const { operator } = node;
+    if (operator === '&&' || operator === '||') {
+      this.expectBool(this.checkValue(node.left, BOOL), node.left, `"${operator}"`);
+      // `x != null && x.ok`: the right side runs only when the left side allows it.
+      const saved = this.flow;
+      this.flow = withNarrowing(saved, this.narrow(node.left, operator === '&&'));
+      this.expectBool(this.checkValue(node.right, BOOL), node.right, `"${operator}"`);
+      this.flow = saved;
+      return BOOL;
+    }
+    if (operator === '??') {
+      const left = this.checkValue(node.left, expected && nullable(expected));
+      const right = this.checkValue(node.right, expected ?? nonNull(left));
+      return this.binaryResult(operator, left, right, node);
+    }
+    const left = this.checkValue(node.left);
+    const right = this.checkValue(node.right, operator === '==' || operator === '!=' ? left : null);
+    return this.binaryResult(operator, left, right, node);
+  }
+
+  /** The type of `left <operator> right`, also used for compound assignments like `+=`. */
+  private binaryResult(
+    operator: ast.BinaryOperator,
+    left: Type,
+    right: Type,
+    node: ast.NodeBase,
+  ): Type {
+    const untyped = isUntyped(left) || isUntyped(right);
+    const nullHint =
+      isNullable(left) || isNullable(right) ? ': a value may be null, check it first' : '';
+    switch (operator) {
+      case '+':
+        if (left.kind === 'number' && right.kind === 'number') return NUMBER;
+        if (left.kind === 'string' && right.kind === 'string') return STRING;
+        if (untyped) return left.kind === 'string' || right.kind === 'string' ? STRING : ANY;
+        this.error(
+          `cannot add ${typeToString(left)} and ${typeToString(right)}` +
+            (nullHint ||
+              (left.kind === 'string' || right.kind === 'string'
+                ? ': use a template string, e.g. `${a}${b}`'
+                : '')),
+          node,
+        );
+        return UNKNOWN;
+      case '-':
+      case '*':
+      case '/':
+      case '%':
+      case '**':
+      case '<<':
+      case '>>':
+      case '>>>':
+      case '&':
+      case '|':
+      case '^':
+        if (!isNumeric(left) || !isNumeric(right)) {
+          this.error(
+            `"${operator}" needs numbers, not ${typeToString(left)} and ${typeToString(right)}${nullHint}`,
+            node,
+          );
+        }
+        return NUMBER;
+      case '<':
+      case '>':
+      case '<=':
+      case '>=': {
+        const ordered =
+          untyped ||
+          (left.kind === 'number' && right.kind === 'number') ||
+          (left.kind === 'string' && right.kind === 'string');
+        if (!ordered) {
+          this.error(
+            `cannot compare ${typeToString(left)} and ${typeToString(right)} with "${operator}"${nullHint}`,
+            node,
+          );
+        }
+        return BOOL;
+      }
+      case '==':
+      case '!=':
+        if (!isComparable(left, right)) {
+          this.error(`cannot compare ${typeToString(left)} and ${typeToString(right)}`, node);
+        }
+        return BOOL;
+      case 'instanceof':
+        if (right.kind !== 'classValue' && !isUntyped(right)) {
+          this.error(
+            `the right side of instanceof must be a class, not ${typeToString(right)}`,
+            node,
+          );
+        }
+        return BOOL;
+      case '&&':
+      case '||':
+        this.expectBool(left, node, `"${operator}"`);
+        return BOOL;
+      case '??': {
+        if (isUntyped(left)) return left;
+        const base = nonNull(left);
+        if (isAssignable(right, base)) return isNullable(right) ? nullable(base) : base;
+        const common = commonType(base, right);
+        if (common) return common;
+        this.error(`cannot use ?? with ${typeToString(left)} and ${typeToString(right)}`, node);
+        return UNKNOWN;
+      }
+    }
+  }
+
+  private checkConditional(node: ast.ConditionalExpression, expected: Type | null): Type {
+    this.checkCondition(node.test);
+    const before = this.flow;
+    this.flow = withNarrowing(before, this.narrow(node.test, true));
+    const consequent = this.checkValue(node.consequent, expected);
+    this.flow = withNarrowing(before, this.narrow(node.test, false));
+    const alternate = this.checkValue(node.alternate, expected);
+    this.flow = before;
+    const common = commonType(consequent, alternate);
+    if (common) return common;
+    this.error(
+      `the branches of ?: have different types: ${typeToString(consequent)} and ${typeToString(alternate)}`,
+      node,
+    );
+    return UNKNOWN;
+  }
+
+  // ─── Member access and calls ───────────────────────────────────────────────────────────────────
+
+  /**
+   * Member access, indexing and calls. Returns the type and whether an optional link (`?.`)
+   * may short-circuit the chain: `a?.b.c()` is null as a whole when `a` is null.
+   */
+  private checkChain(
+    node: ast.MemberExpression | ast.IndexExpression | ast.CallExpression,
+  ): [Type, boolean] {
+    if (node.kind === 'CallExpression') {
+      if (node.callee.kind === 'SuperExpression') return [this.checkSuperCall(node), false];
+      let [callee, shortCircuits] = this.chainPart(node.callee);
+      if (isNullable(callee)) {
+        if (node.optional) shortCircuits = true;
+        else this.nullError(node.callee);
+        callee = nonNull(callee);
+      }
+      return [this.checkCall(node, callee), shortCircuits];
+    }
+
+    let [object, shortCircuits] =
+      node.object.kind === 'SuperExpression'
+        ? [this.superType(node.object), false]
+        : this.chainPart(node.object);
+    if (isNullable(object)) {
+      if (node.optional) shortCircuits = true;
+      else this.nullError(node.object);
+      object = nonNull(object);
+    }
+
+    if (node.kind === 'MemberExpression') {
+      const member = this.findMember(object, node.property.name, node.property);
+      return [member === 'any' ? ANY : (member?.type ?? UNKNOWN), shortCircuits];
+    }
+    this.expectIndex(node.index);
+    if (object.kind === 'array') return [object.element, shortCircuits];
+    if (object.kind === 'string') return [STRING, shortCircuits];
+    if (isUntyped(object)) return [object, shortCircuits];
+    this.error(`cannot index ${typeToString(object)}`, node);
+    return [UNKNOWN, shortCircuits];
+  }
+
+  private chainPart(node: ast.Expression): [Type, boolean] {
+    if (
+      node.kind === 'MemberExpression' ||
+      node.kind === 'IndexExpression' ||
+      node.kind === 'CallExpression'
+    ) {
+      const [type, shortCircuits] = this.checkChain(node);
+      return [this.single(type, node), shortCircuits];
+    }
+    return [this.checkValue(node), false];
+  }
+
+  /** The value of an object that must not be null, e.g. before a member assignment. */
+  private nonNullValue(node: ast.Expression): Type {
+    const [type] = this.chainPart(node);
+    if (isNullable(type)) this.nullError(node);
+    return nonNull(type);
+  }
+
+  private expectIndex(node: ast.Expression): void {
+    const type = this.checkValue(node, NUMBER);
+    if (!isNumeric(type)) this.error(`index must be a number, not ${typeToString(type)}`, node);
+  }
+
+  /** The member `name` of a value of type `object`; `'any'` for untyped values. */
+  private findMember(object: Type, name: string, node: ast.NodeBase): Member | 'any' | undefined {
+    let member: Member | undefined;
+    switch (object.kind) {
+      case 'any':
+      case 'unknown':
+      case 'never':
+        return 'any';
+      case 'number':
+        member = numberMember(name);
+        break;
+      case 'string':
+        member = stringMember(name);
+        break;
+      case 'bool':
+        member = boolMember(name);
+        break;
+      case 'array':
+        member = arrayMember(object.element, name);
+        break;
+      case 'object':
+        member = object.members.get(name);
+        break;
+      case 'class':
+        this.ensureClassResolved(object.info);
+        member = findClassMember(object.info, name, false);
+        if (!member && hasUntypedBase(object.info)) return 'any';
+        break;
+      case 'classValue':
+        this.ensureClassResolved(object.info);
+        member = findClassMember(object.info, name, true);
+        if (!member && hasUntypedBase(object.info)) return 'any';
+        break;
+      default:
+        break;
+    }
+    if (!member) {
+      this.error(`${typeToString(object)} has no member "${name}"`, node);
+      return undefined;
+    }
+    const { owner, visibility } = member;
+    if (owner && visibility !== 'public') {
+      const current = this.cls?.info;
+      const allowed =
+        visibility === 'private'
+          ? current === owner
+          : current !== undefined && isSubclass(current, owner);
+      if (!allowed) this.error(`"${name}" is ${visibility} in ${owner.name}`, node);
+    }
+    return member;
+  }
+
+  private checkCall(node: ast.CallExpression, callee: Type): Type {
+    if (isUntyped(callee)) {
+      this.checkArgumentsLoosely(node.arguments);
+      return callee;
+    }
+    if (callee.kind === 'classValue') {
+      this.error(`use "new ${callee.info.name}(...)" to create a ${callee.info.name}`, node);
+      this.checkArgumentsLoosely(node.arguments);
+      return callee.info.instance;
+    }
+    const signature = callSignature(callee);
+    if (!signature) {
+      this.error(`${typeToString(callee)} cannot be called`, node.callee);
+      this.checkArgumentsLoosely(node.arguments);
+      return UNKNOWN;
+    }
+    const results = this.checkArguments(signature, node.arguments, node);
+    if (results.length === 0) return VOID;
+    if (results.length === 1) return results[0]!;
+    return { kind: 'tuple', types: results };
+  }
+
+  private checkSuperCall(node: ast.CallExpression): Type {
+    const info = this.cls?.info;
+    if (!info || !this.fn?.isConstructor) {
+      this.error('"super(...)" can only be called in a constructor', node);
+      this.checkArgumentsLoosely(node.arguments);
+      return VOID;
+    }
+    if (!info.superClass) {
+      if (!hasUntypedBase(info)) this.error(`class "${info.name}" has no base class`, node);
+      this.checkArgumentsLoosely(node.arguments);
+      return VOID;
+    }
+    this.checkArguments(constructorOf(info.superClass).type, node.arguments, node);
+    return VOID;
+  }
+
+  private checkNew(node: ast.NewExpression): Type {
+    const callee = this.checkValue(node.callee);
+    if (isUntyped(callee)) {
+      this.checkArgumentsLoosely(node.arguments);
+      return callee;
+    }
+    if (callee.kind !== 'classValue') {
+      this.error(`${typeToString(callee)} is not a class`, node.callee);
+      this.checkArgumentsLoosely(node.arguments);
+      return UNKNOWN;
+    }
+    const { info } = callee;
+    this.ensureClassResolved(info);
+    const { type, owner } = constructorOf(info);
+    if (owner && owner.ctorVisibility !== 'public') {
+      const current = this.cls?.info;
+      const allowed =
+        owner.ctorVisibility === 'private'
+          ? current === owner
+          : current !== undefined && isSubclass(current, owner);
+      if (!allowed) {
+        this.error(`the constructor of ${owner.name} is ${owner.ctorVisibility}`, node);
+      }
+    }
+    this.checkArguments(type, node.arguments, node);
+    return info.instance;
+  }
+
+  private checkArgumentsLoosely(args: readonly (ast.Expression | ast.SpreadElement)[]): void {
+    for (const arg of args) this.checkValue(arg.kind === 'SpreadElement' ? arg.argument : arg, ANY);
+  }
+
+  /** Checks call arguments against a signature and returns the result types. */
+  private checkArguments(
+    signature: FunctionType,
+    args: readonly (ast.Expression | ast.SpreadElement)[],
+    node: ast.NodeBase,
+  ): Type[] {
+    const inferred = new Map<TypeParam, Type>();
+    const hasSpread = args.some((arg) => arg.kind === 'SpreadElement');
+    if (!hasSpread) {
+      if (args.length < signature.required) {
+        this.error(
+          `not enough arguments: expected ${signature.required}, got ${args.length}`,
+          node,
+        );
+      } else if (args.length > signature.params.length && signature.rest === null) {
+        this.error(
+          `too many arguments: expected ${signature.params.length}, got ${args.length}`,
+          args[signature.params.length]!,
+        );
+      }
+    }
+
+    // Arrow functions without parameter types are checked last: their parameter types may depend
+    // on type parameters inferred from the other arguments (e.g. `reduce(f, initial)`).
+    const needsContext = (arg: ast.Expression | ast.SpreadElement) =>
+      arg.kind === 'ArrowFunction' && arg.params.some((param) => param.type === null);
+    for (const contextPass of [false, true]) {
+      args.forEach((arg, i) => {
+        if (needsContext(arg) !== contextPass) return;
+        if (arg.kind === 'SpreadElement') {
+          const type = this.checkValue(arg.argument);
+          if (isUntyped(type)) return;
+          if (type.kind !== 'array') {
+            this.error(`cannot spread ${typeToString(type)}: it is not an array`, arg.argument);
+          } else if (signature.rest === null) {
+            this.error('a spread argument needs a "...rest" parameter', arg);
+          } else {
+            this.expectAssignable(type.element, signature.rest, arg.argument);
+          }
+          return;
+        }
+        const param = signature.params[i] ?? signature.rest;
+        if (!param) {
+          this.checkValue(arg);
+          return;
+        }
+        const type = this.checkValue(arg, substitute(param, inferred));
+        inferTypeParams(param, type, inferred);
+        this.expectAssignable(type, substitute(param, inferred), arg, ` in argument ${i + 1}`);
+      });
+    }
+    return signature.results.map((result) => substitute(result, inferred, UNKNOWN));
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────────────────────────
+
+function isUntyped(type: Type): boolean {
+  return type.kind === 'any' || type.kind === 'unknown';
+}
+
+function isNumeric(type: Type): boolean {
+  return type.kind === 'number' || isUntyped(type);
+}
+
+function callSignature(type: Type): FunctionType | null {
+  if (type.kind === 'function') return type;
+  if (type.kind === 'object') return type.call;
+  return null;
+}
+
+function countValues(count: number): string {
+  if (count === 0) return 'no values';
+  return count === 1 ? '1 value' : `${count} values`;
+}
+
+/** How to name an expression in messages: `divide()`, `stats.minMax()`, or `this expression`. */
+function callName(node: ast.Expression): string {
+  if (node.kind !== 'CallExpression') return 'this expression';
+  const { callee } = node;
+  if (callee.kind === 'Identifier') return `${callee.name}()`;
+  if (callee.kind === 'MemberExpression') {
+    const object = callee.object.kind === 'Identifier' ? `${callee.object.name}.` : '';
+    return `${object}${callee.property.name}()`;
+  }
+  return 'this call';
+}
+
+function withNarrowing(flow: Flow, narrowing: Narrowing): Flow {
+  const result = new Map(flow);
+  for (const [binding, type] of narrowing) result.set(binding, type);
+  return result;
+}
+
+/** Narrowing that holds after both branches: the variables narrowed the same way in both. */
+function mergeFlows(a: Flow, b: Flow): Flow {
+  const result: Flow = new Map();
+  for (const [binding, type] of a) {
+    const other = b.get(binding);
+    if (other && typesEqual(type, other)) result.set(binding, type);
+  }
+  return result;
+}
+
+/** Go's terminating statements: execution never continues after them. */
+function isTerminating(node: ast.Statement): boolean {
+  switch (node.kind) {
+    case 'ReturnStatement':
+    case 'ThrowStatement':
+      return true;
+    case 'BlockStatement': {
+      const last = node.body.at(-1);
+      return last !== undefined && isTerminating(last);
+    }
+    case 'IfStatement':
+      return (
+        node.alternate !== null && isTerminating(node.consequent) && isTerminating(node.alternate)
+      );
+    case 'ForStatement':
+      return node.condition === null && !containsBreak(node.body.body);
+    case 'SwitchStatement':
+      return (
+        node.cases.some((switchCase) => switchCase.tests.length === 0) &&
+        node.cases.every((switchCase) => {
+          const last = switchCase.body.at(-1);
+          return last !== undefined && isTerminating(last) && !containsBreak(switchCase.body);
+        })
+      );
+    case 'TryStatement':
+      return (
+        (isTerminating(node.block) && (!node.handler || isTerminating(node.handler.body))) ||
+        (node.finalizer !== null && isTerminating(node.finalizer))
+      );
+    default:
+      return false;
+  }
+}
+
+/** Whether execution never continues after the statement, counting `break` and `continue`. */
+function leaves(node: ast.Statement): boolean {
+  switch (node.kind) {
+    case 'BreakStatement':
+    case 'ContinueStatement':
+      return true;
+    case 'BlockStatement': {
+      const last = node.body.at(-1);
+      return last !== undefined && leaves(last);
+    }
+    case 'IfStatement':
+      return node.alternate !== null && leaves(node.consequent) && leaves(node.alternate);
+    default:
+      return isTerminating(node);
+  }
+}
+
+function isSuperCall(statement: ast.Statement): boolean {
+  return (
+    statement.kind === 'ExpressionStatement' &&
+    statement.expression.kind === 'CallExpression' &&
+    statement.expression.callee.kind === 'SuperExpression'
+  );
+}
+
+/** `this.name = ...` at the top level of a constructor. */
+function assignsField(body: ast.BlockStatement, name: string): boolean {
+  return body.body.some(
+    (statement) =>
+      statement.kind === 'AssignmentStatement' &&
+      statement.targets.some(
+        (target) =>
+          target.kind === 'MemberExpression' &&
+          target.object.kind === 'ThisExpression' &&
+          target.property.name === name,
+      ),
+  );
+}

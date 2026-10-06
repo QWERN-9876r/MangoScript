@@ -26,6 +26,7 @@ Usage:
 
 Options:
   -o, --out <file>   Output file
+      --no-check     Skip type checking
   -h, --help         Show this help
   -v, --version      Show version`;
 
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
     allowPositionals: true,
     options: {
       out: { type: 'string', short: 'o' },
+      'no-check': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -60,13 +62,13 @@ async function main(): Promise<void> {
 
   switch (command) {
     case 'build': {
-      const code = compileFile(file, true);
+      const code = compileFile(file, { rewriteImports: true, typeCheck: !values['no-check'] });
       if (values.out) writeFileSync(values.out, code);
       else process.stdout.write(code);
       break;
     }
     case 'run':
-      registerMangoLoader();
+      registerMangoLoader(!values['no-check']);
       await import(pathToFileURL(resolve(file)).href);
       break;
     case 'tokens':
@@ -80,9 +82,12 @@ async function main(): Promise<void> {
   }
 }
 
-function compileFile(path: string, rewriteImports: boolean): string {
+function compileFile(
+  path: string,
+  options: { rewriteImports: boolean; typeCheck: boolean },
+): string {
   const source = readFileSync(path, 'utf8');
-  const { code, diagnostics } = compile(source, { filename: path, rewriteImports });
+  const { code, diagnostics } = compile(source, { filename: path, ...options });
   if (diagnostics.length > 0) {
     const file = new SourceFile(path, source);
     throw new CompileError(diagnostics.map((d) => formatDiagnostic(file, d)).join('\n\n'));
@@ -91,7 +96,7 @@ function compileFile(path: string, rewriteImports: boolean): string {
 }
 
 /** Lets Node import `.mango` files directly by compiling them on load. */
-function registerMangoLoader(): void {
+function registerMangoLoader(typeCheck: boolean): void {
   registerHooks({
     load(url, context, nextLoad) {
       if (!url.startsWith('file:') || !url.endsWith('.mango')) return nextLoad(url, context);
@@ -99,7 +104,8 @@ function registerMangoLoader(): void {
       const absolute = fileURLToPath(url);
       const fromCwd = relative(process.cwd(), absolute);
       const path = fromCwd.startsWith('..') ? absolute : fromCwd;
-      return { format: 'module', source: compileFile(path, false), shortCircuit: true };
+      const source = compileFile(path, { rewriteImports: false, typeCheck });
+      return { format: 'module', source, shortCircuit: true };
     },
   });
 }

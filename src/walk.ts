@@ -207,3 +207,39 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       break;
   }
 }
+
+/** Names assigned anywhere inside `node`: `x = ...`, `x += ...`, `x++`. */
+export function assignedNames(node: ast.Node, names = new Set<string>()): Set<string> {
+  if (node.kind === 'AssignmentStatement') {
+    for (const target of node.targets) if (target.kind === 'Identifier') names.add(target.name);
+  } else if (node.kind === 'IncDecStatement' && node.target.kind === 'Identifier') {
+    names.add(node.target.name);
+  }
+  forEachChild(node, (child) => assignedNames(child, names));
+  return names;
+}
+
+/** Whether a `break` in these statements leaves the enclosing loop or switch. */
+export function containsBreak(statements: readonly ast.Statement[]): boolean {
+  let found = false;
+  const visit = (node: ast.Node): void => {
+    switch (node.kind) {
+      case 'BreakStatement':
+        found = true;
+        return;
+      // A `break` inside these belongs to them.
+      case 'ForStatement':
+      case 'ForInStatement':
+      case 'SwitchStatement':
+      case 'FuncDeclaration':
+      case 'FuncExpression':
+      case 'ArrowFunction':
+      case 'ClassDeclaration':
+        return;
+      default:
+        forEachChild(node, visit);
+    }
+  };
+  statements.forEach(visit);
+  return found;
+}
