@@ -1,0 +1,115 @@
+// Пример программы на MangoScript v0 — см. docs/spec.md
+
+interface Point {
+    x, y number
+}
+
+class Stats {
+    private values []number          // нулевое значение — пустой массив
+
+    add(v number) {
+        this.values.push(v)
+    }
+
+    minMax() (number, number) {
+        let lo, hi = this.values[0], this.values[0]
+        for v in this.values {
+            if v < lo {
+                lo = v
+            } else if v > hi {
+                hi = v
+            }
+        }
+        return lo, hi
+    }
+
+    total() number {
+        let sum number               // нулевое значение — 0
+        for v in this.values {
+            sum += v
+        }
+        return sum
+    }
+}
+
+func divide(a, b number) (number, error) {
+    if b == 0 {
+        return 0, error("division by zero")
+    }
+    return a / b, null
+}
+
+func quadrant(p Point) string {
+    switch {
+    case p.x >= 0 && p.y >= 0:
+        return "I"
+    case p.x < 0 && p.y >= 0:
+        return "II"
+    case p.x < 0:
+        return "III"
+    default:
+        return "IV"
+    }
+}
+
+func findNegative(points []Point) ?Point {
+    for p in points {
+        if p.x < 0 && p.y < 0 {
+            return p
+        }
+    }
+    return null
+}
+
+func section(title string, body func()) {
+    console.log(`[${title}]`)
+    defer console.log(`[/${title}]`) // выполнится после body(), даже если там будет исключение
+    body()
+}
+
+section("divide", () => {
+    for d in [4, 0] {
+        const q, err = divide(10, d)
+        if err != null {
+            console.log(`10 / ${d}: ${err.message}`)
+            continue
+        }
+        console.log(`10 / ${d} = ${q}`)
+    }
+})
+
+section("stats", () => {
+    const stats = new Stats()
+    for v in [3, 1, 4, 1, 5, 9, 2, 6] {
+        stats.add(v)
+    }
+    const lo, hi = stats.minMax()
+    console.log(`min = ${lo}, max = ${hi}, total = ${stats.total()}`)
+})
+
+section("points", () => {
+    const points []Point = [{ x: 1, y: 2 }, { x: -3, y: 4 }, { x: -1, y: -1 }]
+    for i, p in points {
+        console.log(`point ${i}: quadrant ${quadrant(p)}`)
+    }
+
+    const neg = findNegative(points)
+    if neg != null {
+        console.log(`first negative: (${neg.x}, ${neg.y})`) // здесь у neg тип Point, а не ?Point
+    }
+})
+
+// Ожидаемый вывод:
+// [divide]
+// 10 / 4 = 2.5
+// 10 / 0: division by zero
+// [/divide]
+// [stats]
+// min = 1, max = 9, total = 31
+// [/stats]
+// [points]
+// point 0: quadrant I
+// point 1: quadrant II
+// point 2: quadrant III
+// first negative: (-1, -1)
+// [/points]

@@ -1,0 +1,6 @@
+{
+  // Временно, пока нет своего расширения: синтаксис MangoScript близок к Go
+  "files.associations": {
+    "*.mango": "go"
+  }
+}
