@@ -285,6 +285,9 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['parseFloat', func([STRING], [NUMBER])],
   ['isNaN', func([NUMBER], [BOOL])],
   ['isFinite', func([NUMBER], [BOOL])],
+  ...['encodeURIComponent', 'decodeURIComponent', 'encodeURI', 'decodeURI'].map(
+    (name): [string, Type] => [name, func([STRING], [STRING])],
+  ),
   ['setTimeout', timer],
   ['setInterval', timer],
   ['clearTimeout', func([ANY], [])],

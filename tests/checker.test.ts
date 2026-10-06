@@ -311,6 +311,7 @@ describe('builtins', () => {
     ],
     ['catch', 'try {\n  JSON.parse("x")\n} catch e {\n  console.log(e.message)\n}'],
     ['untyped JS globals', 'const now = Date.now()\nconst m = new Map()'],
+    ['URI functions', 'const s string = decodeURIComponent(encodeURIComponent("a b"))'],
   ]);
 
   invalid([
