@@ -51,8 +51,10 @@ export interface FunctionType {
   /** Element type of a trailing `...rest` parameter (builtins only). */
   rest: Type | null;
   results: Type[];
-  /** Type parameters inferred from the arguments of each call (builtins only, e.g. `map`). */
+  /** Type parameters inferred from the arguments of each call, e.g. `map` or `func first[T any]`. */
   typeParams: TypeParam[];
+  /** The other signatures of an overloaded function from a `.d.ts`; a call uses the first that fits. */
+  overloads?: FunctionType[];
 }
 
 export interface Member {
@@ -70,6 +72,10 @@ export interface ObjectType {
   members: Map<string, Member>;
   /** For callable builtins like `Number(x)`. */
   call: FunctionType | null;
+  /** `new` on a value of this type, as with `declare var Foo: { new(): Foo }` in a `.d.ts`. */
+  construct?: FunctionType;
+  /** `[key: string]: T` in a `.d.ts`: the type of members that are not listed. */
+  index?: Type;
   /** A generic interface, `interface Box[T]`: its members use these parameters. */
   typeParams?: TypeParam[];
   /** `Box[number]`: the generic interface and the type arguments it was made from. */
@@ -88,6 +94,8 @@ export interface ClassInfo {
   ctor: FunctionType | null;
   /** `class Stack[T]`: members use these parameters, instances give them arguments. */
   typeParams: TypeParam[];
+  /** Type arguments for a generic base class: the defaults of a class from a `.d.ts`. */
+  superArgs?: Type[];
   ctorVisibility: Visibility;
   instance: ClassType;
   value: ClassValueType;
@@ -117,6 +125,8 @@ export interface TypeParam {
   name: string;
   /** `T Shape`: what the argument must be, and what a value of type `T` can do. */
   constraint?: Type | null;
+  /** Used when no argument is given: `T = string` in a `.d.ts`. */
+  default?: Type;
 }
 
 /**
@@ -283,6 +293,110 @@ export function createClass(name: string): ClassInfo {
   return info;
 }
 
+// ─── Lazy members ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A map whose keys are known up front and whose values are computed when first read. Members of
+ * types from `.d.ts` files use it: `@types/node` has thousands of them, and few are ever used.
+ */
+export class LazyMap<V> extends Map<string, V> {
+  private names: Set<string> | null = null;
+  private complete = false;
+  private filling = false;
+  private readonly listNames: () => Iterable<string>;
+  private readonly compute: (name: string) => V | undefined;
+
+  constructor(listNames: () => Iterable<string>, compute: (name: string) => V | undefined) {
+    super();
+    this.listNames = listNames;
+    this.compute = compute;
+  }
+
+  private known(): Set<string> {
+    this.names ??= new Set(this.listNames());
+    return this.names;
+  }
+
+  /** The names, without computing the values. */
+  knownNames(): Iterable<string> {
+    return this.known();
+  }
+
+  /** Computes every value, keeping the order of the names. */
+  private fill(): void {
+    if (this.complete || this.filling) return;
+    this.filling = true;
+    const values = [...this.known()].map((name) => [name, this.get(name)] as const);
+    this.complete = true;
+    this.filling = false;
+    super.clear();
+    for (const [name, value] of values) if (value !== undefined) super.set(name, value);
+  }
+
+  override get(name: string): V | undefined {
+    if (super.has(name)) return super.get(name);
+    if (this.complete || !this.known().has(name)) return undefined;
+    const value = this.compute(name);
+    if (value === undefined) this.names!.delete(name);
+    else super.set(name, value);
+    return value;
+  }
+
+  override has(name: string): boolean {
+    return this.get(name) !== undefined;
+  }
+
+  override set(name: string, value: V): this {
+    this.known().add(name);
+    return super.set(name, value);
+  }
+
+  override delete(name: string): boolean {
+    const known = this.known().delete(name);
+    return super.delete(name) || known;
+  }
+
+  override clear(): void {
+    this.names = new Set();
+    this.complete = true;
+    super.clear();
+  }
+
+  override get size(): number {
+    this.fill();
+    return super.size;
+  }
+
+  override keys(): MapIterator<string> {
+    this.fill();
+    return super.keys();
+  }
+
+  override values(): MapIterator<V> {
+    this.fill();
+    return super.values();
+  }
+
+  override entries(): MapIterator<[string, V]> {
+    this.fill();
+    return super.entries();
+  }
+
+  override forEach(callback: (value: V, key: string, map: Map<string, V>) => void): void {
+    this.fill();
+    super.forEach(callback);
+  }
+
+  override [Symbol.iterator](): MapIterator<[string, V]> {
+    return this.entries();
+  }
+}
+
+/** The names of a map of members, without computing a lazy one. */
+export function memberNames<V>(map: Map<string, V>): Iterable<string> {
+  return map instanceof LazyMap ? map.knownNames() : map.keys();
+}
+
 // ─── Generics ────────────────────────────────────────────────────────────────────────────────────
 
 /** Bindings of type parameters to type arguments. */
@@ -310,19 +424,26 @@ export function instantiate(template: ObjectType, args: readonly Type[]): Object
   }
   const found = cached.find((entry) => entry.args.every((arg, i) => typesEqual(arg, args[i]!)));
   if (found) return found.instance;
+  const bindings = bindParams(params, args);
+  // Members are substituted when they are used: a template from a `.d.ts` may still be filling
+  // its own members, and large interfaces are mostly not used whole.
   const instance: ObjectType = {
     kind: 'object',
     name: template.name,
-    members: new Map(),
-    call: null,
+    members: new LazyMap(
+      () => memberNames(template.members),
+      (name) => {
+        const member = template.members.get(name);
+        return member && { ...member, type: substitute(member.type, bindings) };
+      },
+    ),
+    call: template.call && (substitute(template.call, bindings) as FunctionType),
     instanceOf: { template, args: [...args] },
   };
-  cached.push({ args: [...args], instance });
-  const bindings = bindParams(params, args);
-  for (const [name, member] of template.members) {
-    instance.members.set(name, { ...member, type: substitute(member.type, bindings) });
+  if (template.construct) {
+    instance.construct = substitute(template.construct, bindings) as FunctionType;
   }
-  if (template.call) instance.call = substitute(template.call, bindings) as FunctionType;
+  cached.push({ args: [...args], instance });
   return instance;
 }
 
@@ -331,10 +452,20 @@ export function classInstance(info: ClassInfo, args: readonly Type[]): ClassType
   return info.typeParams.length === 0 ? info.instance : { kind: 'class', info, args: [...args] };
 }
 
-/** The type of a member as seen on an instance: `Stack[number].items` is `[]number`. */
+/**
+ * The type of a member as seen on an instance: `Stack[number].items` is `[]number`. A member of a
+ * generic base class gets the arguments that the subclass gives it.
+ */
 export function memberTypeOf(object: Type, member: Member): Type {
-  if (object.kind !== 'class' || !object.args || !member.owner) return member.type;
-  return substitute(member.type, bindParams(member.owner.typeParams, object.args));
+  if (object.kind !== 'class' || !member.owner) return member.type;
+  let info = object.info;
+  let bindings = bindParams(info.typeParams, object.args ?? info.typeParams);
+  while (info !== member.owner && info.superClass) {
+    const args = (info.superArgs ?? []).map((arg) => substitute(arg, bindings));
+    info = info.superClass;
+    bindings = bindParams(info.typeParams, args.length > 0 ? args : info.typeParams);
+  }
+  return substitute(member.type, bindings);
 }
 
 /** JS `Error`. The MangoScript type `error` is `?Error`. */
@@ -497,9 +628,16 @@ function assignable(source: Type, target: Type, assuming: [Type, Type][]): boole
       if ([...members.values()].some((member) => member.visibility !== 'public')) return false;
       return missingMember(source, members, nested) === null;
     }
-    case 'object':
-      if (target.call) return false;
+    case 'object': {
+      // A callable interface from a `.d.ts`: `interface Listener { (event: Event): void }`.
+      if (target.call) {
+        const call =
+          source.kind === 'function' ? source : source.kind === 'object' ? source.call : null;
+        if (!call || !functionAssignable(call, target.call, nested)) return false;
+        if (source.kind === 'function') return target.members.size === 0;
+      }
       return missingMember(source, target.members, nested) === null;
+    }
   }
 }
 
@@ -674,15 +812,24 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
         : type;
     case 'object':
       return substituteObject(type, bindings, fallback);
-    case 'function':
-      return func(
+    case 'function': {
+      const result = func(
         type.params.map((param) => substitute(param, bindings, fallback)),
         type.results.map((result) => substitute(result, bindings, fallback)),
         {
           required: type.required,
           ...(type.rest ? { rest: substitute(type.rest, bindings, fallback) } : {}),
+          // A generic method of a generic interface keeps its own parameters: `map[U]` of `Box[T]`.
+          typeParams: type.typeParams.filter((param) => !bindings.has(param)),
         },
       );
+      if (type.overloads) {
+        result.overloads = type.overloads.map(
+          (overload) => substitute(overload, bindings, fallback) as FunctionType,
+        );
+      }
+      return result;
+    }
     default:
       return type;
   }
@@ -803,7 +950,7 @@ export function typeToString(type: Type): string {
       return typeof type.value === 'string' ? JSON.stringify(type.value) : String(type.value);
     case 'function': {
       const params = type.params.map((param, i) =>
-        i < type.required ? typeToString(param) : `?${typeToString(param)}`,
+        typeToString(i < type.required ? param : nullable(param)),
       );
       if (type.rest) params.push(`...${typeToString(type.rest)}`);
       return `func(${params.join(', ')})${resultsToString(type.results)}`;

@@ -2,6 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { check, type ImportResult, type ModuleExports } from './checker/checker.ts';
 import { parse } from './parser/parser.ts';
+import { importDeclarations } from './typescript/importer.ts';
 
 /** Exports of checked modules, by path; reused while the file does not change. */
 const cache = new Map<string, { version: string; exports: ModuleExports }>();
@@ -29,7 +30,10 @@ export function loadModuleExports(fromFile: string, specifier: string): ImportRe
     const { program, diagnostics } = parse(readFileSync(path, 'utf8'));
     // Syntax errors in the imported module are reported when that module itself is compiled.
     if (diagnostics.length > 0) return undefined;
-    const { exports } = check(program, { importModule: (next) => loadModuleExports(path, next) });
+    const { exports } = check(program, {
+      importModule: (next) => loadModuleExports(path, next),
+      importDeclarations: (next) => importDeclarations(path, next),
+    });
     cache.set(path, { version, exports });
     return { exports };
   } finally {

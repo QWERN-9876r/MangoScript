@@ -202,7 +202,14 @@ func modules() Node {
         <p>
             Модули — это ES-модули: <code>import</code> и <code>export</code> как в JS. Импорт
             {" "}<code>.mango</code>-модуля проверяется: компилятор читает его экспорты и знает их
-            типы. Всё, что импортировано из JS, имеет тип <code>any</code>.
+            типы.
+        </p>
+        <p>
+            Типы npm-пакетов, <code>.ts</code>-файлов и модулей Node (<code>node:fs</code>) берутся
+            из объявлений TypeScript: <code>readFileSync(path, "utf8")</code> — это
+            {" "}<code>string</code>, а <code>request.url</code> у <code>IncomingMessage</code> —
+            {" "}<code>?string</code>. Модуль без объявлений имеет тип <code>any</code>. Песочница
+            работает без компилятора TypeScript, поэтому здесь такие импорты — <code>any</code>.
         </p>
         <p>
             <code>mango build</code> компилирует файл вместе со всеми <code>.mango</code>-модулями,

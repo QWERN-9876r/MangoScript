@@ -41,14 +41,17 @@ import {
   isComparable,
   isNullable,
   isSubclass,
+  LazyMap,
   literal,
   literalBase,
+  memberNames,
   memberTypeOf,
   NEVER,
   nonNull,
   NULL,
   nullable,
   NUMBER,
+  property,
   spreadFields,
   STRING,
   substitute,
@@ -78,6 +81,11 @@ export type ImportResult = { exports: ModuleExports } | { error: string } | unde
 export interface CheckOptions {
   /** Called for imports of `.mango` modules; without it, every import is untyped (`any`). */
   importModule?: (specifier: string) => ImportResult;
+  /**
+   * Called for the other imports (packages, `node:` modules, `.ts` files): their types come from
+   * TypeScript declarations. Without it, or for a module without types, the import is untyped.
+   */
+  importDeclarations?: (specifier: string) => ImportResult;
 }
 
 export interface CheckResult {
@@ -437,11 +445,22 @@ class Checker {
   private declareImport(node: ast.ImportDeclaration): void {
     const specifier = node.source.value;
     const isMango = specifier.endsWith('.mango');
-    const result = isMango ? this.options.importModule?.(specifier) : undefined;
+    const result = isMango
+      ? this.options.importModule?.(specifier)
+      : this.options.importDeclarations?.(specifier);
     if (result && 'error' in result) this.error(result.error, node.source);
     const exports = result && 'exports' in result ? result.exports : null;
 
-    if (node.defaultImport) {
+    if (node.defaultImport && exports && !isMango) {
+      // `import fs from "node:fs"`: the default export of a module with types.
+      const value = exports.values.get('default');
+      const type = exports.types.get('default');
+      if (value === undefined && type === undefined) {
+        this.error(`"${specifier}" has no default export`, node.defaultImport);
+      }
+      this.declareValue(node.defaultImport, 'import', value ?? UNKNOWN);
+      if (type !== undefined) this.declareType(node.defaultImport, type);
+    } else if (node.defaultImport) {
       if (exports) {
         this.error(
           'MangoScript modules have no default export: use import { ... }',
@@ -452,10 +471,14 @@ class Checker {
       this.scope.types.set(node.defaultImport.name, ANY);
     }
     if (node.namespaceImport) {
-      const members = new Map<string, Member>();
-      for (const [name, type] of exports?.values ?? []) {
-        members.set(name, { type, method: false, visibility: 'public', owner: null });
-      }
+      const values = exports?.values;
+      const members = new LazyMap<Member>(
+        () => (values ? memberNames(values) : []),
+        (name) => {
+          const type = values?.get(name);
+          return type && { type, method: false, visibility: 'public', owner: null };
+        },
+      );
       const type: Type = exports ? { kind: 'object', name: specifier, members, call: null } : ANY;
       this.declareValue(node.namespaceImport, 'import', type);
     }
@@ -556,7 +579,8 @@ class Checker {
   private resolveClassMembers(node: ast.ClassDeclaration, info: ClassInfo): void {
     if (node.superClass) {
       const base = this.checkValue(node.superClass);
-      if (base.kind === 'classValue' && base.info.typeParams.length > 0) {
+      const baseParams = base.kind === 'classValue' ? base.info.typeParams : [];
+      if (base.kind === 'classValue' && baseParams.some((param) => !param.default)) {
         // `extends Stack[number]` would be an index in JS: the base is used without types.
         this.error(
           `cannot extend the generic class "${base.info.name}": generic base classes are not supported`,
@@ -569,6 +593,8 @@ class Checker {
           this.error(`class "${info.name}" cannot extend itself`, node.superClass);
         } else {
           info.superClass = base.info;
+          // A generic class from a `.d.ts` whose parameters all have defaults.
+          if (baseParams.length > 0) info.superArgs = baseParams.map((param) => param.default!);
         }
       } else if (base.kind === 'any') {
         info.untypedBase = true;
@@ -781,6 +807,11 @@ class Checker {
     if (params.length === 0) {
       if (args.length > 0) this.error(`"${name.name}" is not generic`, typeArgs[0]!);
       return type;
+    }
+    // Parameters with defaults (from a `.d.ts`) may be left out: `Buffer` is `Buffer[ArrayBufferLike]`.
+    const required = params.filter((param) => !param.default).length;
+    if (args.length >= required && args.length < params.length) {
+      args.push(...params.slice(args.length).map((param) => param.default!));
     }
     if (args.length !== params.length) {
       this.error(
@@ -2447,7 +2478,7 @@ class Checker {
         member = arrayMember(object.element, name);
         break;
       case 'object':
-        member = object.members.get(name);
+        member = object.members.get(name) ?? (object.index && property(object.index));
         break;
       case 'class':
         this.ensureClassResolved(object.info);
@@ -2499,7 +2530,7 @@ class Checker {
       case 'array':
         return arrayMember(type.element, name);
       case 'object':
-        return type.members.get(name);
+        return type.members.get(name) ?? (type.index && property(type.index));
       case 'class': {
         this.ensureClassResolved(type.info);
         const member = findClassMember(type.info, name, false);
@@ -2528,7 +2559,12 @@ class Checker {
       this.checkArgumentsLoosely(node.arguments);
       return UNKNOWN;
     }
-    const results = this.checkArguments(signature, node.arguments, node, new Map(), expected);
+    const { results } = this.checkOverloads(
+      signaturesOf(signature),
+      node.arguments,
+      node,
+      expected,
+    );
     if (results.length === 0) return VOID;
     if (results.length === 1) return results[0]!;
     return { kind: 'tuple', types: results };
@@ -2556,6 +2592,10 @@ class Checker {
       this.checkArgumentsLoosely(node.arguments);
       return callee;
     }
+    if (callee.kind === 'object' && callee.construct) {
+      const signatures = signaturesOf(callee.construct);
+      return this.checkOverloads(signatures, node.arguments, node, expected).results[0] ?? UNKNOWN;
+    }
     if (callee.kind !== 'classValue') {
       this.error(`${typeToString(callee)} is not a class`, node.callee);
       this.checkArgumentsLoosely(node.arguments);
@@ -2575,24 +2615,60 @@ class Checker {
       }
     }
     if (info.typeParams.length === 0) {
-      this.checkArguments(type, node.arguments, node);
+      this.checkOverloads(signaturesOf(type), node.arguments, node, null);
       return info.instance;
     }
     // `new Stack[number]()` is not valid syntax: the arguments come from the constructor
     // arguments, or from the expected type, as in `let s Stack[number] = new Stack()`.
-    const inferred = new Map<TypeParam, Type>();
     const instance: Type = { kind: 'class', info, args: info.typeParams };
-    this.checkArguments(
-      { ...type, results: [instance], typeParams: info.typeParams },
-      node.arguments,
-      node,
-      inferred,
-      expected,
+    const signatures = signaturesOf(type).map((signature) =>
+      func(signature.params, [instance], {
+        required: signature.required,
+        ...(signature.rest ? { rest: signature.rest } : {}),
+        typeParams: [...new Set([...info.typeParams, ...signature.typeParams])],
+      }),
     );
+    const { inferred } = this.checkOverloads(signatures, node.arguments, node, expected);
     return classInstance(
       info,
       info.typeParams.map((param) => inferred.get(param) ?? UNKNOWN),
     );
+  }
+
+  /**
+   * Checks a call of an overloaded function (from a `.d.ts`): the first signature that fits the
+   * arguments is used. Signatures that take this many arguments are tried first.
+   */
+  private checkOverloads(
+    signatures: readonly FunctionType[],
+    args: readonly (ast.Expression | ast.SpreadElement)[],
+    node: ast.NodeBase,
+    expected: Type | null,
+  ): { results: Type[]; inferred: Map<TypeParam, Type> } {
+    if (signatures.length === 1) {
+      const inferred = new Map<TypeParam, Type>();
+      const results = this.checkArguments(signatures[0]!, args, node, inferred, expected);
+      return { results, inferred };
+    }
+    const takes = (signature: FunctionType) =>
+      args.some((arg) => arg.kind === 'SpreadElement') ||
+      (args.length >= signature.required &&
+        (args.length <= signature.params.length || signature.rest !== null));
+    const ordered = [...signatures.filter(takes), ...signatures.filter((each) => !takes(each))];
+    const errors = this.diagnostics.length;
+    for (const signature of ordered) {
+      const inferred = new Map<TypeParam, Type>();
+      const results = this.checkArguments(signature, args, node, inferred, expected);
+      if (this.diagnostics.length === errors) return { results, inferred };
+      this.diagnostics.length = errors;
+    }
+    this.error(
+      `no overload fits these arguments: ${signatures.map(typeToString).join('; ')}`,
+      node,
+    );
+    this.checkArgumentsLoosely(args);
+    const results = signatures[0]!.results.map((result) => substitute(result, new Map(), UNKNOWN));
+    return { results, inferred: new Map() };
   }
 
   private checkArgumentsLoosely(args: readonly (ast.Expression | ast.SpreadElement)[]): void {
@@ -2639,6 +2715,9 @@ class Checker {
     }
     if (expected && signature.results.length === 1) {
       inferTypeParams(signature.results[0]!, expected, inferred);
+    }
+    for (const param of signature.typeParams) {
+      if (!inferred.has(param) && param.default) inferred.set(param, param.default);
     }
     // `let xs = empty()`: nothing says what T is. Not reported after errors in the arguments.
     const unknown = signature.typeParams.filter(
@@ -2846,6 +2925,11 @@ function isUntyped(type: Type): boolean {
 
 function isNumeric(type: Type): boolean {
   return type.kind === 'number' || isUntyped(type);
+}
+
+/** A function and its overloads, in the order they are declared. */
+function signaturesOf(signature: FunctionType): FunctionType[] {
+  return [signature, ...(signature.overloads ?? [])];
 }
 
 function callSignature(type: Type): FunctionType | null {

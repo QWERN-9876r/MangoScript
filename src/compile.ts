@@ -15,6 +15,8 @@ export interface CoreCompileOptions {
   typeCheck?: boolean;
   /** The exports of an imported `.mango` module; without it, imports are untyped (`any`). */
   importModule?: ((specifier: string) => ImportResult) | undefined;
+  /** The exports of other imports, from TypeScript declarations; without it, they are untyped. */
+  importDeclarations?: ((specifier: string) => ImportResult) | undefined;
 }
 
 export interface CompileResult {
@@ -32,8 +34,11 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
 
   let types: WeakMap<ast.Expression, Type> | undefined;
   if (options.typeCheck ?? true) {
-    const { importModule } = options;
-    const checked = check(program, importModule ? { importModule } : {});
+    const { importModule, importDeclarations } = options;
+    const checked = check(program, {
+      ...(importModule ? { importModule } : {}),
+      ...(importDeclarations ? { importDeclarations } : {}),
+    });
     if (checked.diagnostics.length > 0) {
       return { code: '', diagnostics: checked.diagnostics, dependencies };
     }

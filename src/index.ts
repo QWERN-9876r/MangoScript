@@ -1,5 +1,6 @@
 import { compileModule, type CompileResult } from './compile.ts';
 import { loadModuleExports } from './modules.ts';
+import { importDeclarations } from './typescript/importer.ts';
 
 export type { CompileResult } from './compile.ts';
 export type { Diagnostic } from './diagnostics.ts';
@@ -7,7 +8,7 @@ export { formatDiagnostic } from './diagnostics.ts';
 export { SourceFile } from './source.ts';
 
 export interface CompileOptions {
-  /** Path of the source file; needed to check the types of imported `.mango` modules. */
+  /** Path of the source file; needed to check the types of imports. */
   filename?: string;
   /**
    * Replace `.mango` with `.js` in relative import paths, for output written next to the sources.
@@ -25,6 +26,9 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
     typeCheck: options.typeCheck ?? true,
     importModule: filename
       ? (specifier: string) => loadModuleExports(filename, specifier)
+      : undefined,
+    importDeclarations: filename
+      ? (specifier: string) => importDeclarations(filename, specifier)
       : undefined,
   });
 }
