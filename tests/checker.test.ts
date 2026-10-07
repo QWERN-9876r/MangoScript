@@ -333,6 +333,10 @@ describe('JS interop', () => {
       'import { readFile } from "node:fs"\nreadFile("x", (err, data) => { console.log(data) })',
     ],
     ['untyped types', 'import { Request } from "express"\nfunc handle(req Request) {}'],
+    [
+      'keys of untyped values',
+      'import { data } from "./data.js"\nconst key = "name"\nconst value string = data[key]\ndata[key] = 1',
+    ],
   ]);
 });
 

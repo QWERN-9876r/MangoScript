@@ -1212,9 +1212,10 @@ class Checker {
       }
       case 'IndexExpression': {
         const object = this.nonNullValue(target.object);
+        const keyed = this.keyedIndex(object, target.index);
+        if (keyed) return keyed;
         this.expectIndex(target.index);
         if (object.kind === 'array') return object.element;
-        if (object.kind === 'any' || object.kind === 'unknown') return object;
         this.error(
           object.kind === 'string'
             ? 'cannot assign to a character: strings cannot be changed'
@@ -2501,10 +2502,11 @@ class Checker {
       const member = this.findMember(object, node.property.name, node.property);
       return [member === 'any' ? ANY : (member?.type ?? UNKNOWN), shortCircuits];
     }
+    const keyed = this.keyedIndex(object, node.index);
+    if (keyed) return [keyed, shortCircuits];
     this.expectIndex(node.index);
     if (object.kind === 'array') return [object.element, shortCircuits];
     if (object.kind === 'string') return [STRING, shortCircuits];
-    if (isUntyped(object)) return [object, shortCircuits];
     this.error(`cannot index ${typeToString(object)}`, node);
     return [UNKNOWN, shortCircuits];
   }
@@ -2526,6 +2528,20 @@ class Checker {
     const [type] = this.chainPart(node);
     if (isNullable(type)) this.nullError(node);
     return nonNull(type);
+  }
+
+  /**
+   * `object[key]` with a key that is not a position: on an untyped value (`data[name]`), or on
+   * an object with `[key: string]: T` from a `.d.ts`. `null` for arrays and strings.
+   */
+  private keyedIndex(object: Type, index: ast.Expression): Type | null {
+    const type = isUntyped(object) ? object : object.kind === 'object' ? object.index : undefined;
+    if (!type) return null;
+    const key = this.checkValue(index);
+    if (!isUntyped(key) && !isComparable(key, STRING) && !isNumeric(key)) {
+      this.error(`a key must be a string or a number, not ${typeToString(key)}`, index);
+    }
+    return type;
   }
 
   private expectIndex(node: ast.Expression): void {

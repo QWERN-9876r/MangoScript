@@ -148,10 +148,13 @@ const named Named = { name: "a", id: 1 }
 const partial Named = { name: "a" }
 paint(Color.Red)
 paint("blue")
-const score number = scores.anna`),
+const score number = scores.anna
+const other number = scores["bob"]
+const wrong = scores[true]`),
     ).toEqual([
       'cannot use { name string } as { name string; id number }: missing "id"',
       'cannot use "blue" as "red" | "green" in argument 1',
+      'a key must be a string or a number, not bool',
     ]);
   });
 
