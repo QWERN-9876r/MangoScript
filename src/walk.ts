@@ -201,6 +201,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       break;
     case 'TypeReference':
       visit(node.name);
+      each(node.typeArgs);
+      break;
+    case 'TypeParameter':
+      visit(node.name);
+      optional(node.constraint);
       break;
     case 'ArrayType':
       visit(node.element);

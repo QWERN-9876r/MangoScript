@@ -51,6 +51,8 @@ export interface FuncDeclaration extends NodeBase {
   kind: 'FuncDeclaration';
   exported: boolean;
   name: Identifier;
+  /** `[T any, U Shape]` after the name; empty for ordinary functions. */
+  typeParams: TypeParameter[];
   params: Parameter[];
   /** Result types: `[]` for no result, `[T]` for one, `[T1, T2]` for `(T1, T2)`. */
   results: TypeNode[];
@@ -100,6 +102,7 @@ export interface ClassDeclaration extends NodeBase {
   kind: 'ClassDeclaration';
   exported: boolean;
   name: Identifier;
+  typeParams: TypeParameter[];
   /** An expression, as in JS, so that classes from JS modules can be extended. */
   superClass: Expression | null;
   implements: TypeReference[];
@@ -145,15 +148,24 @@ export interface InterfaceDeclaration extends NodeBase {
   kind: 'InterfaceDeclaration';
   exported: boolean;
   name: Identifier;
+  typeParams: TypeParameter[];
   members: TypeMember[];
 }
 
-/** `type ID string`, `type Handler func(string) bool`. */
+/** `type ID string`, `type Handler func(string) bool`, `type Pair[A, B any] { ... }`. */
 export interface TypeAliasDeclaration extends NodeBase {
   kind: 'TypeAliasDeclaration';
   exported: boolean;
   name: Identifier;
+  typeParams: TypeParameter[];
   type: TypeNode;
+}
+
+/** `T any` or `T Shape` in `[T any, U Shape]`; the constraint is `null` when it is left out. */
+export interface TypeParameter extends NodeBase {
+  kind: 'TypeParameter';
+  name: Identifier;
+  constraint: TypeNode | null;
 }
 
 // ─── Statements ──────────────────────────────────────────────────────────────────────────────────
@@ -584,10 +596,12 @@ export interface EventHandler extends NodeBase {
 export type TypeNode =
   TypeReference | ArrayType | NullableType | FuncType | ObjectType | UnionType | LiteralType;
 
-/** A named type: `number`, `User`, `Point`. */
+/** A named type: `number`, `User`, `Point`, `Box[number]`. */
 export interface TypeReference extends NodeBase {
   kind: 'TypeReference';
   name: Identifier;
+  /** Type arguments of a generic type: `[number]` in `Box[number]`. */
+  typeArgs: TypeNode[];
 }
 
 /** `[]T` */
@@ -654,6 +668,7 @@ export type Node =
   | TypeNode
   | ImportSpecifier
   | Parameter
+  | TypeParameter
   | ClassMember
   | TypeMember
   | SwitchCase

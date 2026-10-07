@@ -70,6 +70,10 @@ export interface ObjectType {
   members: Map<string, Member>;
   /** For callable builtins like `Number(x)`. */
   call: FunctionType | null;
+  /** A generic interface, `interface Box[T]`: its members use these parameters. */
+  typeParams?: TypeParam[];
+  /** `Box[number]`: the generic interface and the type arguments it was made from. */
+  instanceOf?: { template: ObjectType; args: Type[] };
 }
 
 export interface ClassInfo {
@@ -82,15 +86,18 @@ export interface ClassInfo {
   statics: Map<string, Member>;
   /** Own constructor; `null` means it is inherited (or empty). */
   ctor: FunctionType | null;
+  /** `class Stack[T]`: members use these parameters, instances give them arguments. */
+  typeParams: TypeParam[];
   ctorVisibility: Visibility;
   instance: ClassType;
   value: ClassValueType;
 }
 
-/** An instance of a class. */
+/** An instance of a class; `args` are the type arguments of a generic class: `Stack[number]`. */
 export interface ClassType {
   kind: 'class';
   info: ClassInfo;
+  args?: Type[];
 }
 
 /** The class itself: its constructor and static members. */
@@ -108,6 +115,8 @@ export interface TupleType {
 export interface TypeParam {
   kind: 'param';
   name: string;
+  /** `T Shape`: what the argument must be, and what a value of type `T` can do. */
+  constraint?: Type | null;
 }
 
 /**
@@ -264,6 +273,7 @@ export function createClass(name: string): ClassInfo {
     members: new Map(),
     statics: new Map(),
     ctor: null,
+    typeParams: [],
     ctorVisibility: 'public',
     instance: undefined as unknown as ClassType,
     value: undefined as unknown as ClassValueType,
@@ -271,6 +281,60 @@ export function createClass(name: string): ClassInfo {
   info.instance = { kind: 'class', info };
   info.value = { kind: 'classValue', info };
   return info;
+}
+
+// ─── Generics ────────────────────────────────────────────────────────────────────────────────────
+
+/** Bindings of type parameters to type arguments. */
+export function bindParams(
+  params: readonly TypeParam[],
+  args: readonly Type[],
+): Map<TypeParam, Type> {
+  return new Map(params.map((param, i) => [param, args[i] ?? UNKNOWN]));
+}
+
+const instances = new WeakMap<ObjectType, { args: Type[]; instance: ObjectType }[]>();
+
+/**
+ * `Box[number]` from `interface Box[T]`. Instances are cached, so that a type that refers to itself
+ * (`interface Node[T] { next ?Node[T] }`) gets the same instance back; arguments that are the
+ * parameters themselves give the generic interface.
+ */
+export function instantiate(template: ObjectType, args: readonly Type[]): ObjectType {
+  const params = template.typeParams ?? [];
+  if (params.every((param, i) => args[i] === param)) return template;
+  let cached = instances.get(template);
+  if (!cached) {
+    cached = [];
+    instances.set(template, cached);
+  }
+  const found = cached.find((entry) => entry.args.every((arg, i) => typesEqual(arg, args[i]!)));
+  if (found) return found.instance;
+  const instance: ObjectType = {
+    kind: 'object',
+    name: template.name,
+    members: new Map(),
+    call: null,
+    instanceOf: { template, args: [...args] },
+  };
+  cached.push({ args: [...args], instance });
+  const bindings = bindParams(params, args);
+  for (const [name, member] of template.members) {
+    instance.members.set(name, { ...member, type: substitute(member.type, bindings) });
+  }
+  if (template.call) instance.call = substitute(template.call, bindings) as FunctionType;
+  return instance;
+}
+
+/** An instance of a class with type arguments; a class without parameters has one instance. */
+export function classInstance(info: ClassInfo, args: readonly Type[]): ClassType {
+  return info.typeParams.length === 0 ? info.instance : { kind: 'class', info, args: [...args] };
+}
+
+/** The type of a member as seen on an instance: `Stack[number].items` is `[]number`. */
+export function memberTypeOf(object: Type, member: Member): Type {
+  if (object.kind !== 'class' || !object.args || !member.owner) return member.type;
+  return substitute(member.type, bindParams(member.owner.typeParams, object.args));
 }
 
 /** JS `Error`. The MangoScript type `error` is `?Error`. */
@@ -396,6 +460,11 @@ function assignable(source: Type, target: Type, assuming: [Type, Type][]): boole
   if (assuming.some(([s, t]) => s === source && t === target)) return true;
   const nested: [Type, Type][] = [...assuming, [source, target]];
 
+  // Inside a generic function, `T Shape` can be used as a `Shape`.
+  if (source.kind === 'param' && source !== target) {
+    return source.constraint ? assignable(source.constraint, target, nested) : false;
+  }
+
   switch (target.kind) {
     case 'number':
     case 'string':
@@ -419,6 +488,9 @@ function assignable(source: Type, target: Type, assuming: [Type, Type][]): boole
     case 'classValue':
       return source.kind === 'classValue' && isSubclass(source.info, target.info);
     case 'class': {
+      if (source.kind === 'class' && source.info === target.info && target.args) {
+        return (source.args ?? []).every((arg, i) => assignable(arg, target.args![i]!, nested));
+      }
       if (source.kind === 'class' && isSubclass(source.info, target.info)) return true;
       // Private and protected members make a class nominal, as in TypeScript.
       const members = instanceMembers(target.info);
@@ -473,6 +545,10 @@ function missingMember(
 
 /** Why `source` is not assignable to an object or class `target`, e.g. `missing field "y"`. */
 export function explainMismatch(source: Type, target: Type): string | null {
+  // `Stack[number]` and `Stack[string]`: the type arguments already say what differs.
+  if (source.kind === 'class' && target.kind === 'class' && source.info === target.info) {
+    return null;
+  }
   const members =
     target.kind === 'object'
       ? target.members
@@ -511,6 +587,17 @@ export function typesEqual(a: Type, b: Type): boolean {
   if (a.kind === 'array' && b.kind === 'array') return typesEqual(a.element, b.element);
   if (a.kind === 'nullable' && b.kind === 'nullable') return typesEqual(a.type, b.type);
   if (a.kind === 'literal' && b.kind === 'literal') return a.value === b.value;
+  if (a.kind === 'class' && b.kind === 'class') {
+    return (
+      a.info === b.info && (a.args ?? []).every((arg, i) => typesEqual(arg, b.args?.[i] ?? arg))
+    );
+  }
+  if (a.kind === 'object' && b.kind === 'object' && a.instanceOf && b.instanceOf) {
+    return (
+      a.instanceOf.template === b.instanceOf.template &&
+      a.instanceOf.args.every((arg, i) => typesEqual(arg, b.instanceOf!.args[i]!))
+    );
+  }
   if (a.kind === 'union' && b.kind === 'union') {
     return (
       a.types.length === b.types.length &&
@@ -539,18 +626,32 @@ export function hasZeroValue(type: Type): boolean {
 
 // ─── Type parameters ─────────────────────────────────────────────────────────────────────────────
 
-export function containsTypeParam(type: Type): boolean {
+/** Whether a type mentions type parameters: any of them, or only those in `only`. */
+export function containsTypeParam(
+  type: Type,
+  only: ReadonlySet<TypeParam> | null = null,
+  seen = new Set<Type>(),
+): boolean {
+  if (seen.has(type)) return false;
+  seen.add(type);
+  const contains = (each: Type) => containsTypeParam(each, only, seen);
   switch (type.kind) {
     case 'param':
-      return true;
+      return only === null || only.has(type);
+    case 'object':
+      if (type.typeParams?.some((param) => only === null || only.has(param))) return true;
+      if (type.instanceOf) return type.instanceOf.args.some(contains);
+      return [...type.members.values()].some((member) => contains(member.type));
+    case 'class':
+      return (type.args ?? []).some(contains);
     case 'array':
-      return containsTypeParam(type.element);
+      return contains(type.element);
     case 'nullable':
-      return containsTypeParam(type.type);
+      return contains(type.type);
     case 'union':
-      return type.types.some(containsTypeParam);
+      return type.types.some(contains);
     case 'function':
-      return [...type.params, ...type.results].some(containsTypeParam);
+      return [...type.params, ...type.results].some(contains);
     default:
       return false;
   }
@@ -567,6 +668,12 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
       return nullable(substitute(type.type, bindings, fallback));
     case 'union':
       return union(type.types.map((member) => substitute(member, bindings, fallback)));
+    case 'class':
+      return type.args
+        ? { ...type, args: type.args.map((arg) => substitute(arg, bindings, fallback)) }
+        : type;
+    case 'object':
+      return substituteObject(type, bindings, fallback);
     case 'function':
       return func(
         type.params.map((param) => substitute(param, bindings, fallback)),
@@ -581,8 +688,40 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
   }
 }
 
+function substituteObject(
+  type: ObjectType,
+  bindings: Map<TypeParam, Type>,
+  fallback?: Type,
+): ObjectType {
+  const sub = (each: Type) => substitute(each, bindings, fallback);
+  if (type.typeParams && type.typeParams.length > 0) {
+    return instantiate(type, type.typeParams.map(sub));
+  }
+  if (type.instanceOf) {
+    return instantiate(type.instanceOf.template, type.instanceOf.args.map(sub));
+  }
+  // A named interface without parameters cannot use them; an object type literal might.
+  if (type.name !== null || !containsTypeParam(type)) return type;
+  const members = new Map<string, Member>();
+  for (const [name, member] of type.members)
+    members.set(name, { ...member, type: sub(member.type) });
+  return { ...type, members, call: type.call && (sub(type.call) as FunctionType) };
+}
+
 /** Infers type parameters in `param` from the argument type `arg`. */
-export function inferTypeParams(param: Type, arg: Type, bindings: Map<TypeParam, Type>): void {
+export function inferTypeParams(
+  param: Type,
+  arg: Type,
+  bindings: Map<TypeParam, Type>,
+  seen = new Set<Type>(),
+): void {
+  if (!containsTypeParam(param)) return;
+  // Object types can refer to themselves: `interface Node[T] { value T; children []Node[T] }`.
+  if (param.kind === 'object') {
+    if (seen.has(param)) return;
+    seen.add(param);
+  }
+  const infer = (p: Type, a: Type) => inferTypeParams(p, a, bindings, seen);
   switch (param.kind) {
     case 'param':
       if (!bindings.has(param) && arg.kind !== 'unknown' && arg.kind !== 'never') {
@@ -590,20 +729,48 @@ export function inferTypeParams(param: Type, arg: Type, bindings: Map<TypeParam,
       }
       break;
     case 'array':
-      if (arg.kind === 'array') inferTypeParams(param.element, arg.element, bindings);
+      if (arg.kind === 'array') infer(param.element, arg.element);
       break;
     case 'nullable':
-      inferTypeParams(param.type, nonNull(arg), bindings);
+      infer(param.type, nonNull(arg));
       break;
+    case 'class':
+      if (arg.kind === 'class' && arg.info === param.info && param.args && arg.args) {
+        param.args.forEach((each, i) => infer(each, arg.args![i]!));
+      }
+      break;
+    case 'object': {
+      if (
+        param.instanceOf &&
+        arg.kind === 'object' &&
+        arg.instanceOf?.template === param.instanceOf.template
+      ) {
+        param.instanceOf.args.forEach((each, i) => infer(each, arg.instanceOf!.args[i]!));
+        break;
+      }
+      // Structurally: `{ value T }` from `{ value number }`.
+      const members =
+        arg.kind === 'object'
+          ? arg.members
+          : arg.kind === 'class'
+            ? instanceMembers(arg.info)
+            : null;
+      if (!members) break;
+      for (const [name, member] of param.members) {
+        const found = members.get(name);
+        if (found) infer(member.type, found.type);
+      }
+      break;
+    }
     case 'function':
       if (arg.kind === 'function') {
         param.params.forEach((p, i) => {
           const a = arg.params[i];
-          if (a) inferTypeParams(p, a, bindings);
+          if (a) infer(p, a);
         });
         param.results.forEach((r, i) => {
           const a = arg.results[i];
-          if (a) inferTypeParams(r, a, bindings);
+          if (a) infer(r, a);
         });
       }
       break;
@@ -642,6 +809,9 @@ export function typeToString(type: Type): string {
       return `func(${params.join(', ')})${resultsToString(type.results)}`;
     }
     case 'object': {
+      if (type.instanceOf && type.name !== null) {
+        return `${type.name}[${type.instanceOf.args.map(typeToString).join(', ')}]`;
+      }
       if (type.name !== null) return type.name;
       const members = [...type.members].map(
         ([name, member]) => `${name} ${typeToString(member.type)}`,
@@ -649,7 +819,9 @@ export function typeToString(type: Type): string {
       return members.length === 0 ? '{}' : `{ ${members.join('; ')} }`;
     }
     case 'class':
-      return type.info.name;
+      return type.args
+        ? `${type.info.name}[${type.args.map(typeToString).join(', ')}]`
+        : type.info.name;
     case 'classValue':
       return `class ${type.info.name}`;
     case 'tuple':

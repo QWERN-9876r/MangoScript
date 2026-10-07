@@ -193,6 +193,48 @@ func show(value string | number) string {
   дают union: `[1, "a"]` — это `[](number | string)`.
 - У union и литеральных типов нет нулевого значения: `let f Filter` нужно инициализировать.
 
+### Дженерики
+
+Параметры типа пишутся в квадратных скобках после имени, как в Go:
+
+```go
+func first[T any](xs []T) ?T {
+    return xs.length > 0 ? xs[0] : null
+}
+
+interface Box[T] {
+    value T
+}
+
+type Pair[A, B any] { first A; second B }
+
+class Stack[T] {
+    private items []T
+    push(item T) { this.items.push(item) }
+    pop() ?T { return this.items.pop() ?? null }
+}
+
+const n = first([1, 2, 3])              // ?number
+let b Box[string] = { value: "a" }
+let s Stack[number] = new Stack()
+```
+
+- **Ограничение** пишется после имени: `[T Named]` — `T` должен подходить под `Named`, и у
+  значений типа `T` есть члены `Named`. `any` — без ограничения, тогда членов у `T` нет.
+  Несколько имён подряд делят одно ограничение: `[K, V any]`. Для интерфейсов, классов и `type`
+  ограничение можно не писать: `interface Box[T]`.
+- **Аргументы типа** пишутся только в типах: `Box[number]`, `Pair[string, ?number]`. При вызове
+  функции и в `new` они выводятся из аргументов, а если не получилось — из ожидаемого типа:
+  `let xs []number = empty()`. Явного `first[number](xs)` нет: в выражении это неотличимо от
+  индекса. Если вывести тип не из чего, это ошибка: `let s = new Stack()`.
+- Внутри функции `T` — отдельный тип: `return 1` в функции с результатом `T` — ошибка. Нулевого
+  значения у `T` нет.
+- Тип может ссылаться на себя: `interface Tree[T] { value T; children []Tree[T] }`.
+- `Box[number]` и `Box[string]` — разные типы, `Stack[number]` и `Stack[string]` — тоже.
+- Наследоваться от обобщённого класса пока нельзя: `extends Stack[number]` в JS было бы
+  индексом. Методы со своими параметрами типа (`map[U any](...)`) тоже пока не поддерживаются.
+- В JS дженерики стираются, как в TypeScript.
+
 ### null и null-safety
 
 «Пустое» значение в языке одно — `null`; `undefined` в MangoScript нет. Обычное `==`
@@ -871,7 +913,6 @@ JS-модулей, имеют тип `any`. Параметры колбэков,
 
 - **`async func` и `await`.**
 - **`map[K]V`**, компилируется в `Map`: `m[k]` → `m.get(k)`, `m[k] = v` → `m.set(k, v)`.
-- **Дженерики** в синтаксисе Go: `func first[T any](xs []T) T`.
 - **Классы:** геттеры и сеттеры, `readonly`, абстрактные классы, параметры-свойства конструктора
   (`constructor(private name string)`).
 - **`if` с инициализацией:** `if const v, err = f(); err != null { }`.

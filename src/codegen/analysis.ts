@@ -211,6 +211,7 @@ export function collectValueNames(node: ast.Node, names: Set<string>): void {
     case 'ObjectType':
     case 'UnionType':
     case 'LiteralType':
+    case 'TypeParameter':
       return;
     default:
       forEachChild(node, visit);

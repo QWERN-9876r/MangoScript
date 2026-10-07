@@ -210,14 +210,23 @@
           }
         },
         {
-          "match": "(?<![\\w$])(?<![^.]\\.)(class)\\s+([A-Za-z_$][\\w$]*)(?:\\s+(extends)\\s+([A-Za-z_$][\\w$.]*))?(?:\\s+(implements)(?![\\w$]))?",
+          "match": "(?<![\\w$])(?<![^.]\\.)(class)\\s+([A-Za-z_$][\\w$]*)",
           "captures": {
             "1": { "name": "storage.type.class.mango" },
-            "2": { "name": "entity.name.type.class.mango" },
-            "3": { "name": "storage.modifier.mango" },
-            "4": { "name": "entity.other.inherited-class.mango" },
-            "5": { "name": "storage.modifier.mango" }
+            "2": { "name": "entity.name.type.class.mango" }
           }
+        },
+        {
+          "comment": "Separate from `class Name`: type parameters can come between, `class Stack[T] implements Source[T]`.",
+          "match": "(?<![\\w$])(?<![^.]\\.)(extends)\\s+([A-Za-z_$][\\w$.]*)",
+          "captures": {
+            "1": { "name": "storage.modifier.mango" },
+            "2": { "name": "entity.other.inherited-class.mango" }
+          }
+        },
+        {
+          "name": "storage.modifier.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)implements(?![\\w$])"
         },
         {
           "match": "(?<![\\w$])(?<![^.]\\.)(interface|type)\\s+([A-Za-z_$][\\w$]*)",
@@ -322,14 +331,14 @@
     "types": {
       "patterns": [
         {
-          "comment": "`[]Todo`: the element type is coloured by the rules below.",
+          "comment": "`[]Todo`, `[](A | B)`: the element type is coloured by the rules below.",
           "name": "punctuation.definition.type.array.mango",
-          "match": "\\[\\](?=[A-Za-z_$?\\[])"
+          "match": "\\[\\](?=[A-Za-z_$?\\[(])"
         },
         {
-          "comment": "`?User`; the ternary `?` has a space after it.",
+          "comment": "`?User`, `?(A | B)`; the ternary `?` has a space after it.",
           "name": "keyword.operator.type.nullable.mango",
-          "match": "(?<![\\w$)\\]}\"'`])\\?(?=[A-Za-z_$\\[])"
+          "match": "(?<![\\w$)\\]}\"'`])\\?(?=[A-Za-z_$\\[(])"
         },
         {
           "name": "support.function.mango",

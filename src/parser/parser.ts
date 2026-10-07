@@ -907,10 +907,50 @@ class Parser {
   private parseFuncDeclaration(start: number, exported: boolean): ast.FuncDeclaration {
     this.expect('func');
     const name = this.parseIdentifier('function name');
+    const typeParams = this.parseTypeParams();
     const params = this.parseParams(false);
     const results = this.parseResults();
     const body = this.parseFunctionBody();
-    return { kind: 'FuncDeclaration', exported, name, params, results, body, ...this.span(start) };
+    return {
+      kind: 'FuncDeclaration',
+      exported,
+      name,
+      typeParams,
+      params,
+      results,
+      body,
+      ...this.span(start),
+    };
+  }
+
+  /**
+   * `[T any, U Shape]` after a name, as in Go; `[K, V any]` gives both the constraint. A `[` with
+   * a name after it starts them: `[]T` is an array type.
+   */
+  private parseTypeParams(): ast.TypeParameter[] {
+    if (!this.check('[') || this.peek(1).kind !== 'Identifier') return [];
+    this.next();
+    const params: ast.TypeParameter[] = [];
+    let pending: ast.Identifier[] = [];
+    const finish = (constraint: ast.TypeNode | null) => {
+      for (const name of pending) {
+        params.push({
+          kind: 'TypeParameter',
+          name,
+          constraint,
+          start: name.start,
+          end: constraint?.end ?? name.end,
+        });
+      }
+      pending = [];
+    };
+    do {
+      pending.push(this.parseIdentifier('type parameter name'));
+      if (!this.check(',') && !this.check(']')) finish(this.parseType());
+    } while (this.accept(','));
+    finish(null);
+    this.expect(']', '"]" after the type parameters');
+    return params;
   }
 
   /**
@@ -998,6 +1038,7 @@ class Parser {
   private parseClass(start: number, exported: boolean): ast.ClassDeclaration {
     this.expect('class');
     const name = this.parseIdentifier('class name');
+    const typeParams = this.parseTypeParams();
 
     let superClass: ast.Expression | null = null;
     if (this.accept('extends')) {
@@ -1013,6 +1054,7 @@ class Parser {
         interfaces.push({
           kind: 'TypeReference',
           name: interfaceName,
+          typeArgs: this.parseTypeArgs(),
           ...this.span(interfaceName.start),
         });
       } while (this.accept(','));
@@ -1033,6 +1075,7 @@ class Parser {
       kind: 'ClassDeclaration',
       exported,
       name,
+      typeParams,
       superClass,
       implements: interfaces,
       members,
@@ -1124,15 +1167,38 @@ class Parser {
   private parseInterface(start: number, exported: boolean): ast.InterfaceDeclaration {
     this.expect('interface');
     const name = this.parseIdentifier('interface name');
+    const typeParams = this.parseTypeParams();
     const members = this.parseTypeMembers();
-    return { kind: 'InterfaceDeclaration', exported, name, members, ...this.span(start) };
+    return {
+      kind: 'InterfaceDeclaration',
+      exported,
+      name,
+      typeParams,
+      members,
+      ...this.span(start),
+    };
   }
 
   private parseTypeAlias(start: number, exported: boolean): ast.TypeAliasDeclaration {
     this.expect('type');
     const name = this.parseIdentifier('type name');
+    const typeParams = this.parseTypeParams();
     const type = this.parseType();
-    return { kind: 'TypeAliasDeclaration', exported, name, type, ...this.span(start) };
+    return {
+      kind: 'TypeAliasDeclaration',
+      exported,
+      name,
+      typeParams,
+      type,
+      ...this.span(start),
+    };
+  }
+
+  /** `[number, string]` after the name of a generic type; `[]` would be an array type. */
+  private parseTypeArgs(): ast.TypeNode[] {
+    if (!this.check('[') || this.peek(1).kind === ']') return [];
+    this.next();
+    return this.parseList(']', () => this.parseType());
   }
 
   // ─── Types ─────────────────────────────────────────────────────────────────────────────────────
@@ -1209,7 +1275,8 @@ class Parser {
       }
       default: {
         const name = this.parseIdentifier('type');
-        return { kind: 'TypeReference', name, ...this.span(start) };
+        const typeArgs = this.parseTypeArgs();
+        return { kind: 'TypeReference', name, typeArgs, ...this.span(start) };
       }
     }
   }

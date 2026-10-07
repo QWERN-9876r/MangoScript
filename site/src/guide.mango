@@ -17,6 +17,7 @@ export const SECTIONS []Section = [
     { id: "errors", title: "Ошибки и defer", content: errors },
     { id: "control", title: "Условия и циклы", content: control },
     { id: "classes", title: "Классы и интерфейсы", content: classes },
+    { id: "generics", title: "Дженерики", content: generics },
     { id: "modules", title: "Модули", content: modules },
     { id: "markup", title: "Разметка", content: markup },
     { id: "components", title: "Компоненты", content: components },
@@ -176,6 +177,23 @@ func classes() Node {
             класса.
         </p>
         {example("classes")}
+    </>
+}
+
+func generics() Node {
+    return <>
+        <p>
+            Параметры типа пишутся в квадратных скобках, как в Go:
+            {" "}<code>{"func last[T any](xs []T) ?T"}</code>, <code>{"interface Box[T]"}</code>,
+            {" "}<code>{"class Stack[T]"}</code>. В типах аргументы тоже в квадратных скобках:
+            {" "}<code>Box[number]</code>, <code>Stack[string]</code>.
+        </p>
+        <p>
+            При вызове аргументы типа не пишутся: компилятор выводит их из аргументов или из
+            ожидаемого типа. Ограничение <code>[T Named]</code> разрешает только подходящие типы
+            и даёт значениям <code>T</code> члены <code>Named</code>. В JS типы стираются.
+        </p>
+        {example("generics")}
     </>
 }
 

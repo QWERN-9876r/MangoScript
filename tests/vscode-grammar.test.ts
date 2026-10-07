@@ -96,6 +96,19 @@ describe('VS Code grammar', () => {
     expect(scopeOf('const MAX_TITLE = 80', 'MAX_TITLE')).toBe('variable.other.constant');
   });
 
+  it('colours generic declarations and grouped types', () => {
+    const header = 'class Stack[T] extends Base implements Source[T] {';
+    expect(scopeOf(header, 'Stack')).toBe('entity.name.type.class');
+    expect(scopesOf(header, 'T')).toEqual(['entity.name.type', 'entity.name.type']);
+    expect(scopeOf(header, 'Base')).toBe('entity.other.inherited-class');
+    expect(scopeOf(header, 'implements')).toBe('storage.modifier');
+    const func = 'func first[T any](xs []T) ?T {';
+    expect(scopeOf(func, 'first')).toBe('entity.name.function');
+    expect(scopeOf(func, 'any')).toBe('support.type.primitive');
+    expect(scopeOf('let x ?(A | B) = null', '?')).toBe('keyword.operator.type.nullable');
+    expect(scopeOf('let xs [](A | B)', '[]')).toBe('punctuation.definition.type.array');
+  });
+
   it('tells object keys from the ternary operator', () => {
     const source = 'const f = { id: "all", label: ok ? a : b }';
     expect(scopesOf(source, 'id')).toEqual(['meta.object-literal.key']);

@@ -22,7 +22,9 @@ import {
 import {
   ANY,
   arrayOf,
+  bindParams,
   BOOL,
+  classInstance,
   commonType,
   constructorOf,
   containsTypeParam,
@@ -34,12 +36,14 @@ import {
   hasZeroValue,
   inferTypeParams,
   instanceMembers,
+  instantiate,
   isAssignable,
   isComparable,
   isNullable,
   isSubclass,
   literal,
   literalBase,
+  memberTypeOf,
   NEVER,
   nonNull,
   NULL,
@@ -125,6 +129,8 @@ interface AliasEntry {
   kind: 'alias';
   node: ast.TypeAliasDeclaration;
   scope: Scope;
+  /** `type Pair[A, B any] ...`: references give arguments for these. */
+  params: TypeParam[];
   resolved: Type | null;
   resolving: boolean;
 }
@@ -187,6 +193,11 @@ class Checker {
   private flow: Flow = new Map();
   private fn: FunctionContext | null = null;
   private cls: ClassContext | null = null;
+  /**
+   * Type parameters of the call whose arguments are being checked: they are not known yet. Other
+   * type parameters, like `T` in the body of `func first[T any]`, are types like any other.
+   */
+  private inferring: ReadonlySet<TypeParam> = new Set();
   /** Names assigned somewhere in the module: their narrowing does not carry into closures. */
   private readonly assigned: Set<string>;
   /** Classes whose members are not resolved yet, with the code that resolves them. */
@@ -325,6 +336,7 @@ class Checker {
           break;
         case 'ClassDeclaration': {
           const info = createClass(statement.name.name);
+          info.typeParams = this.createTypeParams(statement.typeParams);
           this.declareType(statement.name, info.instance);
           this.declareValue(statement.name, 'class', info.value);
           classes.push([statement, info]);
@@ -337,6 +349,9 @@ class Checker {
             members: new Map(),
             call: null,
           };
+          if (statement.typeParams.length > 0) {
+            object.typeParams = this.createTypeParams(statement.typeParams);
+          }
           this.declareType(statement.name, object);
           interfaces.push([statement, object]);
           break;
@@ -346,6 +361,7 @@ class Checker {
             kind: 'alias',
             node: statement,
             scope: this.scope,
+            params: this.createTypeParams(statement.typeParams),
             resolved: null,
             resolving: false,
           });
@@ -378,12 +394,22 @@ class Checker {
       }
     }
 
-    for (const [node, object] of interfaces) this.fillMembers(object, node.members);
+    for (const [node, object] of interfaces) {
+      this.withTypeParams(object.typeParams ?? [], node.typeParams, () =>
+        this.fillMembers(object, node.members),
+      );
+    }
     for (const statement of statements) {
-      if (statement.kind === 'TypeAliasDeclaration') this.resolveTypeName(statement.name);
+      if (statement.kind !== 'TypeAliasDeclaration') continue;
+      const entry = this.scope.types.get(statement.name.name);
+      if (entry?.kind === 'alias') this.resolveAlias(entry);
     }
     for (const [node, binding] of functions) {
-      binding.type = this.signature(node.params, node.results);
+      const typeParams = this.createTypeParams(node.typeParams);
+      binding.type = this.withTypeParams(typeParams, node.typeParams, () => ({
+        ...this.signature(node.params, node.results),
+        typeParams,
+      }));
     }
     for (const info of components) this.resolveProps(info);
     const recursive = recursiveComponents(
@@ -468,6 +494,36 @@ class Checker {
     }
   }
 
+  /** `[T any, U Shape]`: the parameters, with constraints resolved later by withTypeParams. */
+  private createTypeParams(nodes: readonly ast.TypeParameter[]): TypeParam[] {
+    return nodes.map((node) => ({ kind: 'param', name: node.name.name, constraint: null }));
+  }
+
+  /**
+   * Runs `check` in a scope where type parameters are types. With their declarations, it first
+   * resolves the constraints (`any` means none).
+   */
+  private withTypeParams<T>(
+    params: readonly TypeParam[],
+    nodes: readonly ast.TypeParameter[] | null,
+    check: () => T,
+  ): T {
+    if (params.length === 0) return check();
+    const saved = this.scope;
+    this.scope = new Scope(saved);
+    try {
+      for (const param of params) this.scope.types.set(param.name, param);
+      nodes?.forEach((node, i) => {
+        if (!node.constraint) return;
+        const constraint = this.resolveType(node.constraint);
+        params[i]!.constraint = constraint.kind === 'any' ? null : constraint;
+      });
+      return check();
+    } finally {
+      this.scope = saved;
+    }
+  }
+
   private signature(
     params: readonly ast.Parameter[],
     results: readonly ast.TypeNode[],
@@ -492,9 +548,22 @@ class Checker {
 
   /** Resolves the base class and the types of all members (but does not check method bodies). */
   private resolveClass(node: ast.ClassDeclaration, info: ClassInfo): void {
+    this.withTypeParams(info.typeParams, node.typeParams, () =>
+      this.resolveClassMembers(node, info),
+    );
+  }
+
+  private resolveClassMembers(node: ast.ClassDeclaration, info: ClassInfo): void {
     if (node.superClass) {
       const base = this.checkValue(node.superClass);
-      if (base.kind === 'classValue') {
+      if (base.kind === 'classValue' && base.info.typeParams.length > 0) {
+        // `extends Stack[number]` would be an index in JS: the base is used without types.
+        this.error(
+          `cannot extend the generic class "${base.info.name}": generic base classes are not supported`,
+          node.superClass,
+        );
+        info.untypedBase = true;
+      } else if (base.kind === 'classValue') {
         this.ensureClassResolved(base.info);
         if (this.resolvingClasses.has(base.info) || isSubclass(base.info, info)) {
           this.error(`class "${info.name}" cannot extend itself`, node.superClass);
@@ -559,6 +628,10 @@ class Checker {
 
   /** Method bodies and the checks that need every member of the class. */
   private checkClassBodies(node: ast.ClassDeclaration, info: ClassInfo): void {
+    this.withTypeParams(info.typeParams, null, () => this.checkClassMembers(node, info));
+  }
+
+  private checkClassMembers(node: ast.ClassDeclaration, info: ClassInfo): void {
     let constructorNode: ast.ConstructorDeclaration | null = null;
     for (const member of node.members) {
       if (member.kind === 'MethodDeclaration') {
@@ -595,7 +668,7 @@ class Checker {
     }
 
     for (const reference of node.implements) {
-      const target = this.resolveTypeName(reference.name);
+      const target = this.resolveTypeName(reference.name, reference.typeArgs);
       if (target.kind === 'unknown') continue;
       if (target.kind !== 'object' && target.kind !== 'class') {
         this.error(`cannot implement ${typeToString(target)}: it is not an interface`, reference);
@@ -662,7 +735,7 @@ class Checker {
   private resolveType(node: ast.TypeNode): Type {
     switch (node.kind) {
       case 'TypeReference':
-        return this.resolveTypeName(node.name);
+        return this.resolveTypeName(node.name, node.typeArgs);
       case 'ArrayType':
         return arrayOf(this.resolveType(node.element));
       case 'NullableType':
@@ -684,7 +757,7 @@ class Checker {
     }
   }
 
-  private resolveTypeName(name: ast.Identifier): Type {
+  private resolveTypeName(name: ast.Identifier, typeArgs: readonly ast.TypeNode[] = []): Type {
     const entry = this.lookupType(name.name);
     if (entry === undefined) {
       this.error(
@@ -695,7 +768,40 @@ class Checker {
       );
       return UNKNOWN;
     }
-    return entry.kind === 'alias' ? this.resolveAlias(entry) : entry;
+    const args = typeArgs.map((arg) => this.resolveType(arg));
+    const type = entry.kind === 'alias' ? this.resolveAlias(entry) : entry;
+    const params =
+      entry.kind === 'alias'
+        ? entry.params
+        : type.kind === 'object'
+          ? (type.typeParams ?? [])
+          : type.kind === 'class'
+            ? type.info.typeParams
+            : [];
+    if (params.length === 0) {
+      if (args.length > 0) this.error(`"${name.name}" is not generic`, typeArgs[0]!);
+      return type;
+    }
+    if (args.length !== params.length) {
+      this.error(
+        args.length === 0
+          ? `"${name.name}" needs type arguments: ${name.name}[${params.map((param) => param.name).join(', ')}]`
+          : `"${name.name}" takes ${params.length} type argument${params.length === 1 ? '' : 's'}, got ${args.length}`,
+        name,
+      );
+      return UNKNOWN;
+    }
+    params.forEach((param, i) => {
+      if (param.constraint && !isAssignable(args[i]!, param.constraint)) {
+        this.error(
+          `${typeToString(args[i]!)} does not satisfy the constraint ${typeToString(param.constraint)} of ${param.name}`,
+          typeArgs[i]!,
+        );
+      }
+    });
+    if (type.kind === 'class') return classInstance(type.info, args);
+    if (type.kind === 'object' && type.typeParams) return instantiate(type, args);
+    return substitute(type, bindParams(params, args));
   }
 
   private resolveAlias(entry: AliasEntry): Type {
@@ -708,27 +814,33 @@ class Checker {
     const saved = this.scope;
     this.scope = entry.scope;
     try {
-      if (node.type.kind === 'ObjectType') {
-        // Registered before its members, so that they can refer to the type itself.
-        const object: ObjectType = {
-          kind: 'object',
-          name: node.name.name,
-          members: new Map(),
-          call: null,
-        };
-        entry.resolved = object;
-        this.fillMembers(object, node.type.members);
-        return object;
-      }
-      entry.resolving = true;
-      const resolved = this.resolveType(node.type);
-      // A union keeps the alias name for messages: `cannot use "activ" as Filter`.
-      entry.resolved = resolved.kind === 'union' ? { ...resolved, name: node.name.name } : resolved;
-      return entry.resolved;
+      return this.withTypeParams(entry.params, node.typeParams, () => this.resolveAliasType(entry));
     } finally {
       entry.resolving = false;
       this.scope = saved;
     }
+  }
+
+  private resolveAliasType(entry: AliasEntry): Type {
+    const { node } = entry;
+    if (node.type.kind === 'ObjectType') {
+      // Registered before its members, so that they can refer to the type itself.
+      const object: ObjectType = {
+        kind: 'object',
+        name: node.name.name,
+        members: new Map(),
+        call: null,
+      };
+      if (entry.params.length > 0) object.typeParams = entry.params;
+      entry.resolved = object;
+      this.fillMembers(object, node.type.members);
+      return object;
+    }
+    entry.resolving = true;
+    const resolved = this.resolveType(node.type);
+    // A union keeps the alias name for messages: `cannot use "activ" as Filter`.
+    entry.resolved = resolved.kind === 'union' ? { ...resolved, name: node.name.name } : resolved;
+    return entry.resolved;
   }
 
   /** The type of a variable initialized with a value of type `type`. */
@@ -1250,6 +1362,8 @@ class Checker {
       isComponent: options.isComponent ?? false,
     };
     try {
+      // A generic function: its type parameters are types in its body.
+      for (const typeParam of type.typeParams) this.scope.types.set(typeParam.name, typeParam);
       params.forEach((param, i) =>
         this.declareValue(param.name, options.paramKind ?? 'param', type.params[i] ?? UNKNOWN),
       );
@@ -1320,20 +1434,28 @@ class Checker {
     const params = node.params.map((param, i) => {
       if (param.type) return this.resolveType(param.type);
       const fromContext = context ? (context.params[i] ?? context.rest) : null;
-      if (fromContext && !containsTypeParam(fromContext)) return fromContext;
+      if (fromContext && !containsTypeParam(fromContext, this.inferring)) return fromContext;
       if (untypedContext) return nonNull(expected);
       this.error(`cannot infer the type of parameter "${param.name.name}": add a type`, param);
       return UNKNOWN;
     });
     // Known result types from the context are checked; otherwise they are inferred.
     const contextResults =
-      context && context.results.length > 0 && !context.results.some(containsTypeParam)
+      context &&
+      context.results.length > 0 &&
+      !context.results.some((type) => containsTypeParam(type, this.inferring))
         ? context.results
         : null;
     const type = func(params, []);
-    type.results = this.checkFunction(node.params, type, contextResults, node.body, {
-      closure: true,
-    });
+    const inferring = this.inferring;
+    this.inferring = new Set();
+    try {
+      type.results = this.checkFunction(node.params, type, contextResults, node.body, {
+        closure: true,
+      });
+    } finally {
+      this.inferring = inferring;
+    }
     return type;
   }
 
@@ -1503,13 +1625,13 @@ class Checker {
       case 'ConditionalExpression':
         return this.checkConditional(node, expected);
       case 'NewExpression':
-        return this.checkNew(node);
+        return this.checkNew(node, expected);
       case 'ElementExpression':
         return this.checkElement(node);
       case 'MemberExpression':
       case 'IndexExpression':
       case 'CallExpression': {
-        const [type, shortCircuits] = this.checkChain(node);
+        const [type, shortCircuits] = this.checkChain(node, expected);
         return shortCircuits && type.kind !== 'tuple' && type.kind !== 'void'
           ? nullable(type)
           : type;
@@ -2213,8 +2335,10 @@ class Checker {
    * Member access, indexing and calls. Returns the type and whether an optional link (`?.`)
    * may short-circuit the chain: `a?.b.c()` is null as a whole when `a` is null.
    */
+  /** `expected` is for the result of a call: it can give type arguments, as in `let xs []number = empty()`. */
   private checkChain(
     node: ast.MemberExpression | ast.IndexExpression | ast.CallExpression,
+    expected: Type | null = null,
   ): [Type, boolean] {
     if (node.kind === 'CallExpression') {
       if (node.callee.kind === 'SuperExpression') return [this.checkSuperCall(node), false];
@@ -2224,7 +2348,7 @@ class Checker {
         else this.nullError(node.callee);
         callee = nonNull(callee);
       }
-      return [this.checkCall(node, callee), shortCircuits];
+      return [this.checkCall(node, callee, expected), shortCircuits];
     }
 
     let [object, shortCircuits] =
@@ -2283,6 +2407,14 @@ class Checker {
         return 'any';
       case 'literal':
         return this.findMember(literalBase(object), name, node);
+      case 'param':
+        // A value of a type parameter has the members of its constraint.
+        if (object.constraint) return this.findMember(object.constraint, name, node);
+        this.error(
+          `${object.name} has no member "${name}": give the type parameter a constraint, e.g. [${object.name} Shape]`,
+          node,
+        );
+        return undefined;
       case 'union': {
         // A member of a union is one that every type in it has.
         const found = object.types.map((type) => this.memberOf(type, name));
@@ -2321,6 +2453,7 @@ class Checker {
         this.ensureClassResolved(object.info);
         member = findClassMember(object.info, name, false);
         if (!member && hasUntypedBase(object.info)) return 'any';
+        if (member && object.args) member = { ...member, type: memberTypeOf(object, member) };
         break;
       case 'classValue':
         this.ensureClassResolved(object.info);
@@ -2355,6 +2488,8 @@ class Checker {
         return 'any';
       case 'literal':
         return this.memberOf(literalBase(type), name);
+      case 'param':
+        return type.constraint ? this.memberOf(type.constraint, name) : undefined;
       case 'number':
         return numberMember(name);
       case 'string':
@@ -2369,14 +2504,15 @@ class Checker {
         this.ensureClassResolved(type.info);
         const member = findClassMember(type.info, name, false);
         if (!member && hasUntypedBase(type.info)) return 'any';
-        return member?.visibility === 'public' ? member : undefined;
+        if (member?.visibility !== 'public') return undefined;
+        return type.args ? { ...member, type: memberTypeOf(type, member) } : member;
       }
       default:
         return undefined;
     }
   }
 
-  private checkCall(node: ast.CallExpression, callee: Type): Type {
+  private checkCall(node: ast.CallExpression, callee: Type, expected: Type | null = null): Type {
     if (isUntyped(callee)) {
       this.checkArgumentsLoosely(node.arguments);
       return callee;
@@ -2392,7 +2528,7 @@ class Checker {
       this.checkArgumentsLoosely(node.arguments);
       return UNKNOWN;
     }
-    const results = this.checkArguments(signature, node.arguments, node);
+    const results = this.checkArguments(signature, node.arguments, node, new Map(), expected);
     if (results.length === 0) return VOID;
     if (results.length === 1) return results[0]!;
     return { kind: 'tuple', types: results };
@@ -2414,7 +2550,7 @@ class Checker {
     return VOID;
   }
 
-  private checkNew(node: ast.NewExpression): Type {
+  private checkNew(node: ast.NewExpression, expected: Type | null = null): Type {
     const callee = this.checkValue(node.callee);
     if (isUntyped(callee)) {
       this.checkArgumentsLoosely(node.arguments);
@@ -2438,21 +2574,42 @@ class Checker {
         this.error(`the constructor of ${owner.name} is ${owner.ctorVisibility}`, node);
       }
     }
-    this.checkArguments(type, node.arguments, node);
-    return info.instance;
+    if (info.typeParams.length === 0) {
+      this.checkArguments(type, node.arguments, node);
+      return info.instance;
+    }
+    // `new Stack[number]()` is not valid syntax: the arguments come from the constructor
+    // arguments, or from the expected type, as in `let s Stack[number] = new Stack()`.
+    const inferred = new Map<TypeParam, Type>();
+    const instance: Type = { kind: 'class', info, args: info.typeParams };
+    this.checkArguments(
+      { ...type, results: [instance], typeParams: info.typeParams },
+      node.arguments,
+      node,
+      inferred,
+      expected,
+    );
+    return classInstance(
+      info,
+      info.typeParams.map((param) => inferred.get(param) ?? UNKNOWN),
+    );
   }
 
   private checkArgumentsLoosely(args: readonly (ast.Expression | ast.SpreadElement)[]): void {
     for (const arg of args) this.checkValue(arg.kind === 'SpreadElement' ? arg.argument : arg, ANY);
   }
 
-  /** Checks call arguments against a signature and returns the result types. */
+  /**
+   * Checks call arguments against a signature and returns the result types. Type parameters are
+   * inferred into `inferred` from the arguments and then from the expected result.
+   */
   private checkArguments(
     signature: FunctionType,
     args: readonly (ast.Expression | ast.SpreadElement)[],
     node: ast.NodeBase,
+    inferred = new Map<TypeParam, Type>(),
+    expected: Type | null = null,
   ): Type[] {
-    const inferred = new Map<TypeParam, Type>();
     const hasSpread = args.some((arg) => arg.kind === 'SpreadElement');
     if (!hasSpread) {
       if (args.length < signature.required) {
@@ -2472,6 +2629,47 @@ class Checker {
     // on type parameters inferred from the other arguments (e.g. `reduce(f, initial)`).
     const needsContext = (arg: ast.Expression | ast.SpreadElement) =>
       arg.kind === 'ArrowFunction' && arg.params.some((param) => param.type === null);
+    const inferring = this.inferring;
+    this.inferring = new Set(signature.typeParams);
+    const errors = this.diagnostics.length;
+    try {
+      this.checkArgumentList(signature, args, inferred, needsContext);
+    } finally {
+      this.inferring = inferring;
+    }
+    if (expected && signature.results.length === 1) {
+      inferTypeParams(signature.results[0]!, expected, inferred);
+    }
+    // `let xs = empty()`: nothing says what T is. Not reported after errors in the arguments.
+    const unknown = signature.typeParams.filter(
+      (param) =>
+        !inferred.has(param) &&
+        signature.results.some((result) => containsTypeParam(result, new Set([param]))),
+    );
+    if (unknown.length > 0 && this.diagnostics.length === errors) {
+      this.error(
+        `cannot infer ${unknown.map((param) => param.name).join(', ')}: declare the type of the result`,
+        node,
+      );
+    }
+    for (const param of signature.typeParams) {
+      const type = inferred.get(param);
+      if (type && param.constraint && !isAssignable(type, param.constraint)) {
+        this.error(
+          `${typeToString(type)} does not satisfy the constraint ${typeToString(param.constraint)} of ${param.name}`,
+          node,
+        );
+      }
+    }
+    return signature.results.map((result) => substitute(result, inferred, UNKNOWN));
+  }
+
+  private checkArgumentList(
+    signature: FunctionType,
+    args: readonly (ast.Expression | ast.SpreadElement)[],
+    inferred: Map<TypeParam, Type>,
+    needsContext: (arg: ast.Expression | ast.SpreadElement) => boolean,
+  ): void {
     for (const contextPass of [false, true]) {
       args.forEach((arg, i) => {
         if (needsContext(arg) !== contextPass) return;
@@ -2492,12 +2690,19 @@ class Checker {
           this.checkValue(arg);
           return;
         }
-        const type = this.checkValue(arg, substitute(param, inferred));
+        // An expected type with parameters that are not inferred yet would reject the argument:
+        // `[1, 2]` for `[]T` is checked on its own, and T is inferred from it.
+        const expected = substitute(param, inferred);
+        const type = this.checkValue(
+          arg,
+          arg.kind === 'ArrowFunction' || !containsTypeParam(expected, this.inferring)
+            ? expected
+            : null,
+        );
         inferTypeParams(param, type, inferred);
         this.expectAssignable(type, substitute(param, inferred), arg, ` in argument ${i + 1}`);
       });
     }
-    return signature.results.map((result) => substitute(result, inferred, UNKNOWN));
   }
 }
 
@@ -2588,6 +2793,7 @@ function freeNames(component: ast.ComponentDeclaration): Set<string> {
       case 'ObjectType':
       case 'UnionType':
       case 'LiteralType':
+      case 'TypeParameter':
         return;
       default:
         forEachChild(node, visit);
