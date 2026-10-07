@@ -61,7 +61,8 @@ describe('documentation site', () => {
       build: { outDir, emptyOutDir: true },
     });
     const html = readFileSync(join(outDir, 'index.html'), 'utf8');
-    const script = /src="\/(assets\/[^"]+\.js)"/.exec(html)?.[1];
+    // Relative, so that the site works from any folder, as on GitHub Pages.
+    const script = /src="\.\/(assets\/[^"]+\.js)"/.exec(html)?.[1];
     expect(script).toBeDefined();
     const code = readFileSync(join(outDir, script!), 'utf8');
     // Examples are part of the bundle, not loaded after the page is drawn.

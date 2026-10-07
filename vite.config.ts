@@ -38,6 +38,9 @@ function examples(): Plugin {
 
 export default defineConfig({
   root: site,
+  // Relative paths to the assets: GitHub Pages serves the site from /<repository>/, and
+  // site/server.mango from the root.
+  base: './',
   build: { outDir: 'dist', emptyOutDir: true },
   plugins: [mango(), examples()],
 });
