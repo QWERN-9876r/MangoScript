@@ -296,6 +296,7 @@ func reactivity() Node {
 const COMMANDS = `npm run mango -- build app.mango            # app.js рядом с исходником
 npm run mango -- build src --out-dir dist   # все модули папки
 npm run mango -- run app.mango              # скомпилировать и запустить
+npm run site:dev                            # этот сайт на сервере разработки Vite
 npm run vscode:install                      # подсветка синтаксиса в VS Code`
 
 func tools() Node {
@@ -309,6 +310,11 @@ func tools() Node {
             Спецификация языка с обоснованиями решений — в <code>docs/spec.md</code>, концепция
             компонентов — в <code>docs/components.md</code>. Эта страница тоже написана на
             MangoScript: её код — в <code>site/src</code>, а сервер — <code>site/server.mango</code>.
+        </p>
+        <p>
+            Для проектов на Vite есть плагин <code>src/vite.ts</code>: с ним
+            {" "}<code>.mango</code>-модули импортируются как обычные, а ошибки типов показываются
+            поверх страницы. Этот сайт собран именно так.
         </p>
     </>
 }

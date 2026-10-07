@@ -2,7 +2,11 @@
 // видит компилятор. Сгенерированный JS тоже размечается этим лексером, но со своими ключевыми
 // словами: синтаксис у них почти общий.
 
-import { tokenize, KEYWORDS } from "./compiler/browser.js"
+import { tokenize, KEYWORDS } from "../../src/browser.ts"
+
+// В компиляторе KEYWORDS — массив литеральных типов ("func" | "comp" | ...), а сравниваем мы
+// с произвольными строками.
+const MANGO_KEYWORDS []string = [...KEYWORDS]
 
 const MANGO_TYPES = ["number", "string", "bool", "any", "error", "void", "Content"]
 
@@ -92,7 +96,7 @@ func tokenClass(tokens any, i number, language string) string {
     if LITERALS.includes(text) {
         return "lit"
     }
-    if KEYWORDS.includes(kind) {
+    if MANGO_KEYWORDS.includes(kind) {
         return "kw"
     }
     return ""

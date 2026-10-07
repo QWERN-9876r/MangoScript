@@ -1,6 +1,7 @@
-// Статический сервер для сайта документации, тоже на MangoScript. Запуск из корня репозитория:
+// Статический сервер для сайта документации, тоже на MangoScript. Отдаёт сборку Vite из site/dist.
+// Запуск из корня репозитория:
 //   npm run site
-// Браузер не загружает ES-модули с file://, поэтому страницу нужно отдавать по HTTP.
+// Для разработки удобнее npm run site:dev — сервер Vite сам перекомпилирует изменённые файлы.
 
 // Типы node:-модулей компилятор берёт из @types/node.
 import { Buffer } from "node:buffer"
@@ -8,7 +9,7 @@ import { readFileSync } from "node:fs"
 import { createServer, IncomingMessage, ServerResponse } from "node:http"
 import { extname, resolve, sep } from "node:path"
 
-const ROOT = resolve("site")
+const ROOT = resolve("site/dist")
 const PORT = Number(process.env.PORT ?? "3000")
 
 func contentType(path string) string {
@@ -21,9 +22,6 @@ func contentType(path string) string {
         return "text/javascript; charset=utf-8"
     case ".svg":
         return "image/svg+xml"
-    case ".mango":
-        // Примеры кода, которые страница загружает и компилирует сама.
-        return "text/plain; charset=utf-8"
     default:
         return "application/octet-stream"
     }
@@ -57,9 +55,18 @@ func readStatic(path string) (?Buffer, error) {
     }
 }
 
-// no-cache: после пересборки сайта браузер сразу получит новые файлы.
-func send(response ServerResponse, status number, mime string, body string | Buffer) {
-    response.writeHead(status, { "Content-Type": mime, "Cache-Control": "no-cache" })
+// В именах файлов из assets/ Vite пишет хеш содержимого: новая версия — новое имя, поэтому их
+// можно кешировать навсегда. Остальное (index.html) — no-cache: после пересборки браузер сразу
+// получит новую страницу.
+func cacheControl(path string) string {
+    if path.startsWith(ROOT + sep + "assets" + sep) {
+        return "public, max-age=31536000, immutable"
+    }
+    return "no-cache"
+}
+
+func send(response ServerResponse, status number, mime string, body string | Buffer, cache string) {
+    response.writeHead(status, { "Content-Type": mime, "Cache-Control": cache })
     response.end(body)
 }
 
@@ -73,15 +80,15 @@ func handle(request IncomingMessage, response ServerResponse) {
 
     const path, pathError = resolvePath(request.url ?? "/")
     if pathError != null {
-        send(response, 400, "text/plain; charset=utf-8", `Bad request: ${pathError.message}`)
+        send(response, 400, "text/plain; charset=utf-8", `Bad request: ${pathError.message}`, "no-cache")
         return
     }
     const body, readError = readStatic(path)
     if readError != null || body == null {
-        send(response, 404, "text/plain; charset=utf-8", "Not found")
+        send(response, 404, "text/plain; charset=utf-8", "Not found", "no-cache")
         return
     }
-    send(response, 200, contentType(path), body)
+    send(response, 200, contentType(path), body, cacheControl(path))
 }
 
 createServer(handle).listen(PORT, () => {

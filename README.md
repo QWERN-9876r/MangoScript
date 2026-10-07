@@ -59,12 +59,28 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 - [site/src/highlight.mango](site/src/highlight.mango) — подсветка кода лексером компилятора;
 - [site/server.mango](site/server.mango) — статический сервер на `node:http` с логом через `defer`.
 
-Для браузера компилятор собирается из [src/browser.ts](src/browser.ts) в `site/dist/compiler`
-(`tsconfig.site.json`).
+Сайт собирает Vite ([vite.config.ts](vite.config.ts)): `.mango`-модули компилирует плагин
+[src/vite.ts](src/vite.ts) с проверкой типов, компилятор для песочницы берётся прямо из
+[src/browser.ts](src/browser.ts), а код примеров попадает в бандл из модуля `virtual:examples`.
 
 ```sh
-npm run site    # собирает компилятор и site/src в site/dist и запускает сервер на http://localhost:3000
+npm run site:dev    # сервер разработки Vite: изменения видны сразу
+npm run site        # собирает сайт в site/dist и запускает site/server.mango на http://localhost:3000
 ```
+
+## Vite
+
+Плагин из [src/vite.ts](src/vite.ts) подключает MangoScript к любому проекту на Vite:
+
+```ts
+import { defineConfig } from 'vite';
+import { mango } from './src/vite.ts';
+
+export default defineConfig({ plugins: [mango()] });
+```
+
+После этого `.mango`-файлы можно импортировать из JS, TS и других `.mango`-модулей. Ошибки типов
+останавливают сборку, а в режиме разработки показываются поверх страницы.
 
 ## Соглашения
 

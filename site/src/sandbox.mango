@@ -1,7 +1,7 @@
-// Компиляция и запуск кода прямо на странице. Компилятор — тот же, что у mango build, собранный
-// для браузера (см. tsconfig.site.json). Импорты он не проверяет: модулей с диска здесь нет.
+// Компиляция и запуск кода прямо на странице. Компилятор — тот же, что у mango build: Vite
+// собирает его для браузера из src/browser.ts. Импорты он не проверяет: модулей с диска здесь нет.
 
-import { compile } from "./compiler/browser.js"
+import { compile } from "../../src/browser.ts"
 import { highlight } from "./highlight.mango"
 
 export interface Compiled {

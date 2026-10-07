@@ -1,21 +1,17 @@
 // Пример кода в руководстве: сам код, сгенерированный из него JS и результат запуска. Код лежит
-// в site/examples/<name>.mango — так тесты проверяют, что все примеры компилируются.
+// в site/examples/<name>.mango — так тесты проверяют, что все примеры компилируются. В страницу
+// он попадает при сборке (virtual:examples в vite.config.ts), поэтому пример сразу нужной высоты.
 
+import { EXAMPLES } from "virtual:examples"
 import { highlight } from "./highlight.mango"
 import { openInPlayground } from "./playground.mango"
 import { compiledView, consoleView, runProgram } from "./sandbox.mango"
 
 comp Example(name string) {
-    state code = ""
+    const code string = EXAMPLES[name]
     state tab = "code"
     state lines []string = []
     const preview = <div class="preview" />
-
-    fetch(`/examples/${name}.mango`)
-        .then(response => response.text())
-        .then(text => {
-            code = text.trimEnd()
-        })
 
     func run() {
         lines = runProgram(code, preview)
