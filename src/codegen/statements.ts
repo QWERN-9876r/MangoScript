@@ -18,14 +18,17 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   /** An element in the block of `{if ...}` / `{for ...}` in markup; see ElementEmitter. */
   protected abstract elementStatement(node: ast.JsxElementStatement): void;
 
+  /** A recursive component, which becomes a function; see ComponentEmitter. */
+  protected abstract componentFunction(node: ast.ComponentDeclaration): void;
+
   protected statements(list: readonly ast.Statement[]): void {
     let previous: ast.Statement | undefined;
     for (const statement of list) {
-      // Types and components exist only at compile time.
+      // Types and inlined components exist only at compile time.
       if (
         statement.kind === 'InterfaceDeclaration' ||
         statement.kind === 'TypeAliasDeclaration' ||
-        statement.kind === 'ComponentDeclaration'
+        (statement.kind === 'ComponentDeclaration' && !this.functionComponents.has(statement))
       ) {
         continue;
       }
@@ -84,7 +87,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         break;
       case 'InterfaceDeclaration':
       case 'TypeAliasDeclaration':
+        break;
       case 'ComponentDeclaration':
+        this.componentFunction(node);
         break;
       case 'BlockStatement':
         this.line(this.blockStatement(node));

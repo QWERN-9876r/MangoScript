@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
+import { recursiveComponents } from '../recursion.ts';
 import { assignedNames } from '../walk.ts';
 import { collectValueNames, type BindingKind } from './analysis.ts';
 import type { Helper } from './helpers.ts';
@@ -62,6 +63,8 @@ export abstract class Emitter {
   protected readonly valueNames = new Set<string>();
   /** Components of the module, inlined where they are used. */
   protected readonly components = new Map<string, ast.ComponentDeclaration>();
+  /** Recursive components: they cannot be inlined, so each becomes a function. */
+  protected readonly functionComponents: ReadonlySet<ast.ComponentDeclaration>;
 
   constructor(program: ast.Program, options: JsOptions) {
     this.program = program;
@@ -75,6 +78,7 @@ export abstract class Emitter {
     }
     this.assigned = assignedNames(program);
     collectValueNames(program, this.valueNames);
+    this.functionComponents = recursiveComponents(this.components);
   }
 
   // ─── Output ────────────────────────────────────────────────────────────────────────────────────

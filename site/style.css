@@ -473,3 +473,20 @@ pre.code {
     display: none;
   }
 }
+
+.preview .tree,
+.preview .tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.preview .tree {
+  padding-left: 0;
+}
+
+.preview .tree button {
+  width: 26px;
+  padding: 0;
+  margin: 2px 0;
+}

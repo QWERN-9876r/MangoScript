@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import type { Diagnostic } from '../diagnostics.ts';
+import { endlessRecursion, recursiveComponents } from '../recursion.ts';
 import { assignedNames, containsBreak, forEachChild } from '../walk.ts';
 import {
   arrayMember,
@@ -9,7 +10,15 @@ import {
   numberMember,
   stringMember,
 } from './builtins.ts';
-import { CONTENT, DOCUMENT_FRAGMENT, domProperty, elementType, eventType, NODE } from './dom.ts';
+import {
+  CONTENT,
+  DOCUMENT_FRAGMENT,
+  domProperty,
+  elementType,
+  eventType,
+  HTML_ELEMENT,
+  NODE,
+} from './dom.ts';
 import {
   ANY,
   arrayOf,
@@ -102,6 +111,8 @@ interface ComponentInfo {
   props: Map<string, { type: Type; optional: boolean }>;
   /** Names from the module that the component's code uses, computed when first needed. */
   freeNames: Set<string> | null;
+  /** Uses itself, directly or through other components: compiled to a function, not inlined. */
+  recursive: boolean;
 }
 
 /** A `type` alias, resolved when first used. */
@@ -129,6 +140,8 @@ interface FunctionContext {
   /** Types of the `return` statements, for inferring the results. */
   returns: Type[][];
   isConstructor: boolean;
+  /** The body of a component: every `return` gives markup. */
+  isComponent?: boolean;
 }
 
 interface ClassContext {
@@ -176,12 +189,6 @@ class Checker {
   private readonly resolvingClasses = new Set<ClassInfo>();
   /** The component whose body is being checked, if any. */
   private component: ComponentInfo | null = null;
-  /** Where components use other components, to find recursion. */
-  private readonly componentUses: {
-    from: ComponentInfo;
-    to: ComponentInfo;
-    node: ast.Identifier;
-  }[] = [];
 
   constructor(program: ast.Program, options: CheckOptions) {
     this.program = program;
@@ -193,7 +200,7 @@ class Checker {
 
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
-    this.checkRecursion();
+    this.checkEndlessRecursion();
     this.diagnostics.sort((a, b) => a.start - b.start);
     return {
       diagnostics: this.diagnostics,
@@ -342,7 +349,12 @@ class Checker {
           functions.push([statement, this.declareValue(statement.name, 'function', null)]);
           break;
         case 'ComponentDeclaration': {
-          const info: ComponentInfo = { node: statement, props: new Map(), freeNames: null };
+          const info: ComponentInfo = {
+            node: statement,
+            props: new Map(),
+            freeNames: null,
+            recursive: false,
+          };
           this.declareValue(statement.name, 'component', UNKNOWN).component = info;
           components.push(info);
           if (statement.exported) {
@@ -369,6 +381,10 @@ class Checker {
       binding.type = this.signature(node.params, node.results);
     }
     for (const info of components) this.resolveProps(info);
+    const recursive = recursiveComponents(
+      new Map(components.map((info) => [info.node.name.name, info.node])),
+    );
+    for (const info of components) info.recursive = recursive.has(info.node);
     for (const [node, info] of classes) {
       this.unresolvedClasses.set(info, () => this.resolveClass(node, info));
     }
@@ -973,6 +989,20 @@ class Checker {
     if (!fn) return;
     const { values } = node;
 
+    if (fn.isComponent) {
+      // A component may return early; whatever it returns is its markup.
+      const [value] = values;
+      if (value === undefined || values.length > 1) {
+        this.error('a component returns its markup: "return <markup>"', node);
+        return;
+      }
+      const type = this.checkValue(value);
+      if (!isUntyped(type) && !isAssignable(type, NODE)) {
+        this.error(`a component returns markup, not ${typeToString(type)}`, value);
+      }
+      return;
+    }
+
     if (fn.results === null) {
       // Results are inferred: just record what is returned.
       if (values.length === 1) {
@@ -1157,13 +1187,23 @@ class Checker {
     type: FunctionType,
     results: Type[] | null,
     body: ast.BlockStatement | ast.Expression,
-    options: { isConstructor?: boolean; closure?: boolean; paramKind?: BindingKind } = {},
+    options: {
+      isConstructor?: boolean;
+      isComponent?: boolean;
+      closure?: boolean;
+      paramKind?: BindingKind;
+    } = {},
   ): Type[] {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
     this.scope = new Scope(this.scope);
     // A closure keeps the narrowing of variables that cannot change before it runs.
     this.flow = options.closure ? this.stableFlow() : new Map<Binding, Type>();
-    this.fn = { results, returns: [], isConstructor: options.isConstructor ?? false };
+    this.fn = {
+      results,
+      returns: [],
+      isConstructor: options.isConstructor ?? false,
+      isComponent: options.isComponent ?? false,
+    };
     try {
       params.forEach((param, i) =>
         this.declareValue(param.name, options.paramKind ?? 'param', type.params[i] ?? UNKNOWN),
@@ -1891,9 +1931,7 @@ class Checker {
       });
     }
     for (const statement of ownStatements(node.body)) {
-      if (statement.kind === 'ReturnStatement' && statement !== last) {
-        this.error('a component returns its markup once, at the end of its body', statement);
-      } else if (statement.kind === 'DeferStatement') {
+      if (statement.kind === 'DeferStatement') {
         this.error('defer is not supported in components yet', statement);
       }
     }
@@ -1912,13 +1950,12 @@ class Checker {
     const saved = this.component;
     this.component = info;
     try {
-      const [result] = this.withClass(null, () =>
-        this.checkFunction(node.params, func(types, []), null, node.body, { paramKind: 'prop' }),
+      this.withClass(null, () =>
+        this.checkFunction(node.params, func(types, []), null, node.body, {
+          paramKind: 'prop',
+          isComponent: true,
+        }),
       );
-      const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
-      if (result && value && !isUntyped(result) && !isAssignable(result, NODE)) {
-        this.error(`a component returns markup, not ${typeToString(result)}`, value);
-      }
     } finally {
       this.component = saved;
     }
@@ -1935,8 +1972,8 @@ class Checker {
       );
       return UNKNOWN;
     }
-    if (this.component) this.componentUses.push({ from: this.component, to: info, node: tag });
-    this.checkHygiene(info, tag);
+    // A recursive component is a function: its code is not inlined here.
+    if (!info.recursive) this.checkHygiene(info, tag);
 
     const given = new Set<string>();
     const spread = new Set<string>();
@@ -2049,40 +2086,42 @@ class Checker {
 
   /** The type of `<Card />`: what its markup creates. */
   private componentResult(info: ComponentInfo, seen: Set<ComponentInfo>): Type {
-    const last = info.node.body.body.at(-1);
-    const value = last?.kind === 'ReturnStatement' ? last.values[0] : undefined;
+    seen.add(info);
+    // With early returns, the result is what all the returned elements have in common.
+    const types = ownStatements(info.node.body)
+      .filter((statement) => statement.kind === 'ReturnStatement')
+      .map((statement) => this.markupType(statement.values[0], seen));
+    const [first] = types;
+    if (first === undefined) return NODE;
+    if (types.every((type) => typesEqual(type, first))) return first;
+    return types.every((type) => isAssignable(type, HTML_ELEMENT)) ? HTML_ELEMENT : NODE;
+  }
+
+  /** The type of the markup a component returns, found without checking it again. */
+  private markupType(value: ast.Expression | undefined, seen: Set<ComponentInfo>): Type {
     if (value?.kind !== 'ElementExpression') return NODE;
     if (value.tag === null) return DOCUMENT_FRAGMENT;
     if (!/^[A-Z]/.test(value.tag.name)) return elementType(value.tag.name);
     const other = lookupIn(this.moduleScope, value.tag.name)?.component;
     if (!other || seen.has(other)) return NODE;
-    seen.add(info);
-    return this.componentResult(other, seen);
+    return this.componentResult(other, new Set(seen));
   }
 
-  /** Components cannot be inlined into themselves, directly or through other components. */
-  private checkRecursion(): void {
-    const edges = new Map<ComponentInfo, { to: ComponentInfo; node: ast.Identifier }[]>();
-    for (const use of this.componentUses) {
-      edges.set(use.from, [...(edges.get(use.from) ?? []), use]);
+  /**
+   * A component may use itself, but some use on the cycle must be under a condition (if, for, a
+   * branch of `?:`...), or creating the component never ends.
+   */
+  private checkEndlessRecursion(): void {
+    const components = new Map<string, ast.ComponentDeclaration>();
+    for (const statement of this.program.body) {
+      if (statement.kind === 'ComponentDeclaration') components.set(statement.name.name, statement);
     }
-    const state = new Map<ComponentInfo, 'visiting' | 'done'>();
-    const visit = (info: ComponentInfo, path: ComponentInfo[]): void => {
-      state.set(info, 'visiting');
-      for (const edge of edges.get(info) ?? []) {
-        if (state.get(edge.to) === 'visiting') {
-          const cycle = [...path.slice(path.indexOf(edge.to)), edge.to];
-          this.error(
-            `recursive component: ${cycle.map((c) => c.node.name.name).join(' → ')}; recursive components are not supported yet`,
-            edge.node,
-          );
-        } else if (!state.has(edge.to)) {
-          visit(edge.to, [...path, edge.to]);
-        }
-      }
-      state.set(info, 'done');
-    };
-    for (const info of edges.keys()) if (!state.has(info)) visit(info, [info]);
+    for (const { cycle, tag } of endlessRecursion(components)) {
+      this.error(
+        `endless recursion: ${cycle.join(' → ')} always creates itself again; put the use inside if or for`,
+        tag,
+      );
+    }
   }
 
   // ─── Member access and calls ───────────────────────────────────────────────────────────────────

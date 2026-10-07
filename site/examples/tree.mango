@@ -1,0 +1,33 @@
+interface Item {
+    name string
+    children []Item
+}
+
+// Рекурсивный компонент становится функцией: у каждого узла своё состояние open
+comp Tree(item Item, depth number = 0) {
+    state open = depth == 0
+    return <li>
+        <button onClick={open = !open}>{item.children.length == 0 ? "·" : open ? "−" : "+"}</button>
+        {" "}{item.name}
+        {if open && item.children.length > 0 {
+            <ul>{for child in item.children { <Tree item={child} depth={depth + 1} /> }}</ul>
+        }}
+    </li>
+}
+
+const project Item = {
+    name: "MangoScript",
+    children: [
+        {
+            name: "src",
+            children: [
+                { name: "lexer", children: [{ name: "lexer.ts", children: [] }] },
+                { name: "parser", children: [{ name: "parser.ts", children: [] }] },
+                { name: "index.ts", children: [] },
+            ],
+        },
+        { name: "README.md", children: [] },
+    ],
+}
+
+document.body.append(<ul class="tree"><Tree item={project} /></ul>)

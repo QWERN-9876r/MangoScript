@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
+import { containsReturn, returnedMarkup } from '../recursion.ts';
 import { forEachChild } from '../walk.ts';
 
 // Reactivity of components: which markup depends on which state, and which code changes it.
@@ -114,6 +115,8 @@ export interface Live {
  */
 export class Block implements Live {
   readonly statements: string[] = [];
+  /** Sources that any statement depends on. */
+  readonly sources = new Set<Source>();
   private readonly parent: Live;
 
   constructor(parent: Live) {
@@ -124,8 +127,9 @@ export class Block implements Live {
     return this.parent.dependencies(node);
   }
 
-  depend(_sources: ReadonlySet<Source>, statement: string): void {
+  depend(sources: ReadonlySet<Source>, statement: string): void {
     this.statements.push(statement);
+    for (const source of sources) this.sources.add(source);
   }
 
   ownIndex(): null {
@@ -158,6 +162,8 @@ export class Reactive implements Live {
   ) {
     this.setup = setup;
     for (const name of props) this.sources.set(name, createSource(name, 'prop'));
+    // Markup declared after an early return may never be created, so it is not updated.
+    let returned = false;
     for (const statement of component.body.body) {
       if (statement.kind === 'VariableDeclaration') {
         for (const name of statement.names) {
@@ -166,7 +172,7 @@ export class Reactive implements Live {
           }
         }
         const [value] = statement.values;
-        if (statement.names.length === 1 && value?.kind === 'ElementExpression') {
+        if (statement.names.length === 1 && value?.kind === 'ElementExpression' && !returned) {
           this.topLevel.add(value);
         }
         if (
@@ -179,12 +185,11 @@ export class Reactive implements Live {
       } else if (statement.kind === 'FuncDeclaration') {
         this.functions.set(statement.name.name, statement);
       }
+      returned ||= containsReturn(statement);
     }
     this.findAliases(component.body);
 
-    const last = component.body.body.at(-1);
-    const markup: ast.Node[] = [...this.topLevel];
-    if (last?.kind === 'ReturnStatement') markup.push(...last.values);
+    const markup: ast.Node[] = [...this.topLevel, ...returnedMarkup(component)];
     const seen = new Set<string>();
     const visit = (node: ast.Node): void => {
       const names = new Set<string>();
@@ -208,7 +213,9 @@ export class Reactive implements Live {
   }
 
   depend(sources: ReadonlySet<Source>, statement: string): void {
-    for (const source of sources) source.dependents.push(statement);
+    for (const source of sources) {
+      if (!source.dependents.includes(statement)) source.dependents.push(statement);
+    }
   }
 
   ownIndex(source: Source): number {

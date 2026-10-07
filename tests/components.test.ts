@@ -3,7 +3,7 @@ import type * as ast from '../src/ast.ts';
 import { check } from '../src/checker/checker.ts';
 import { compile } from '../src/index.ts';
 import { parse } from '../src/parser/parser.ts';
-import { runWithDom } from './fake-dom.ts';
+import { mountWithDom, runWithDom } from './fake-dom.ts';
 
 // Components: `comp Card(...) { return <section>...</section> }`, inlined where they are used.
 
@@ -100,11 +100,11 @@ describe('types', () => {
     ['const Box = 1\nconst b = <Box />', '"Box" is not a component'],
     [
       `comp A() {\n    return <A />\n}`,
-      'recursive component: A → A; recursive components are not supported yet',
+      'endless recursion: A → A always creates itself again; put the use inside if or for',
     ],
     [
       `comp A() {\n    return <B />\n}\ncomp B() {\n    return <p><A /></p>\n}`,
-      'recursive component: A → B → A; recursive components are not supported yet',
+      'endless recursion: A → B → A always creates itself again; put the use inside if or for',
     ],
     [
       `const greeting = "hi"\ncomp A() {\n    return <p>{greeting}</p>\n}\nfunc f() {\n    const greeting = 1\n    const a = <A />\n}`,
@@ -112,8 +112,12 @@ describe('types', () => {
     ],
     [`comp A() {\n    const x = 1\n}`, 'a component ends with "return <markup>"'],
     [
-      `comp A(ok bool) {\n    if ok {\n        return <b />\n    }\n    return <i />\n}`,
-      'a component returns its markup once, at the end of its body',
+      `comp A(ok bool) {\n    if ok {\n        return 1\n    }\n    return <i />\n}`,
+      'a component returns markup, not number',
+    ],
+    [
+      `comp A(ok bool) {\n    if ok {\n        return\n    }\n    return <i />\n}`,
+      'a component returns its markup: "return <markup>"',
     ],
     [`comp A() {\n    return 1\n}`, 'a component returns markup, not number'],
     [`export comp A() {\n    return <p />\n}`, 'exporting components is not supported yet'],
@@ -220,5 +224,176 @@ button.click()
 button.click()
 console.log(clicks)`),
     ).toEqual(['2']);
+  });
+});
+
+describe('recursive components', () => {
+  const tree = `interface Item {
+    name string
+    children []Item
+}
+
+comp Tree(item Item, depth number = 0) {
+    state open = depth == 0
+    return <li>
+        <button onClick={open = !open}>{open ? "−" : "+"}</button>
+        {item.name}
+        {if open && item.children.length > 0 {
+            <ul>{for child in item.children { <Tree item={child} depth={depth + 1} /> }}</ul>
+        }}
+    </li>
+}
+`;
+
+  it('accepts recursion under a condition, directly or through other components', () => {
+    expect(errors(tree)).toEqual([]);
+    expect(
+      errors(`comp A(n number) {
+    return <p>{n > 0 ? <B n={n - 1} /> : null}</p>
+}
+comp B(n number) {
+    return <A n={n} />
+}`),
+    ).toEqual([]);
+  });
+
+  it('does not check names hidden where a recursive component is used: it is not inlined', () => {
+    expect(
+      errors(`const label = "узел"
+comp Node(n number) {
+    return <p>{label}{if n > 0 { <Node n={n - 1} /> }}</p>
+}
+func f() {
+    const label = 1
+    const node = <Node n={2} />
+}`),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [
+      `comp A() {\n    return <div><A /></div>\n}`,
+      'endless recursion: A → A always creates itself again; put the use inside if or for',
+    ],
+    [
+      `comp A() {\n    const b = <B />\n    return <p>{b}</p>\n}\ncomp B() {\n    return <A />\n}`,
+      'endless recursion: A → B → A always creates itself again; put the use inside if or for',
+    ],
+  ])('rejects %j', (source, message) => {
+    expect(errors(source)).toEqual([message]);
+  });
+
+  it('compiles a recursive component to a function that returns the node and a setter', () => {
+    const code = js(`comp Countdown(n number) {
+    return <span>{n}{if n > 0 { <Countdown n={n - 1} /> }}</span>
+}
+document.body.append(<Countdown n={2} />)`);
+    expect(code).toContain('function $$Countdown(n) {');
+    expect(code).toContain(`  return [$$countdown2, ($$n) => {
+    n = $$n;`);
+    expect(code).toContain('const [$$countdown7, $$setCountdown7] = $$Countdown($$0);');
+    expect(code.split('\n').at(-2)).toBe('const [$$countdown8] = $$Countdown(2);');
+    expect(code).not.toContain('// <Countdown>');
+  });
+
+  it('renders a tree whose nodes keep their own state', () => {
+    const { body } = mountWithDom(`${tree}
+comp Files() {
+    state root Item = {
+        name: "src",
+        children: [
+            { name: "lexer", children: [{ name: "lexer.ts", children: [] }] },
+            { name: "index.ts", children: [] },
+        ],
+    }
+    return <div>
+        <button onClick={root.children.push({ name: "new.ts", children: [] })}>add</button>
+        <ul><Tree item={root} /></ul>
+    </div>
+}
+document.body.append(<Files />)`);
+    const text = () =>
+      String(body.find('ul'))
+        .replace(/<button>([^<]*)<\/button>/g, '$1')
+        .replace(/<\/?(ul|li)>/g, (tag) => (tag.startsWith('</') ? ')' : '('));
+    expect(text()).toBe('((−src((+lexer)(+index.ts))))');
+    body.find('button', 2).click(); // opens "lexer"
+    expect(text()).toBe('((−src((−lexer((+lexer.ts)))(+index.ts))))');
+    body.find('button').click(); // adds a file to the root through the parent's state
+    expect(text()).toBe('((−src((−lexer((+lexer.ts)))(+index.ts)(+new.ts))))');
+  });
+});
+
+describe('early returns', () => {
+  it('accepts them and gives the use the common type of the returned elements', () => {
+    expect(
+      errors(`comp A(ok bool) {
+    if ok {
+        return <b>да</b>
+    }
+    return <i>нет</i>
+}
+const element HTMLElement = <A ok />
+const text = element.textContent`),
+    ).toEqual([]);
+  });
+
+  it('makes recursion after an early return conditional', () => {
+    expect(
+      errors(`comp Fruit(name string, index number = 0) {
+    if index > 2 {
+        return <div>end</div>
+    }
+    state count = 0
+    return <li>{name} {count}<button onClick={count++}>+</button><Fruit name={name} index={index + 1} /></li>
+}`),
+    ).toEqual([]);
+  });
+
+  it('chooses the markup once, when the component is created', () => {
+    const { body } = mountWithDom(`comp Badge(count number, label string) {
+    state open = true
+    if count == 0 {
+        return <i onClick={open = !open}>{label}: {open ? "пусто" : "закрыто"}</i>
+    }
+    return <b>{label}: {count}</b>
+}
+comp Cart(start number) {
+    state items = start
+    return <p>
+        <button onClick={items++}>+</button>
+        <Badge count={items} label="товары" />
+    </p>
+}
+document.body.append(<Cart start={0} />, <Cart start={5} />)`);
+    const [empty, full] = body.findAll('p');
+    expect(String(empty)).toBe('<p><button>+</button><i>товары: пусто</i></p>');
+    expect(String(full)).toBe('<p><button>+</button><b>товары: 5</b></p>');
+    empty!.find('i').click();
+    empty!.find('button').click();
+    full!.find('button').click();
+    // The empty badge stays an <i> but keeps working; the full one follows the count.
+    expect(String(empty)).toBe('<p><button>+</button><i>товары: закрыто</i></p>');
+    expect(String(full)).toBe('<p><button>+</button><b>товары: 6</b></p>');
+  });
+
+  it('ends recursion with an early return in a function component', () => {
+    const { body } = mountWithDom(`comp Fruit(name string, index number = 0) {
+    if index > 1 {
+        return <span>.</span>
+    }
+    state count = 0
+    return <li>{name}{index}: {count}<button onClick={count++}>+</button><ul><Fruit name={name} index={index + 1} /></ul></li>
+}
+document.body.append(<ul><Fruit name="манго" /></ul>)`);
+    expect(String(body)).toBe(
+      '<body><ul><li>манго0: 0<button>+</button><ul><li>манго1: 0<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
+    );
+    body.find('button', 1).click();
+    body.find('button', 1).click();
+    body.find('button').click();
+    expect(String(body)).toBe(
+      '<body><ul><li>манго0: 1<button>+</button><ul><li>манго1: 2<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
+    );
   });
 });
