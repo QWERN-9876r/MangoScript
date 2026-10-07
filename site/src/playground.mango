@@ -43,7 +43,9 @@ comp Playground() {
     }
 
     func run() {
-        lines = runProgram(source, preview)
+        runProgram(source, preview, output => {
+            lines = output
+        })
         tab = "result"
     }
 

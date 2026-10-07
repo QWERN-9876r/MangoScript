@@ -14,7 +14,9 @@ comp Example(name string) {
     const preview = <div class="preview" />
 
     func run() {
-        lines = runProgram(code, preview)
+        runProgram(code, preview, output => {
+            lines = output
+        })
         tab = "result"
     }
 

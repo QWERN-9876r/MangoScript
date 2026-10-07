@@ -17,10 +17,6 @@ export func compileMango(source string) Compiled {
     }
 }
 
-/**
- * Выполняет программу: console.log пишет в возвращаемые строки, а document.body — это `preview`.
- * Ошибки компиляции и исключения тоже возвращаются строками.
- */
 interface Owner {
     removed bool
     cleanups []func()
@@ -51,24 +47,43 @@ func runOwned(preview HTMLElement, run func()) {
     run()
 }
 
-export func runProgram(source string, preview HTMLElement) []string {
+// Номер последнего запуска в каждой области результата: вывод прошлых запусков отбрасывается.
+let runs Map[HTMLElement, number] = new Map()
+
+/**
+ * Выполняет программу: document.body — это `preview`, а строки console.log передаются в `output`
+ * сразу после запуска и потом при каждой новой строке. Ошибки компиляции и исключения — тоже строки.
+ */
+export func runProgram(source string, preview HTMLElement, output func([]string)) {
     const compiled = compileMango(source)
     if compiled.errors.length > 0 {
-        return compiled.errors
+        output(compiled.errors)
+        return
     }
     if source.includes("import ") {
-        return ["Импорты в песочнице не работают: здесь нет модулей, кроме самой программы."]
+        output(["Импорты в песочнице не работают: здесь нет модулей, кроме самой программы."])
+        return
     }
 
+    const run = (runs.get(preview) ?? 0) + 1
+    runs.set(preview, run)
     const lines []string = []
+    // Вывод после запуска — из mount() и таймеров — показывается сразу, строка за строкой.
+    let finished = false
     // Параметров ...rest в языке пока нет, поэтому лишние аргументы console.log отбрасываются.
     const print = func(a any, b any, c any, d any, e any, f any) {
+        if runs.get(preview) != run {
+            return
+        }
         const values []any = [a, b, c, d, e, f]
         let count = values.length
         for count > 0 && typeof values[count - 1] == "undefined" {
             count--
         }
         lines.push(values.slice(0, count).map(show).join(" "))
+        if finished {
+            output(lines.slice())
+        }
     }
     const sandboxConsole = { log: print, info: print, warn: print, error: print }
     const sandboxDocument = {
@@ -86,7 +101,8 @@ export func runProgram(source string, preview HTMLElement) []string {
     } catch e {
         lines.push(`Исключение: ${e.message}`)
     }
-    return lines
+    finished = true
+    output(lines.slice())
 }
 
 func show(value any) string {

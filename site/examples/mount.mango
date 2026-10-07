@@ -1,26 +1,16 @@
-// mount() выполняется, когда разметка компонента уже на странице. Функция, которую он вернул,
-// выполнится, когда {if} уберёт компонент: таймер не продолжит работать впустую
-comp Clock() {
-    state time = new Date().toLocaleTimeString()
-
+// mount() выполняется у каждого экземпляра компонента — после всего синхронного кода программы,
+// когда разметка уже на странице
+comp Fruit(name string) {
+    const item = <li>{name}</li>
     mount() {
-        const timer = setInterval(() => {
-            time = new Date().toLocaleTimeString()
-        }, 1000)
-        return () => clearInterval(timer)
+        console.log("mount:", name, "на странице —", item.isConnected)
     }
-
-    return <p class="card">Сейчас {time}</p>
+    return item
 }
 
-comp App() {
-    state shown = true
-    return <div>
-        <button onClick={shown = !shown}>{shown ? "Спрятать часы" : "Показать часы"}</button>
-        {if shown {
-            <Clock />
-        }}
-    </div>
-}
-
-document.body.append(<App />)
+console.log("создаём список")
+document.body.append(<ul>
+    <Fruit name="Манго" />
+    <Fruit name="Личи" />
+</ul>)
+console.log("список вставлен")
