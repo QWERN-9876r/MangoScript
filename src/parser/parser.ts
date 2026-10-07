@@ -1138,22 +1138,62 @@ class Parser {
   // ─── Types ─────────────────────────────────────────────────────────────────────────────────────
 
   private canStartType(): boolean {
-    const kind = this.peek().kind;
-    return kind === 'Identifier' || kind === '[' || kind === '?' || kind === 'func' || kind === '{';
+    switch (this.peek().kind) {
+      case 'Identifier':
+      case '[':
+      case '?':
+      case 'func':
+      case '{':
+      case '(':
+      case 'String':
+      case 'Number':
+      case 'true':
+      case 'false':
+        return true;
+      default:
+        return false;
+    }
   }
 
+  /** A type, possibly a union: `string | number`. */
   private parseType(): ast.TypeNode {
     const start = this.peek().start;
+    const first = this.parsePrimaryType();
+    if (!this.check('|')) return first;
+    const types = [first];
+    while (this.accept('|')) types.push(this.parsePrimaryType());
+    return { kind: 'UnionType', types, ...this.span(start) };
+  }
+
+  private parsePrimaryType(): ast.TypeNode {
+    const start = this.peek().start;
     switch (this.peek().kind) {
-      case '?': {
+      case '(': {
+        // Grouping: `[](string | number)`, `?(A | B)`.
         this.next();
         const type = this.parseType();
+        this.expect(')');
+        return type;
+      }
+      case 'String': {
+        const value = this.parseStringLiteral();
+        return { kind: 'LiteralType', value, ...this.span(start) };
+      }
+      case 'Number':
+      case 'true':
+      case 'false': {
+        const value = this.parsePrimary() as ast.NumberLiteral | ast.BooleanLiteral;
+        return { kind: 'LiteralType', value, ...this.span(start) };
+      }
+      case '?': {
+        this.next();
+        const type = this.parsePrimaryType();
         return { kind: 'NullableType', type, ...this.span(start) };
       }
       case '[': {
         this.next();
         this.expect(']', '"]" (array types are written as []T)');
-        const element = this.parseType();
+        const element = this.parsePrimaryType();
         return { kind: 'ArrayType', element, ...this.span(start) };
       }
       case 'func': {

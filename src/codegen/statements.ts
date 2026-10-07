@@ -171,6 +171,8 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         return '[]';
       case 'FuncType':
       case 'ObjectType':
+      case 'UnionType':
+      case 'LiteralType':
         return null;
       case 'TypeReference': {
         const name = type.name.name;

@@ -10,7 +10,9 @@ export type Type =
   | ClassType
   | ClassValueType
   | TupleType
-  | TypeParam;
+  | TypeParam
+  | UnionType
+  | LiteralType;
 
 export interface SimpleType {
   kind: 'number' | 'string' | 'bool' | 'any' | 'void' | 'null' | 'never' | 'unknown';
@@ -108,6 +110,23 @@ export interface TypeParam {
   name: string;
 }
 
+/**
+ * `string | number`: at least two members, none of them nullable, a union or `any` (see `union`).
+ * A union that may also be null is wrapped in `NullableType`: `?(string | number)`.
+ */
+export interface UnionType {
+  kind: 'union';
+  types: Type[];
+  /** The `type` alias it was declared with, for messages: `Filter`. */
+  name?: string;
+}
+
+/** `"all"`, `42`, `true`: a type with a single value. */
+export interface LiteralType {
+  kind: 'literal';
+  value: string | number | boolean;
+}
+
 // ─── Constructors ────────────────────────────────────────────────────────────────────────────────
 
 export function arrayOf(element: Type): ArrayType {
@@ -124,6 +143,85 @@ export function nullable(type: Type): Type {
     default:
       return { kind: 'nullable', type };
   }
+}
+
+export function literal(value: string | number | boolean): LiteralType {
+  return { kind: 'literal', value };
+}
+
+/** The type that a literal belongs to: `"all"` → `string`. */
+export function literalBase(type: LiteralType): Type {
+  return typeof type.value === 'string' ? STRING : typeof type.value === 'number' ? NUMBER : BOOL;
+}
+
+/**
+ * A union of types, simplified: nested unions are flattened, repeats and `never` are dropped, a
+ * literal goes into its base type when that is a member (`"a" | string` → `string`), `true | false`
+ * is `bool`, `any` absorbs everything, and `null` makes the union nullable.
+ */
+export function union(types: readonly Type[]): Type {
+  let hasNull = false;
+  const members: Type[] = [];
+  const add = (type: Type): void => {
+    switch (type.kind) {
+      case 'union':
+        type.types.forEach(add);
+        return;
+      case 'nullable':
+        hasNull = true;
+        add(type.type);
+        return;
+      case 'null':
+        hasNull = true;
+        return;
+      case 'never':
+        return;
+      default:
+        if (!members.some((member) => typesEqual(member, type))) members.push(type);
+    }
+  };
+  types.forEach(add);
+  const special = members.find((member) => member.kind === 'any' || member.kind === 'unknown');
+  if (special) return special;
+  if (
+    members.some((m) => m.kind === 'literal' && m.value === true) &&
+    members.some((m) => m.kind === 'literal' && m.value === false)
+  ) {
+    members.push(BOOL);
+  }
+  const kept = members.filter(
+    (member) =>
+      member.kind !== 'literal' ||
+      !members.some((other) => other.kind === literalBase(member).kind),
+  );
+  const result: Type =
+    kept.length === 0
+      ? hasNull
+        ? NULL
+        : NEVER
+      : kept.length === 1
+        ? kept[0]!
+        : { kind: 'union', types: kept };
+  return hasNull ? nullable(result) : result;
+}
+
+/** The type a variable gets from a value: literals become their base types, `"a" | "b"` → `string`. */
+export function widenLiterals(type: Type): Type {
+  switch (type.kind) {
+    case 'literal':
+      return literalBase(type);
+    case 'union':
+      return union(type.types.map(widenLiterals));
+    case 'nullable':
+      return nullable(widenLiterals(type.type));
+    default:
+      return type;
+  }
+}
+
+/** The members of a union, or the type itself. */
+export function unionMembers(type: Type): readonly Type[] {
+  return type.kind === 'union' ? type.types : [type];
 }
 
 export function nonNull(type: Type): Type {
@@ -286,6 +384,14 @@ function assignable(source: Type, target: Type, assuming: [Type, Type][]): boole
   }
   if (source.kind === 'nullable' || source.kind === 'null') return false;
 
+  // A union can be used where each of its members can; a union accepts what one member accepts.
+  if (source.kind === 'union')
+    return source.types.every((type) => assignable(type, target, assuming));
+  if (target.kind === 'union')
+    return target.types.some((type) => assignable(source, type, assuming));
+  if (target.kind === 'literal') return source.kind === 'literal' && source.value === target.value;
+  if (source.kind === 'literal') return assignable(literalBase(source), target, assuming);
+
   // Recursive types (e.g. `next ?Node`): assume the pair matches while checking it.
   if (assuming.some(([s, t]) => s === source && t === target)) return true;
   const nested: [Type, Type][] = [...assuming, [source, target]];
@@ -380,31 +486,37 @@ export function explainMismatch(source: Type, target: Type): string | null {
   return `"${missing.name}" is ${typeToString(missing.found)}, not ${typeToString(missing.expected)}`;
 }
 
-/** Can values of these types be compared with `==`? */
+/**
+ * Can values of these types be compared with `==`? Literals must be able to be equal:
+ * `filter == "activ"` is an error when `filter` is `"all" | "active"`.
+ */
 export function isComparable(a: Type, b: Type): boolean {
   if (a.kind === 'null' || b.kind === 'null') return true;
   const x = nonNull(a);
   const y = nonNull(b);
+  if (x.kind === 'union') return x.types.some((type) => isComparable(type, y));
+  if (y.kind === 'union') return y.types.some((type) => isComparable(x, type));
   return isAssignable(x, y) || isAssignable(y, x);
 }
 
-/** A type that both can be used as, e.g. for array elements; `null` if there is none. */
-export function commonType(a: Type, b: Type): Type | null {
+/** A type that both can be used as, e.g. for array elements: one of them, or their union. */
+export function commonType(a: Type, b: Type): Type {
   if (isAssignable(b, a)) return a.kind === 'never' ? b : a;
   if (isAssignable(a, b)) return b;
-  if (a.kind === 'null') return nullable(b);
-  if (b.kind === 'null') return nullable(a);
-  if (isNullable(a) || isNullable(b)) {
-    const common = commonType(nonNull(a), nonNull(b));
-    return common && nullable(common);
-  }
-  return null;
+  return union([a, b]);
 }
 
 export function typesEqual(a: Type, b: Type): boolean {
   if (a === b) return true;
   if (a.kind === 'array' && b.kind === 'array') return typesEqual(a.element, b.element);
   if (a.kind === 'nullable' && b.kind === 'nullable') return typesEqual(a.type, b.type);
+  if (a.kind === 'literal' && b.kind === 'literal') return a.value === b.value;
+  if (a.kind === 'union' && b.kind === 'union') {
+    return (
+      a.types.length === b.types.length &&
+      a.types.every((type) => b.types.some((other) => typesEqual(type, other)))
+    );
+  }
   return false;
 }
 
@@ -435,6 +547,8 @@ export function containsTypeParam(type: Type): boolean {
       return containsTypeParam(type.element);
     case 'nullable':
       return containsTypeParam(type.type);
+    case 'union':
+      return type.types.some(containsTypeParam);
     case 'function':
       return [...type.params, ...type.results].some(containsTypeParam);
     default:
@@ -451,6 +565,8 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
       return arrayOf(substitute(type.element, bindings, fallback));
     case 'nullable':
       return nullable(substitute(type.type, bindings, fallback));
+    case 'union':
+      return union(type.types.map((member) => substitute(member, bindings, fallback)));
     case 'function':
       return func(
         type.params.map((param) => substitute(param, bindings, fallback)),
@@ -510,9 +626,14 @@ export function typeToString(type: Type): string {
     case 'unknown':
       return type.kind;
     case 'array':
-      return `[]${typeToString(type.element)}`;
+      return `[]${grouped(type.element)}`;
     case 'nullable':
-      return type.type === ERROR_CLASS.instance ? 'error' : `?${typeToString(type.type)}`;
+      if (type.type === ERROR_CLASS.instance) return 'error';
+      return `?${grouped(type.type)}`;
+    case 'union':
+      return type.name ?? type.types.map(typeToString).join(' | ');
+    case 'literal':
+      return typeof type.value === 'string' ? JSON.stringify(type.value) : String(type.value);
     case 'function': {
       const params = type.params.map((param, i) =>
         i < type.required ? typeToString(param) : `?${typeToString(param)}`,
@@ -536,6 +657,12 @@ export function typeToString(type: Type): string {
     case 'param':
       return type.name;
   }
+}
+
+/** A union without a name needs parentheses after `[]` and `?`: `[](string | number)`. */
+function grouped(type: Type): string {
+  const text = typeToString(type);
+  return type.kind === 'union' && type.name === undefined ? `(${text})` : text;
 }
 
 function resultsToString(results: Type[]): string {

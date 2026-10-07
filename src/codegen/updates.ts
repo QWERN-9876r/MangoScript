@@ -1,5 +1,5 @@
 import type * as ast from '../ast.ts';
-import type { Type } from '../checker/types.ts';
+import { widenLiterals, type Type } from '../checker/types.ts';
 import type { Reactive, Source, Write } from './reactive.ts';
 import { StatementEmitter } from './statements.ts';
 import { ARROW } from './syntax.ts';
@@ -84,8 +84,10 @@ export abstract class UpdateEmitter extends StatementEmitter {
     return `\uE000${source.id}${skip === null ? '' : `:${skip}`}\uE001`;
   }
 
+  /** The type from the checker; literal types count as their base types here (`"all"` → string). */
   protected typeOf(node: ast.Expression): Type | undefined {
-    return this.options.types?.get(node);
+    const type = this.options.types?.get(node);
+    return type && widenLiterals(type);
   }
 
   /** State that a statement changes, when it runs after the component's markup is created. */

@@ -215,6 +215,12 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'ObjectType':
       each(node.members);
       break;
+    case 'UnionType':
+      each(node.types);
+      break;
+    case 'LiteralType':
+      visit(node.value);
+      break;
     case 'PropertySignature':
       visit(node.name);
       visit(node.type);

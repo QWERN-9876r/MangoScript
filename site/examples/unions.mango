@@ -1,0 +1,27 @@
+// Union-тип: значение одного из типов. Литеральные типы ловят опечатки в строках
+type Filter "all" | "active" | "done"
+
+func label(filter Filter) string {
+    switch filter {
+    case "active":
+        return "активные"
+    case "done":
+        return "готовые"
+    default:
+        return "все"        // здесь filter может быть только "all"
+    }
+}
+
+// typeof и instanceof сужают union: в каждой ветке тип точнее
+func show(value string | number | []string) string {
+    if typeof value == "string" {
+        return value.toUpperCase()
+    }
+    if typeof value == "number" {
+        return value.toFixed(2)
+    }
+    return value.join(", ")    // остался только []string
+}
+
+console.log(label("done"), show("манго"), show(3), show(["личи", "папайя"]))
+// label("dne") — ошибка компиляции: такого значения у Filter нет

@@ -38,6 +38,8 @@ import {
   isComparable,
   isNullable,
   isSubclass,
+  literal,
+  literalBase,
   NEVER,
   nonNull,
   NULL,
@@ -48,7 +50,10 @@ import {
   substitute,
   typesEqual,
   typeToString,
+  union,
+  unionMembers,
   UNKNOWN,
+  widenLiterals,
   VOID,
   type ClassInfo,
   type FunctionType,
@@ -672,6 +677,10 @@ class Checker {
         this.fillMembers(object, node.members);
         return object;
       }
+      case 'UnionType':
+        return union(node.types.map((type) => this.resolveType(type)));
+      case 'LiteralType':
+        return literal(node.value.value);
     }
   }
 
@@ -712,7 +721,9 @@ class Checker {
         return object;
       }
       entry.resolving = true;
-      entry.resolved = this.resolveType(node.type);
+      const resolved = this.resolveType(node.type);
+      // A union keeps the alias name for messages: `cannot use "activ" as Filter`.
+      entry.resolved = resolved.kind === 'union' ? { ...resolved, name: node.name.name } : resolved;
       return entry.resolved;
     } finally {
       entry.resolving = false;
@@ -814,7 +825,7 @@ class Checker {
       if (declared && !hasZeroValue(declared) && declared.kind !== 'unknown') {
         const type = typeToString(declared);
         this.error(
-          `${type} has no zero value: give "${names[0]!.name}" a value or make it nullable with ?${type}`,
+          `${type} has no zero value: give "${names[0]!.name}" a value or make it nullable with ${typeToString(nullable(declared))}`,
           node.type ?? node,
         );
       }
@@ -1049,12 +1060,15 @@ class Checker {
   private checkIf(node: ast.IfStatement): void {
     this.checkCondition(node.condition);
     const before = this.flow;
+    // Both are found from the flow before the `if`, not from the end of a branch.
+    const whenTrue = this.narrow(node.condition, true);
+    const whenFalse = this.narrow(node.condition, false);
 
-    this.flow = withNarrowing(before, this.narrow(node.condition, true));
+    this.flow = withNarrowing(before, whenTrue);
     this.checkBlock(node.consequent.body);
     const afterThen = this.flow;
 
-    this.flow = withNarrowing(before, this.narrow(node.condition, false));
+    this.flow = withNarrowing(before, whenFalse);
     const { alternate } = node;
     if (alternate?.kind === 'IfStatement') this.checkIf(alternate);
     else if (alternate) this.checkBlock(alternate.body);
@@ -1120,6 +1134,7 @@ class Checker {
     this.dropNarrowing(assignedNames(node));
     const entry = this.flow;
     for (const switchCase of node.cases) {
+      this.flow = entry;
       for (const test of switchCase.tests) {
         if (discriminant === null) {
           this.checkCondition(test);
@@ -1134,13 +1149,43 @@ class Checker {
         }
       }
       const narrowing =
-        discriminant === null && switchCase.tests.length === 1
-          ? this.narrow(switchCase.tests[0]!, true)
-          : [];
+        discriminant === null
+          ? switchCase.tests.length === 1
+            ? this.narrow(switchCase.tests[0]!, true)
+            : []
+          : this.narrowCase(node, switchCase, entry);
       this.flow = withNarrowing(entry, narrowing);
       this.checkBlock(switchCase.body);
     }
     this.flow = entry;
+  }
+
+  /**
+   * `switch filter { case "all": ... default: ... }`: in a case the discriminant has the literals
+   * of its tests, in `default` the literals of no case.
+   */
+  private narrowCase(
+    node: ast.SwitchStatement,
+    switchCase: ast.SwitchCase,
+    entry: Flow,
+  ): Narrowing {
+    const binding = node.discriminant ? this.narrowableBinding(node.discriminant) : undefined;
+    if (!binding?.type) return [];
+    const current = entry.get(binding) ?? binding.type;
+    if (!unionMembers(nonNull(current)).some((member) => member.kind === 'literal')) return [];
+    if (switchCase.tests.length > 0) {
+      const values = switchCase.tests.map(literalValue);
+      if (values.some((value) => value === undefined)) return [];
+      return [[binding, union(values.map((value) => literal(value!)))]];
+    }
+    let rest = current;
+    for (const other of node.cases) {
+      for (const test of other.tests) {
+        const value = literalValue(test);
+        if (value !== undefined) rest = withoutLiteral(rest, value);
+      }
+    }
+    return [[binding, rest]];
   }
 
   private checkTry(node: ast.TryStatement): void {
@@ -1164,7 +1209,7 @@ class Checker {
   }
 
   private checkCondition(node: ast.Expression): void {
-    const type = this.checkValue(node, BOOL);
+    const type = widenLiterals(this.checkValue(node, BOOL));
     if (type.kind === 'bool' || type.kind === 'any' || type.kind === 'unknown') return;
     const hint = isNullable(type)
       ? ': compare it with null, e.g. "x != null"'
@@ -1253,15 +1298,8 @@ class Checker {
         return results;
       }
       types.forEach((type, i) => {
-        const common = commonType(results[i]!, type);
-        if (common === null) {
-          this.error(
-            `return statements return different types: ${typeToString(results[i]!)} and ${typeToString(type)}`,
-            body,
-          );
-        } else {
-          results[i] = common;
-        }
+        // Different types of returns make a union, as in TypeScript.
+        results[i] = commonType(results[i]!, type);
       });
     }
     return results;
@@ -1314,12 +1352,19 @@ class Checker {
     }
     if (node.kind !== 'BinaryExpression') return [];
     const { operator, left, right } = node;
-    if (operator === '&&') {
-      return assumeTrue ? [...this.narrow(left, true), ...this.narrow(right, true)] : [];
+    // `a && b` is true, or `a || b` is false: both sides hold, and the right one is narrowed in
+    // the flow that the left one gives.
+    if ((operator === '&&' && assumeTrue) || (operator === '||' && !assumeTrue)) {
+      const first = this.narrow(left, assumeTrue);
+      const saved = this.flow;
+      this.flow = withNarrowing(saved, first);
+      try {
+        return [...first, ...this.narrow(right, assumeTrue)];
+      } finally {
+        this.flow = saved;
+      }
     }
-    if (operator === '||') {
-      return assumeTrue ? [] : [...this.narrow(left, false), ...this.narrow(right, false)];
-    }
+    if (operator === '&&' || operator === '||') return [];
     // `x != null` when true, `x == null` when false: `x` is not null.
     if ((operator === '!=' && assumeTrue) || (operator === '==' && !assumeTrue)) {
       const target =
@@ -1327,7 +1372,55 @@ class Checker {
       const binding = target ? this.narrowableBinding(target) : undefined;
       if (binding?.type) return [[binding, nonNull(this.flow.get(binding) ?? binding.type)]];
     }
-    return [];
+    if (operator === 'instanceof') return this.narrowInstanceof(left, right, assumeTrue);
+    if (operator !== '==' && operator !== '!=') return [];
+    // Whether the comparison is found to give "equal".
+    const equal = (operator === '==') === assumeTrue;
+
+    // `typeof x == "string"`
+    const [check, tag] =
+      left.kind === 'UnaryExpression' && left.operator === 'typeof'
+        ? [left, right]
+        : right.kind === 'UnaryExpression' && right.operator === 'typeof'
+          ? [right, left]
+          : [null, null];
+    if (check && tag?.kind === 'StringLiteral') {
+      const binding = this.narrowableBinding(check.argument);
+      if (!binding?.type) return [];
+      const type = narrowByTypeof(this.flow.get(binding) ?? binding.type, tag.value, equal);
+      return type ? [[binding, type]] : [];
+    }
+
+    // `filter == "all"`: narrows a type with literals in it.
+    const value = literalValue(right) ?? literalValue(left);
+    const target = literalValue(right) !== undefined ? left : right;
+    const binding = value === undefined ? undefined : this.narrowableBinding(target);
+    if (value === undefined || !binding?.type) return [];
+    const current = this.flow.get(binding) ?? binding.type;
+    if (!unionMembers(nonNull(current)).some((member) => member.kind === 'literal')) return [];
+    return [[binding, equal ? literal(value) : withoutLiteral(current, value)]];
+  }
+
+  /** `x instanceof Date`: an instance of the class when true, the rest of a union when false. */
+  private narrowInstanceof(
+    left: ast.Expression,
+    right: ast.Expression,
+    assumeTrue: boolean,
+  ): Narrowing {
+    const binding = this.narrowableBinding(left);
+    const classType = this.typeOfChecked(right);
+    if (!binding?.type || classType.kind !== 'classValue') return [];
+    const current = this.flow.get(binding) ?? binding.type;
+    const { info } = classType;
+    const members = unionMembers(nonNull(current));
+    if (assumeTrue) {
+      const kept = members.filter((member) => isAssignable(member, info.instance));
+      return [[binding, kept.length > 0 ? union(kept) : info.instance]];
+    }
+    const kept = members.filter(
+      (member) => !(member.kind === 'class' && isSubclass(member.info, info)),
+    );
+    return [[binding, union(isNullable(current) ? [...kept, NULL] : kept)]];
   }
 
   private narrowableBinding(node: ast.Expression): Binding | undefined {
@@ -1379,15 +1472,16 @@ class Checker {
     switch (node.kind) {
       case 'Identifier':
         return this.checkIdentifier(node);
+      // A literal has a literal type only where one is expected: `filter = "all"`.
       case 'NumberLiteral':
-        return NUMBER;
+        return expectsLiteral(expected) ? literal(node.value) : NUMBER;
       case 'StringLiteral':
-        return STRING;
+        return expectsLiteral(expected) ? literal(node.value) : STRING;
       case 'TemplateLiteral':
         for (const expression of node.expressions) this.checkValue(expression);
         return STRING;
       case 'BooleanLiteral':
-        return BOOL;
+        return expectsLiteral(expected) ? literal(node.value) : BOOL;
       case 'NullLiteral':
         return NULL;
       case 'ThisExpression':
@@ -1498,16 +1592,7 @@ class Checker {
           item.kind === 'SpreadElement' ? item.argument : item,
         );
       } else {
-        const common = commonType(element, type);
-        if (common === null) {
-          this.error(
-            `array elements have different types: ${typeToString(element)} and ${typeToString(type)}`,
-            item,
-          );
-          element = UNKNOWN;
-        } else {
-          element = common;
-        }
+        element = commonType(element, type);
       }
     }
     return arrayOf(element);
@@ -1580,7 +1665,8 @@ class Checker {
     }
   }
 
-  private expectBool(type: Type, node: ast.NodeBase, operator: string): void {
+  private expectBool(given: Type, node: ast.NodeBase, operator: string): void {
+    const type = widenLiterals(given);
     if (type.kind === 'bool' || type.kind === 'any' || type.kind === 'unknown') return;
     const hint = isNullable(type) ? ': compare it with null, e.g. "x != null"' : '';
     this.error(`${operator} needs bool, not ${typeToString(type)}${hint}`, node);
@@ -1610,10 +1696,14 @@ class Checker {
   /** The type of `left <operator> right`, also used for compound assignments like `+=`. */
   private binaryResult(
     operator: ast.BinaryOperator,
-    left: Type,
-    right: Type,
+    givenLeft: Type,
+    givenRight: Type,
     node: ast.NodeBase,
   ): Type {
+    // Literals behave as their base types, except where they are compared.
+    const keepLiterals = operator === '==' || operator === '!=' || operator === '??';
+    const left = keepLiterals ? givenLeft : widenLiterals(givenLeft);
+    const right = keepLiterals ? givenRight : widenLiterals(givenRight);
     const untyped = isUntyped(left) || isUntyped(right);
     const nullHint =
       isNullable(left) || isNullable(right) ? ': a value may be null, check it first' : '';
@@ -1687,10 +1777,7 @@ class Checker {
         if (isUntyped(left)) return left;
         const base = nonNull(left);
         if (isAssignable(right, base)) return isNullable(right) ? nullable(base) : base;
-        const common = commonType(base, right);
-        if (common) return common;
-        this.error(`cannot use ?? with ${typeToString(left)} and ${typeToString(right)}`, node);
-        return UNKNOWN;
+        return commonType(base, right);
       }
     }
   }
@@ -1698,18 +1785,14 @@ class Checker {
   private checkConditional(node: ast.ConditionalExpression, expected: Type | null): Type {
     this.checkCondition(node.test);
     const before = this.flow;
-    this.flow = withNarrowing(before, this.narrow(node.test, true));
+    const whenTrue = this.narrow(node.test, true);
+    const whenFalse = this.narrow(node.test, false);
+    this.flow = withNarrowing(before, whenTrue);
     const consequent = this.checkValue(node.consequent, expected);
-    this.flow = withNarrowing(before, this.narrow(node.test, false));
+    this.flow = withNarrowing(before, whenFalse);
     const alternate = this.checkValue(node.alternate, expected);
     this.flow = before;
-    const common = commonType(consequent, alternate);
-    if (common) return common;
-    this.error(
-      `the branches of ?: have different types: ${typeToString(consequent)} and ${typeToString(alternate)}`,
-      node,
-    );
-    return UNKNOWN;
+    return commonType(consequent, alternate);
   }
 
   // ─── Markup ────────────────────────────────────────────────────────────────────────────────────
@@ -2198,6 +2281,27 @@ class Checker {
       case 'unknown':
       case 'never':
         return 'any';
+      case 'literal':
+        return this.findMember(literalBase(object), name, node);
+      case 'union': {
+        // A member of a union is one that every type in it has.
+        const found = object.types.map((type) => this.memberOf(type, name));
+        if (found.includes('any')) return 'any';
+        const members = found.filter((each): each is Member => each !== undefined);
+        if (members.length < found.length) {
+          this.error(
+            `${typeToString(object)} has no member "${name}" in every type: narrow it with typeof or instanceof`,
+            node,
+          );
+          return undefined;
+        }
+        return {
+          type: union(members.map((each) => each.type)),
+          method: members.every((each) => each.method),
+          visibility: 'public',
+          owner: null,
+        };
+      }
       case 'number':
         member = numberMember(name);
         break;
@@ -2240,6 +2344,36 @@ class Checker {
       if (!allowed) this.error(`"${name}" is ${visibility} in ${owner.name}`, node);
     }
     return member;
+  }
+
+  /** The public member `name` of a type, without reporting anything; for members of unions. */
+  private memberOf(type: Type, name: string): Member | 'any' | undefined {
+    switch (type.kind) {
+      case 'any':
+      case 'unknown':
+      case 'never':
+        return 'any';
+      case 'literal':
+        return this.memberOf(literalBase(type), name);
+      case 'number':
+        return numberMember(name);
+      case 'string':
+        return stringMember(name);
+      case 'bool':
+        return boolMember(name);
+      case 'array':
+        return arrayMember(type.element, name);
+      case 'object':
+        return type.members.get(name);
+      case 'class': {
+        this.ensureClassResolved(type.info);
+        const member = findClassMember(type.info, name, false);
+        if (!member && hasUntypedBase(type.info)) return 'any';
+        return member?.visibility === 'public' ? member : undefined;
+      }
+      default:
+        return undefined;
+    }
   }
 
   private checkCall(node: ast.CallExpression, callee: Type): Type {
@@ -2452,6 +2586,8 @@ function freeNames(component: ast.ComponentDeclaration): Set<string> {
       case 'NullableType':
       case 'FuncType':
       case 'ObjectType':
+      case 'UnionType':
+      case 'LiteralType':
         return;
       default:
         forEachChild(node, visit);
@@ -2509,7 +2645,89 @@ function isNumeric(type: Type): boolean {
 function callSignature(type: Type): FunctionType | null {
   if (type.kind === 'function') return type;
   if (type.kind === 'object') return type.call;
+  if (type.kind === 'union') {
+    // A union of functions can be called when they all accept and give the same: `x.toString()`.
+    const signatures = type.types.map(callSignature);
+    const [first] = signatures;
+    const same = signatures.every(
+      (each) =>
+        each !== null &&
+        first !== null &&
+        first !== undefined &&
+        isAssignable(each, first) &&
+        isAssignable(first, each),
+    );
+    return same ? (first ?? null) : null;
+  }
   return null;
+}
+
+/** Whether the expected type has literal members: then a literal gets a literal type. */
+function expectsLiteral(expected: Type | null): boolean {
+  return (
+    expected !== null && unionMembers(nonNull(expected)).some((type) => type.kind === 'literal')
+  );
+}
+
+/** What `typeof` gives for every value of a type, or `null` when it may give several things. */
+function typeofTag(type: Type): string | null {
+  switch (type.kind) {
+    case 'string':
+    case 'number':
+      return type.kind;
+    case 'bool':
+      return 'boolean';
+    case 'literal':
+      return typeof type.value;
+    case 'function':
+    case 'classValue':
+      return 'function';
+    case 'object':
+      return type.call ? 'function' : 'object';
+    case 'class':
+    case 'array':
+    case 'tuple':
+    case 'null':
+      return 'object';
+    default:
+      return null;
+  }
+}
+
+/** The type after `typeof x == tag` is found true (`matches`) or false. */
+function narrowByTypeof(type: Type, tag: string, matches: boolean): Type | null {
+  const base = nonNull(type);
+  if (base.kind === 'any' || base.kind === 'unknown') {
+    if (!matches) return null;
+    return tag === 'string' ? STRING : tag === 'number' ? NUMBER : tag === 'boolean' ? BOOL : null;
+  }
+  const kept = unionMembers(base).filter((member) => {
+    const memberTag = typeofTag(member);
+    return memberTag === null || (memberTag === tag) === matches;
+  });
+  // typeof null is "object".
+  const keepsNull = isNullable(type) && (tag === 'object') === matches;
+  return union(keepsNull ? [...kept, NULL] : kept);
+}
+
+/** `"all"`, `42` or `true` written in the code: its value, or `undefined` for other expressions. */
+function literalValue(node: ast.Expression): string | number | boolean | undefined {
+  switch (node.kind) {
+    case 'StringLiteral':
+    case 'NumberLiteral':
+    case 'BooleanLiteral':
+      return node.value;
+    default:
+      return undefined;
+  }
+}
+
+/** A type without one literal value: what is left after `x != "all"`. */
+function withoutLiteral(type: Type, value: string | number | boolean): Type {
+  const kept = unionMembers(nonNull(type)).filter(
+    (member) => !(member.kind === 'literal' && member.value === value),
+  );
+  return union(isNullable(type) ? [...kept, NULL] : kept);
 }
 
 function countValues(count: number): string {

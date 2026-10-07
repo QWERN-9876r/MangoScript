@@ -581,7 +581,8 @@ export interface EventHandler extends NodeBase {
 
 // ─── Types ───────────────────────────────────────────────────────────────────────────────────────
 
-export type TypeNode = TypeReference | ArrayType | NullableType | FuncType | ObjectType;
+export type TypeNode =
+  TypeReference | ArrayType | NullableType | FuncType | ObjectType | UnionType | LiteralType;
 
 /** A named type: `number`, `User`, `Point`. */
 export interface TypeReference extends NodeBase {
@@ -606,6 +607,18 @@ export interface FuncType extends NodeBase {
   kind: 'FuncType';
   params: TypeNode[];
   results: TypeNode[];
+}
+
+/** `string | number`; a member may be in parentheses: `[](string | number)`. */
+export interface UnionType extends NodeBase {
+  kind: 'UnionType';
+  types: TypeNode[];
+}
+
+/** `"all"`, `42` or `true` as a type: the only value of the type. */
+export interface LiteralType extends NodeBase {
+  kind: 'LiteralType';
+  value: StringLiteral | NumberLiteral | BooleanLiteral;
 }
 
 /** `{ x, y number }` — an anonymous object type. */

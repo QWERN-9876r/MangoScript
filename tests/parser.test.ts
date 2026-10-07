@@ -105,6 +105,10 @@ function ty(node: ast.TypeNode): string {
       return `func(${node.params.map(ty).join(', ')})${results(node.results)}`;
     case 'ObjectType':
       return `{ ${node.members.map(member).join('; ')} }`;
+    case 'UnionType':
+      return `(${node.types.map(ty).join(' | ')})`;
+    case 'LiteralType':
+      return node.value.kind === 'StringLiteral' ? node.value.raw : String(node.value.value);
   }
 }
 

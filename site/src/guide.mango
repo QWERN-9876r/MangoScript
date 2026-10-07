@@ -12,7 +12,7 @@ export interface Section {
 export const SECTIONS []Section = [
     { id: "intro", title: "Что такое MangoScript", content: intro },
     { id: "variables", title: "Переменные и типы", content: variables },
-    { id: "null", title: "null и сужение типов", content: nullSafety },
+    { id: "null", title: "null, union и сужение", content: nullSafety },
     { id: "functions", title: "Функции", content: functions },
     { id: "errors", title: "Ошибки и defer", content: errors },
     { id: "control", title: "Условия и циклы", content: control },
@@ -109,6 +109,14 @@ func nullSafety() Node {
             {" "}<code>?T</code> работают и привычные <code>?.</code> и <code>??</code>.
         </p>
         {example("null-safety")}
+        <p>
+            Тип может быть объединением нескольких: <code>string | number</code>. Литеральный тип
+            {" "}<code>"all"</code> допускает только это значение, поэтому
+            {" "}<code>{'type Filter "all" | "active" | "done"'}</code> ловит опечатки в строках.
+            Union сужают так же, как <code>?T</code>: через <code>typeof</code>,
+            {" "}<code>instanceof</code>, сравнение с литералом и <code>switch</code>.
+        </p>
+        {example("unions")}
     </>
 }
 

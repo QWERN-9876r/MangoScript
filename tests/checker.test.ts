@@ -51,7 +51,6 @@ describe('basic types', () => {
     ['const PI = 3.14\nPI = 3', 'cannot assign to "PI": it is a constant'],
     ['let x = null', 'cannot infer a type from null: declare it, e.g. "let x ?User = null"'],
     ['let xs = []', 'cannot infer the type of an empty array: declare it, e.g. "let xs []number"'],
-    ['const xs = [1, "a"]', 'array elements have different types: number and string'],
     ['undefinedThing()', '"undefinedThing" is not defined'],
     ['let x Missing', 'unknown type "Missing"'],
     ['type A A', 'type "A" refers to itself'],
