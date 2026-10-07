@@ -418,7 +418,9 @@ function readNames(node: ast.Node, names: Set<string>): void {
     case 'JsxAttribute':
       if (node.value !== null && !/^on[A-Z]/.test(node.name.name)) readNames(node.value, names);
       return;
+    // Both run later, when the markup exists.
     case 'EventHandler':
+    case 'MountStatement':
       return;
     default:
       forEachChild(node, (child) => readNames(child, names));

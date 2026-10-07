@@ -46,6 +46,7 @@ export function findDefers(body: ast.BlockStatement): ast.DeferStatement[] {
       case 'FuncExpression':
       case 'ArrowFunction':
       case 'ClassDeclaration':
+      case 'MountStatement':
         return;
       default:
         forEachChild(node, visit);

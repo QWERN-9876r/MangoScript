@@ -1,6 +1,16 @@
 // Small functions that a module gets only when its code needs them.
 
-export type Helper = 'runDeferred' | 'append' | 'attribute' | 'content' | 'branches' | 'list';
+export type Helper =
+  'runDeferred' | 'append' | 'attribute' | 'content' | 'branches' | 'list' | 'owner' | 'mount';
+
+/** Helpers that use other helpers. */
+export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
+  owner: ['runDeferred'],
+  mount: ['owner'],
+  content: ['owner'],
+  branches: ['owner'],
+  list: ['owner'],
+};
 
 export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   /** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
@@ -15,6 +25,52 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '    }',
     '  }',
     '  if (failure) throw failure.error;',
+    '}',
+  ],
+  /**
+   * Owners of markup that `{if}`, `{switch}` and `{for}` may remove: the functions returned by the
+   * `mount()` of its components, and the removal of the blocks inside it, run when it is removed.
+   * The current owner is shared by the modules of a page, since the blocks of one module may hold
+   * the components of another.
+   */
+  owner: [
+    'const $$owner = Symbol.for("mangoscript.owner");',
+    '',
+    'function $$owned(create) {',
+    '  const owner = { removed: false, cleanups: [] };',
+    '  const parent = globalThis[$$owner];',
+    '  globalThis[$$owner] = owner;',
+    '  let result;',
+    '  try {',
+    '    result = create();',
+    '  } finally {',
+    '    globalThis[$$owner] = parent;',
+    '  }',
+    '  const remove = () => {',
+    '    if (owner.removed) return;',
+    '    owner.removed = true;',
+    '    $$runDeferred(owner.cleanups);',
+    '  };',
+    '  return [result, remove];',
+    '}',
+    '',
+    'function $$onRemove(cleanup) {',
+    '  globalThis[$$owner]?.cleanups.push(cleanup);',
+    '}',
+  ],
+  /**
+   * `mount() { ... }` of a component: runs after the code that creates the component, when its
+   * markup is in the document, unless it was removed before. The function it returns runs when
+   * its owner is removed.
+   */
+  mount: [
+    'function $$mount(mount) {',
+    '  const owner = globalThis[$$owner];',
+    '  queueMicrotask(() => {',
+    '    if (owner?.removed) return;',
+    '    const cleanup = mount();',
+    '    if (typeof cleanup === "function") owner?.cleanups.push(cleanup);',
+    '  });',
     '}',
   ],
   /** Appends element content whose type is not known: null adds nothing, arrays add each item. */
@@ -39,6 +95,7 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '  const fragment = document.createDocumentFragment();',
     '  fragment.append(end);',
     '  let nodes = [];',
+    '  let remove;',
     '  const update = () => {',
     '    const next = [];',
     '    const add = (item) => {',
@@ -51,13 +108,17 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '        next.push(typeof item === "object" ? item : document.createTextNode(String(item)));',
     '      }',
     '    };',
-    '    add(value());',
+    '    const [created, removeCreated] = $$owned(value);',
+    '    add(created);',
+    '    remove?.();',
+    '    remove = removeCreated;',
     '    const kept = new Set(next);',
     '    for (const node of nodes) if (!kept.has(node)) node.remove();',
     '    end.before(...next);',
     '    nodes = next;',
     '  };',
     '  update();',
+    '  $$onRemove(() => remove?.());',
     '  return [fragment, update];',
     '}',
   ],
@@ -74,6 +135,7 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '  fragment.append(start, end);',
     '  let current = null;',
     '  let update;',
+    '  let remove;',
     '  const render = () => {',
     '    const next = choose();',
     '    if (next === current) {',
@@ -81,15 +143,19 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '      return;',
     '    }',
     '    current = next;',
+    '    remove?.();',
     '    while (start.nextSibling !== end) start.nextSibling.remove();',
     '    update = undefined;',
+    '    remove = undefined;',
     '    if (next >= 0) {',
-    '      const [content, blockUpdate] = blocks[next]();',
+    '      const [[content, blockUpdate], removeBlock] = $$owned(blocks[next]);',
     '      end.before(content);',
     '      update = blockUpdate;',
+    '      remove = removeBlock;',
     '    }',
     '  };',
     '  render();',
+    '  $$onRemove(() => remove?.());',
     '  return [fragment, render];',
     '}',
   ],
@@ -124,9 +190,10 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '      if (block) {',
     '        block.update?.(index);',
     '      } else {',
-    '        const [content, blockUpdate] = create(item, index);',
+    '        const [[content, blockUpdate], remove] = $$owned(() => create(item, index));',
     '        block = { item, start: document.createTextNode(""), end: document.createTextNode("") };',
     '        block.update = blockUpdate;',
+    '        block.remove = remove;',
     '        block.content = document.createDocumentFragment();',
     '        block.content.append(block.start, content, block.end);',
     '      }',
@@ -134,7 +201,10 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '      index++;',
     '    }',
     '    for (const same of old.values()) {',
-    '      for (const block of same) for (const node of nodesOf(block)) node.remove();',
+    '      for (const block of same) {',
+    '        block.remove();',
+    '        for (const node of nodesOf(block)) node.remove();',
+    '      }',
     '    }',
     '    let before = end;',
     '    for (let i = next.length - 1; i >= 0; i--) {',
@@ -150,6 +220,9 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '    blocks = next;',
     '  };',
     '  update();',
+    '  $$onRemove(() => {',
+    '    for (const block of blocks) block.remove();',
+    '  });',
     '  return [fragment, update];',
     '}',
   ],

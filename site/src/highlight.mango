@@ -114,8 +114,8 @@ func identifierClass(text string, next string, language string) string {
         if MANGO_TYPES.includes(text) {
             return "type"
         }
-        // state — ключевое слово только в начале объявления: state count = 0
-        if text == "state" && next == "Identifier" {
+        // state и mount — ключевые слова только в начале объявления: state count = 0, mount() { }
+        if text == "state" && next == "Identifier" || text == "mount" && next == "(" {
             return "kw"
         }
     }

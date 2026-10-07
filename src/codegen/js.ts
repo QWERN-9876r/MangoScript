@@ -2,7 +2,7 @@ import type * as ast from '../ast.ts';
 import { declarationsOf } from './analysis.ts';
 import type { JsOptions } from './emitter.ts';
 import { FunctionEmitter } from './functions.ts';
-import { HELPERS } from './helpers.ts';
+import { HELPER_NEEDS, HELPERS, type Helper } from './helpers.ts';
 
 export type { JsOptions } from './emitter.ts';
 
@@ -17,7 +17,14 @@ class JsGenerator extends FunctionEmitter {
     this.withScope(declarationsOf(this.program.body), () => this.statements(this.program.body));
     let lines = this.lines;
     if (this.helpers.size > 0) {
-      const helpers = [...this.helpers]
+      const needed = new Set<Helper>();
+      const add = (helper: Helper) => {
+        if (needed.has(helper)) return;
+        needed.add(helper);
+        for (const other of HELPER_NEEDS[helper] ?? []) add(other);
+      };
+      for (const helper of this.helpers) add(helper);
+      const helpers = [...needed]
         .sort()
         .flatMap((helper, i) => [...(i > 0 ? [''] : []), ...HELPERS[helper]]);
       let imports = 0;

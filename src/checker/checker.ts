@@ -1033,6 +1033,9 @@ class Checker {
         if (node.body.kind === 'BlockStatement') this.checkBlock(node.body.body);
         else this.checkExpression(node.body, null);
         break;
+      case 'MountStatement':
+        this.checkMount(node);
+        break;
       case 'ImportDeclaration':
       case 'FuncDeclaration':
       case 'ComponentDeclaration':
@@ -1043,6 +1046,29 @@ class Checker {
       case 'ContinueStatement':
         // Declarations are handled by declareStatements(); jumps were checked by the parser.
         break;
+    }
+  }
+
+  /**
+   * `mount() { ... }`: a function that runs once the markup is in the document, like a handler.
+   * It may return the function that cleans up, or nothing.
+   */
+  private checkMount(node: ast.MountStatement): void {
+    const results = this.checkFunction([], func([], []), null, node.body, { closure: true });
+    if (results.length === 0) return;
+    const result = results.length === 1 ? nonNull(results[0]!) : null;
+    const cleans =
+      result !== null &&
+      (isUntyped(result) ||
+        result.kind === 'never' ||
+        (result.kind === 'function' && result.required === 0));
+    if (!cleans) {
+      const returned =
+        results.length === 1 ? typeToString(results[0]!) : `${results.length} values`;
+      this.error(
+        `mount() returns the function that cleans up, e.g. return () => clearInterval(timer), not ${returned}`,
+        { start: node.start, end: node.start + 'mount'.length },
+      );
     }
   }
 
@@ -2925,7 +2951,8 @@ function ownStatements(body: ast.BlockStatement): ast.Statement[] {
       node.kind === 'FuncDeclaration' ||
       node.kind === 'FuncExpression' ||
       node.kind === 'ArrowFunction' ||
-      node.kind === 'ClassDeclaration'
+      node.kind === 'ClassDeclaration' ||
+      node.kind === 'MountStatement'
     )
       return;
     forEachChild(node, visit);

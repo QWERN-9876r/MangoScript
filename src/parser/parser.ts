@@ -472,6 +472,13 @@ class Parser {
           : 'state can only be declared inside a component',
       );
     }
+    if (this.isMountDeclaration()) {
+      this.fail(
+        this.context.inComponent
+          ? 'mount() is declared at the top level of a component, not inside blocks or functions'
+          : 'mount() can only be declared inside a component',
+      );
+    }
 
     const statement = this.parseSimpleStatement();
     if (statement.kind === 'ExpressionStatement') {
@@ -600,6 +607,25 @@ class Parser {
   /** `state count = 0`: `state` is a keyword only at the start of a statement in a component. */
   private isStateDeclaration(): boolean {
     return this.checkWord('state') && this.peek(1).kind === 'Identifier';
+  }
+
+  /** `mount() {`: like `state`, a keyword only at the start of a statement in a component. */
+  private isMountDeclaration(): boolean {
+    return (
+      this.checkWord('mount') &&
+      this.peek(1).kind === '(' &&
+      this.peek(2).kind === ')' &&
+      this.peek(3).kind === '{'
+    );
+  }
+
+  /** `mount() { ... }`; its body is a function that runs later, so `return` is its own. */
+  private parseMount(): ast.MountStatement {
+    const { start } = this.next();
+    this.expect('(');
+    this.expect(')');
+    const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () => this.parseBlock());
+    return { kind: 'MountStatement', body, ...this.span(start) };
   }
 
   private parseVariableDeclaration(start: number, exported: boolean): ast.VariableDeclaration {
@@ -1015,13 +1041,18 @@ class Parser {
     return { kind: 'ComponentDeclaration', exported, name, params, body, ...this.span(start) };
   }
 
-  /** Like a function body, but its own statements may also declare `state`. */
+  /** Like a function body, but its own statements may also declare `state` and `mount()`. */
   private parseComponentBody(): ast.BlockStatement {
     const start = this.expect('{').start;
     const body: ast.Statement[] = [];
     this.parseSeparated(
       () => this.check('}'),
       () => {
+        if (this.isMountDeclaration()) {
+          body.push(this.parseMount());
+          this.endStatement();
+          return;
+        }
         if (!this.isStateDeclaration()) {
           body.push(this.parseStatement());
           return;

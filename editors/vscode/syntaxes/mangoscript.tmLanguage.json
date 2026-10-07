@@ -236,6 +236,13 @@
           }
         },
         {
+          "comment": "`mount() {` in a component, like `state`, is a keyword only at the start of a statement.",
+          "match": "^\\s*(mount)(?=\\s*\\(\\s*\\)\\s*\\{)",
+          "captures": {
+            "1": { "name": "storage.type.mount.mango" }
+          }
+        },
+        {
           "comment": "`state` is a keyword only at the start of a statement, followed by a name.",
           "match": "^\\s*(state)(?=\\s+[A-Za-z_$])",
           "captures": { "1": { "name": "storage.type.state.mango" } }

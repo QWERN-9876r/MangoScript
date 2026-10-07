@@ -1,0 +1,26 @@
+// mount() выполняется, когда разметка компонента уже на странице. Функция, которую он вернул,
+// выполнится, когда {if} уберёт компонент: таймер не продолжит работать впустую
+comp Clock() {
+    state time = new Date().toLocaleTimeString()
+
+    mount() {
+        const timer = setInterval(() => {
+            time = new Date().toLocaleTimeString()
+        }, 1000)
+        return () => clearInterval(timer)
+    }
+
+    return <p class="card">Сейчас {time}</p>
+}
+
+comp App() {
+    state shown = true
+    return <div>
+        <button onClick={shown = !shown}>{shown ? "Спрятать часы" : "Показать часы"}</button>
+        {if shown {
+            <Clock />
+        }}
+    </div>
+}
+
+document.body.append(<App />)

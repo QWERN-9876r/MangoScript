@@ -51,6 +51,7 @@ export function componentUses(component: ast.ComponentDeclaration): ComponentUse
       case 'FuncExpression':
       case 'ArrowFunction':
       case 'EventHandler':
+      case 'MountStatement':
       case 'ClassDeclaration':
       case 'Parameter':
         visitChildren(true);
@@ -83,6 +84,7 @@ export function containsReturn(statement: ast.Statement): boolean {
       case 'ArrowFunction':
       case 'EventHandler':
       case 'ClassDeclaration':
+      case 'MountStatement':
         return;
       default:
         forEachChild(node, visit);
@@ -177,6 +179,7 @@ export function returnedMarkup(component: ast.ComponentDeclaration): ast.Express
       case 'ArrowFunction':
       case 'EventHandler':
       case 'ClassDeclaration':
+      case 'MountStatement':
         return;
       default:
         forEachChild(node, visit);

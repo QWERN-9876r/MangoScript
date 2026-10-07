@@ -192,6 +192,7 @@ export type Statement =
   | ThrowStatement
   | TryStatement
   | DeferStatement
+  | MountStatement
   | JsxElementStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
@@ -329,6 +330,16 @@ export interface CatchClause extends NodeBase {
 export interface DeferStatement extends NodeBase {
   kind: 'DeferStatement';
   body: CallExpression | BlockStatement;
+}
+
+/**
+ * `mount() { ... }` at the top level of a component: runs once the component's markup is in the
+ * document. It may return a function, which runs when `{if}`, `{switch}` or `{for}` removes the
+ * markup.
+ */
+export interface MountStatement extends NodeBase {
+  kind: 'MountStatement';
+  body: BlockStatement;
 }
 
 // ─── Expressions ─────────────────────────────────────────────────────────────────────────────────

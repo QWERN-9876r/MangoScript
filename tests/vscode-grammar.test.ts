@@ -122,6 +122,11 @@ describe('VS Code grammar', () => {
     );
   });
 
+  it('treats mount() as a keyword only at the start of a statement', () => {
+    expect(scopeOf('    mount() {', 'mount')).toBe('storage.type.mount');
+    expect(scopeOf('    widget.mount(element)', 'mount')).not.toBe('storage.type.mount');
+  });
+
   it('treats state as a keyword only at the start of a declaration', () => {
     expect(scopeOf('    state count = 0', 'state')).toBe('storage.type.state');
     expect(scopeOf('let state = load()', 'state')).toBe('variable.other.readwrite');

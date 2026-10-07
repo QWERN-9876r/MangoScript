@@ -12,6 +12,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
   /** A `defer` inside an if/loop/switch; implemented by FunctionEmitter. */
   protected abstract deferStatement(node: ast.DeferStatement): void;
 
+  /** `mount() { ... }` of a component (see ComponentEmitter). */
+  protected abstract mountStatement(node: ast.MountStatement): void;
+
   /** `const link = <a>...</a>`: creates the element right in the variable; see ElementEmitter. */
   protected abstract elementDeclaration(declaration: string, node: ast.ElementExpression): void;
 
@@ -138,6 +141,9 @@ export abstract class StatementEmitter extends ExpressionEmitter {
         break;
       case 'DeferStatement':
         this.deferStatement(node);
+        break;
+      case 'MountStatement':
+        this.mountStatement(node);
         break;
     }
   }

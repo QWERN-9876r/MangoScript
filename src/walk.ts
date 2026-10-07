@@ -120,6 +120,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       visit(node.body);
       break;
     case 'DeferStatement':
+    case 'MountStatement':
       visit(node.body);
       break;
     case 'TemplateLiteral':
@@ -284,6 +285,7 @@ export function containsBreak(statements: readonly ast.Statement[]): boolean {
       case 'FuncExpression':
       case 'ArrowFunction':
       case 'ClassDeclaration':
+      case 'MountStatement':
         return;
       default:
         forEachChild(node, visit);

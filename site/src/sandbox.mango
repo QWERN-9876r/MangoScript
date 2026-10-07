@@ -21,6 +21,36 @@ export func compileMango(source string) Compiled {
  * Выполняет программу: console.log пишет в возвращаемые строки, а document.body — это `preview`.
  * Ошибки компиляции и исключения тоже возвращаются строками.
  */
+interface Owner {
+    removed bool
+    cleanups []func()
+}
+
+// Программа запускается как владелец своих компонентов — с тем же ключом, что у {if} и {for} в
+// скомпилированном коде (owner в src/codegen/helpers.ts). Перед новым запуском выполняется то, что
+// вернули mount() прошлого, так что его таймеры останавливаются.
+const OWNER = Symbol.for("mangoscript.owner")
+let owners Map[HTMLElement, Owner] = new Map()
+
+func runOwned(preview HTMLElement, run func()) {
+    const previous = owners.get(preview)
+    if previous != null {
+        previous.removed = true
+        for let i = previous.cleanups.length - 1; i >= 0; i-- {
+            previous.cleanups[i]()
+        }
+    }
+    const owner Owner = { removed: false, cleanups: [] }
+    owners.set(preview, owner)
+    const global any = globalThis
+    const parent = global[OWNER]
+    global[OWNER] = owner
+    defer {
+        global[OWNER] = parent
+    }
+    run()
+}
+
 export func runProgram(source string, preview HTMLElement) []string {
     const compiled = compileMango(source)
     if compiled.errors.length > 0 {
@@ -52,7 +82,7 @@ export func runProgram(source string, preview HTMLElement) []string {
     preview.replaceChildren()
     try {
         const program = globalThis.Function("console", "document", compiled.code)
-        program(sandboxConsole, sandboxDocument)
+        runOwned(preview, () => program(sandboxConsole, sandboxDocument))
     } catch e {
         lines.push(`Исключение: ${e.message}`)
     }

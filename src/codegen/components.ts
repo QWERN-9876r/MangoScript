@@ -59,6 +59,21 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
   }
 
   /**
+   * `mount() { ... }` becomes `$$mount(() => { ... })`. Its body runs later, like a handler: what
+   * it changes updates the markup.
+   */
+  protected override mountStatement(node: ast.MountStatement): void {
+    this.helpers.add('mount');
+    this.inHandler++;
+    try {
+      const [, body] = this.withRendering(0, () => this.func([], node.body));
+      this.line(`$$mount(() => ${body});`);
+    } finally {
+      this.inHandler--;
+    }
+  }
+
+  /**
    * Inlines a component: its code goes into a block where its properties are constants. Attribute
    * values are computed before the block, so that the component's own names cannot hide the
    * names they refer to. In live markup, a property whose value depends on the parent's state is
