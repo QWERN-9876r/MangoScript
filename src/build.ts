@@ -9,6 +9,8 @@ export interface BuildOptions {
   outDir?: string;
   /** Check types before generating code. Defaults to `true`. */
   typeCheck?: boolean;
+  /** Write a `.d.ts` next to each `.js`, for TypeScript code. Defaults to `typeCheck`. */
+  declarations?: boolean;
 }
 
 export interface BuildOutput {
@@ -17,6 +19,8 @@ export interface BuildOutput {
   /** Absolute path of its `.js` file. */
   output: string;
   code: string;
+  /** Its `.d.ts` file, when declarations are written. */
+  declarations?: { output: string; code: string };
 }
 
 export interface BuildError {
@@ -43,20 +47,22 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
     return directories.includes(path) ? findMangoFiles(path) : [path];
   });
   const seen = new Set(queue);
-  const compiled: { source: string; code: string }[] = [];
+  const typeCheck = options.typeCheck ?? true;
+  const declarations = typeCheck && (options.declarations ?? true);
+  const compiled: { source: string; code: string; declarations: string | undefined }[] = [];
   const errors: BuildError[] = [];
 
   for (let i = 0; i < queue.length; i++) {
     const source = queue[i]!;
     const text = readFileSync(source, 'utf8');
-    const result = compile(text, { filename: source, typeCheck: options.typeCheck ?? true });
+    const result = compile(text, { filename: source, typeCheck, declarations });
     if (result.diagnostics.length > 0) {
       errors.push({
         file: new SourceFile(displayPath(source), text),
         diagnostics: result.diagnostics,
       });
     } else {
-      compiled.push({ source, code: result.code });
+      compiled.push({ source, code: result.code, declarations: result.declarations });
     }
     for (const specifier of result.dependencies) {
       // A missing module is reported by the type checker.
@@ -71,9 +77,15 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   if (errors.length > 0) return { outputs: [], errors };
   // The output keeps the folder structure below the given directories and all the files.
   const root = commonDirectory(queue, directories);
-  const outputs = compiled.map(({ source, code }) => {
+  const outputs = compiled.map(({ source, code, declarations: types }): BuildOutput => {
     const target = options.outDir ? join(resolve(options.outDir), relative(root, source)) : source;
-    return { source, output: target.replace(/\.mango$/, '') + '.js', code };
+    const base = target.replace(/\.mango$/, '');
+    return {
+      source,
+      output: `${base}.js`,
+      code,
+      ...(types === undefined ? {} : { declarations: { output: `${base}.d.ts`, code: types } }),
+    };
   });
   return { outputs, errors };
 }

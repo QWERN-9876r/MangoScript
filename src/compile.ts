@@ -2,6 +2,7 @@ import type * as ast from './ast.ts';
 import { check, type ImportResult, type Library } from './checker/checker.ts';
 import type { Type } from './checker/types.ts';
 import { generateJs } from './codegen/js.ts';
+import { printDeclarations } from './declarations.ts';
 import type { Diagnostic } from './diagnostics.ts';
 import { parse } from './parser/parser.ts';
 
@@ -19,6 +20,8 @@ export interface CoreCompileOptions {
   importDeclarations?: ((specifier: string) => ImportResult) | undefined;
   /** Types of the standard library and the DOM beyond the built-in ones. */
   library?: Library | undefined;
+  /** Also write a TypeScript declaration file; needs type checking. */
+  declarations?: boolean;
 }
 
 export interface CompileResult {
@@ -27,6 +30,8 @@ export interface CompileResult {
   diagnostics: Diagnostic[];
   /** Relative paths of the `.mango` modules this file imports, as written in the imports. */
   dependencies: string[];
+  /** The `.d.ts` for the module, with the `declarations` option. */
+  declarations?: string;
 }
 
 export function compileModule(source: string, options: CoreCompileOptions = {}): CompileResult {
@@ -35,6 +40,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
   const dependencies = mangoImports(program);
 
   let types: WeakMap<ast.Expression, Type> | undefined;
+  let declarations: string | undefined;
   if (options.typeCheck ?? true) {
     const { importModule, importDeclarations, library } = options;
     const checked = check(program, {
@@ -46,6 +52,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
       return { code: '', diagnostics: checked.diagnostics, dependencies };
     }
     types = checked.types;
+    if (options.declarations) declarations = printDeclarations(program, checked);
   }
 
   const code = generateJs(program, {
@@ -53,7 +60,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     rewriteImports: options.rewriteImports ?? true,
     types,
   });
-  return { code, diagnostics: [], dependencies };
+  return { code, diagnostics: [], dependencies, ...(declarations ? { declarations } : {}) };
 }
 
 function mangoImports(program: ast.Program): string[] {

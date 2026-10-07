@@ -728,10 +728,46 @@ func handle(request IncomingMessage, response ServerResponse) {
   имени.
 - Песочница на сайте работает в браузере без пакета `typescript`, поэтому там такие импорты — `any`.
 
+### Объявления для TypeScript
+
+`mango build` с проверкой типов пишет рядом с каждым `.js` файл `.d.ts`, и TypeScript-код
+импортирует модуль MangoScript с типами. С `--no-check` объявлений нет: без проверки типы неизвестны.
+
+```go
+export type Filter "all" | "active" | "done"
+
+export func divide(a, b number) (number, error) { ... }
+
+export class Stack[T] {
+    private items []T
+    push(item T) { ... }
+    pop() ?T { ... }
+}
+```
+
+```ts
+export type Filter = "all" | "active" | "done";
+export declare function divide(a: number, b: number): [number, Error | null];
+export declare class Stack<T> {
+    private items;
+    push(item: T): void;
+    pop(): T | null;
+}
+```
+
+- `bool` → `boolean`, `?T` → `T | null`, `error` → `Error | null`, `[]T` → `T[]`; поле типа `?T`
+  можно не передавать: `note?: string | null`.
+- Несколько результатов → кортеж `[A, B]`: функция и в JS возвращает массив.
+- Имена параметров берутся из кода, типы — из проверки, поэтому выведенные типы (`const n = 1`)
+  тоже попадают в объявления.
+- Интерфейсы, `type` и классы объявляются, даже если не экспортированы: на них могут ссылаться
+  экспортированные функции. Компонентов в JS нет, и в объявлениях тоже.
+- Импорты повторяются с `.js` вместо `.mango`, чтобы в типах были доступны импортированные имена.
+
 - Имя, которое используется только как тип (например, импортированный интерфейс), из `import`
   убирается: в рантайме такого значения нет.
-- `mango build main.mango` пишет `main.js` рядом с исходником и так же компилирует все
-  `.mango`-файлы, которые он импортирует. В импортах `.mango` заменяется на `.js`:
+- `mango build main.mango` пишет `main.js` (и `main.d.ts`, см. ниже) рядом с исходником и так же
+  компилирует все `.mango`-файлы, которые он импортирует. В импортах `.mango` заменяется на `.js`:
   `"./geom.mango"` → `"./geom.js"`. `mango build src/` собирает все `.mango`-файлы папки, а
   `--out-dir build/` складывает `.js` в отдельную папку с той же структурой. Если в каком-то
   файле есть ошибки, не пишется ни один файл.

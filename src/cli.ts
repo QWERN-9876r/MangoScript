@@ -111,10 +111,11 @@ function buildFiles(entries: string[], outDir: string | undefined, typeCheck: bo
     );
     throw new CompileError(messages.join('\n\n'));
   }
-  for (const { source, output, code } of outputs) {
+  for (const { source, output, code, declarations } of outputs) {
     mkdirSync(dirname(output), { recursive: true });
     writeFileSync(output, code);
-    console.log(`${displayPath(source)} → ${displayPath(output)}`);
+    if (declarations) writeFileSync(declarations.output, declarations.code);
+    console.log(`${displayPath(source)} → ${displayPath(output)}${declarations ? ' + .d.ts' : ''}`);
   }
 }
 

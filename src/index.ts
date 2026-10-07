@@ -18,6 +18,8 @@ export interface CompileOptions {
   rewriteImports?: boolean;
   /** Check types before generating code. Defaults to `true`. */
   typeCheck?: boolean;
+  /** Also print a TypeScript declaration file (`.d.ts`); needs type checking. */
+  declarations?: boolean;
 }
 
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
@@ -25,6 +27,7 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
   return compileModule(source, {
     rewriteImports: options.rewriteImports ?? true,
     typeCheck: options.typeCheck ?? true,
+    declarations: options.declarations ?? false,
     importModule: filename
       ? (specifier: string) => loadModuleExports(filename, specifier)
       : undefined,

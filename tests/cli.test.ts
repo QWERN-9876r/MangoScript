@@ -60,11 +60,26 @@ describe('mango build', () => {
     const dir = project({ 'lib/geom.mango': geom, 'main.mango': main('./lib/geom.mango') });
     const result = mango(dir, 'build', 'main.mango');
     expect(result.stderr).toBe('');
-    expect(result.stdout).toBe('main.mango → main.js\nlib/geom.mango → lib/geom.js\n');
+    expect(result.stdout).toBe(
+      'main.mango → main.js + .d.ts\nlib/geom.mango → lib/geom.js + .d.ts\n',
+    );
     expect(readFileSync(join(dir, 'main.js'), 'utf8')).toContain(
       'import { dist } from "./lib/geom.js";',
     );
     expect(node(dir, 'main.js').stdout).toBe('5\n');
+    expect(readFileSync(join(dir, 'lib/geom.d.ts'), 'utf8')).toBe(`export interface Point {
+    x: number;
+    y: number;
+}
+export declare function dist(p: Point): number;
+`);
+  });
+
+  it('writes no .d.ts without type checking', () => {
+    const dir = project({ 'geom.mango': geom });
+    const result = mango(dir, 'build', 'geom.mango', '--no-check');
+    expect(result.stdout).toBe('geom.mango → geom.js\n');
+    expect(existsSync(join(dir, 'geom.d.ts'))).toBe(false);
   });
 
   it('writes to --out-dir, keeping the folder structure', () => {

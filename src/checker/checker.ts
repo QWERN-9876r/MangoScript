@@ -114,6 +114,8 @@ export interface CheckOptions {
 export interface CheckResult {
   diagnostics: Diagnostic[];
   exports: ModuleExports;
+  /** Types of every declaration at the top level of the module, exported or not. */
+  declarations: ModuleExports;
   /** Types of checked expressions, for code generation (e.g. how to insert element children). */
   types: WeakMap<ast.Expression, Type>;
 }
@@ -261,7 +263,7 @@ class Checker {
     this.diagnostics.sort((a, b) => a.start - b.start);
     return {
       diagnostics: this.diagnostics,
-      exports: this.collectExports(),
+      ...this.collectDeclarations(),
       types: this.checkedTypes,
     };
   }
@@ -806,40 +808,43 @@ class Checker {
     );
   }
 
-  private collectExports(): ModuleExports {
-    const values = new Map<string, Type>();
-    const types = new Map<string, Type>();
+  /** The top-level declarations, and those of them that are exported. */
+  private collectDeclarations(): { exports: ModuleExports; declarations: ModuleExports } {
+    const exports: ModuleExports = { values: new Map(), types: new Map() };
+    const declarations: ModuleExports = { values: new Map(), types: new Map() };
     const valueOf = (name: string) => this.moduleScope.values.get(name)?.type ?? UNKNOWN;
     const typeOf = (name: string) => {
       const entry = this.moduleScope.types.get(name);
       if (!entry) return UNKNOWN;
       return entry.kind === 'alias' ? this.resolveAlias(entry) : entry;
     };
+    const add = (exported: boolean, kind: 'values' | 'types', name: string, type: Type) => {
+      declarations[kind].set(name, type);
+      if (exported) exports[kind].set(name, type);
+    };
     for (const statement of this.program.body) {
       switch (statement.kind) {
         case 'FuncDeclaration':
-          if (statement.exported) values.set(statement.name.name, valueOf(statement.name.name));
+          add(statement.exported, 'values', statement.name.name, valueOf(statement.name.name));
           break;
         case 'VariableDeclaration':
-          if (statement.exported) {
-            for (const name of statement.names) values.set(name.name, valueOf(name.name));
+          for (const name of statement.names) {
+            add(statement.exported, 'values', name.name, valueOf(name.name));
           }
           break;
         case 'ClassDeclaration':
-          if (statement.exported) {
-            values.set(statement.name.name, valueOf(statement.name.name));
-            types.set(statement.name.name, typeOf(statement.name.name));
-          }
+          add(statement.exported, 'values', statement.name.name, valueOf(statement.name.name));
+          add(statement.exported, 'types', statement.name.name, typeOf(statement.name.name));
           break;
         case 'InterfaceDeclaration':
         case 'TypeAliasDeclaration':
-          if (statement.exported) types.set(statement.name.name, typeOf(statement.name.name));
+          add(statement.exported, 'types', statement.name.name, typeOf(statement.name.name));
           break;
         default:
           break;
       }
     }
-    return { values, types };
+    return { exports, declarations };
   }
 
   // ─── Types ─────────────────────────────────────────────────────────────────────────────────────
