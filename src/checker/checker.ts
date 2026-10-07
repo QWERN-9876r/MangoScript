@@ -7,6 +7,7 @@ import {
   boolMember,
   GLOBAL_TYPES,
   GLOBAL_VALUES,
+  LIBRARY_TYPES,
   numberMember,
   stringMember,
 } from './builtins.ts';
@@ -78,6 +79,26 @@ export interface ModuleExports {
 /** What `importModule` found: the module's exports, an error for the import, or nothing (untyped). */
 export type ImportResult = { exports: ModuleExports } | { error: string } | undefined;
 
+/**
+ * Types of the JS standard library and the DOM from TypeScript's lib files and global `@types`.
+ * They extend the built-in types of builtins.ts and dom.ts, which are used without them (in the
+ * browser).
+ */
+export interface Library {
+  /** A global value, e.g. `document`. */
+  value(name: string): Type | undefined;
+  /** A global type, e.g. `HTMLElement`. */
+  type(name: string): Type | undefined;
+  /** `String`, `Number` or `Boolean`: members that the built-in types do not list. */
+  primitive(kind: 'string' | 'number' | 'bool'): Type | undefined;
+  /** `Array<element>`: members that the built-in array type does not list. */
+  array(element: Type): Type | undefined;
+  /** What `<tag>` creates: `HTMLElementTagNameMap[tag]`. */
+  element(tag: string): Type | undefined;
+  /** The event of `on<name>`: `HTMLElementEventMap[name]`, e.g. `MouseEvent` for `click`. */
+  event(name: string): Type | undefined;
+}
+
 export interface CheckOptions {
   /** Called for imports of `.mango` modules; without it, every import is untyped (`any`). */
   importModule?: (specifier: string) => ImportResult;
@@ -86,6 +107,8 @@ export interface CheckOptions {
    * TypeScript declarations. Without it, or for a module without types, the import is untyped.
    */
   importDeclarations?: (specifier: string) => ImportResult;
+  /** Types of the standard library and the DOM beyond the built-in ones. */
+  library?: Library;
 }
 
 export interface CheckResult {
@@ -185,10 +208,17 @@ const NARROWABLE: ReadonlySet<BindingKind> = new Set([
   'loop',
 ]);
 
-function globalScope(): Scope {
+/** Built-in globals. With a library, the untyped ones and the DOM types come from it instead. */
+function globalScope(library: Library | undefined): Scope {
   const scope = new Scope(null);
-  for (const [name, type] of GLOBAL_VALUES) scope.values.set(name, { name, kind: 'builtin', type });
-  for (const [name, type] of GLOBAL_TYPES) scope.types.set(name, type);
+  for (const [name, type] of GLOBAL_VALUES) {
+    if (library && type.kind === 'any') continue;
+    scope.values.set(name, { name, kind: 'builtin', type });
+  }
+  for (const [name, type] of GLOBAL_TYPES) {
+    if (library && LIBRARY_TYPES.has(name)) continue;
+    scope.types.set(name, type);
+  }
   return scope;
 }
 
@@ -213,11 +243,14 @@ class Checker {
   private readonly resolvingClasses = new Set<ClassInfo>();
   /** The component whose body is being checked, if any. */
   private component: ComponentInfo | null = null;
+  private readonly globals: Scope;
+  private domTypes: { node: Type; element: Type; fragment: Type } | null = null;
 
   constructor(program: ast.Program, options: CheckOptions) {
     this.program = program;
     this.options = options;
-    this.moduleScope = new Scope(globalScope());
+    this.globals = globalScope(options.library);
+    this.moduleScope = new Scope(this.globals);
     this.scope = this.moduleScope;
     this.assigned = assignedNames(program);
   }
@@ -289,7 +322,11 @@ class Checker {
       const binding = scope.values.get(name);
       if (binding) return binding;
     }
-    return undefined;
+    const type = this.options.library?.value(name);
+    if (type === undefined) return undefined;
+    const binding: Binding = { name, kind: 'builtin', type };
+    this.globals.values.set(name, binding);
+    return binding;
   }
 
   private lookupType(name: string): Type | AliasEntry | undefined {
@@ -297,7 +334,56 @@ class Checker {
       const entry = scope.types.get(name);
       if (entry) return entry;
     }
-    return undefined;
+    const type = this.options.library?.type(name);
+    if (type !== undefined) this.globals.types.set(name, type);
+    return type;
+  }
+
+  /**
+   * Node, HTMLElement and DocumentFragment: from the library when there is one. Found on first
+   * use, after the imports, which may change the library.
+   */
+  private get dom(): { node: Type; element: Type; fragment: Type } {
+    if (!this.domTypes) {
+      const { library } = this.options;
+      this.domTypes = {
+        node: library?.type('Node') ?? NODE,
+        element: library?.type('HTMLElement') ?? HTML_ELEMENT,
+        fragment: library?.type('DocumentFragment') ?? DOCUMENT_FRAGMENT,
+      };
+    }
+    return this.domTypes;
+  }
+
+  /** The type of the element `<tag>` creates. */
+  private elementOf(tag: string): Type {
+    return this.options.library?.element(tag) ?? elementType(tag);
+  }
+
+  /** The `event` of an `on*` attribute: its `currentTarget` is the element. */
+  private eventOf(attribute: string, element: Type): Type {
+    const { library } = this.options;
+    if (!library) return eventType(element);
+    const event = library.event(attribute.slice(2).toLowerCase()) ?? library.type('Event');
+    if (event?.kind !== 'object') return eventType(element);
+    const members = new LazyMap<Member>(
+      () => memberNames(event.members),
+      (name) => (name === 'currentTarget' ? property(element) : event.members.get(name)),
+    );
+    return { ...event, members };
+  }
+
+  /** A member of a string, number or bool that the built-in types do not list. */
+  private primitiveMember(kind: 'string' | 'number' | 'bool', name: string): Member | undefined {
+    const type = this.options.library?.primitive(kind);
+    return type?.kind === 'object' ? type.members.get(name) : undefined;
+  }
+
+  private arrayMemberOf(element: Type, name: string): Member | undefined {
+    const builtin = arrayMember(element, name);
+    if (builtin) return builtin;
+    const type = this.options.library?.array(element);
+    return type?.kind === 'object' ? type.members.get(name) : undefined;
   }
 
   private declareValue(id: ast.Identifier, kind: BindingKind, type: Type | null): Binding {
@@ -1151,7 +1237,7 @@ class Checker {
         return;
       }
       const type = this.checkValue(value);
-      if (!isUntyped(type) && !isAssignable(type, NODE)) {
+      if (!isUntyped(type) && !isAssignable(type, this.dom.node)) {
         this.error(`a component returns markup, not ${typeToString(type)}`, value);
       }
       return;
@@ -1562,16 +1648,19 @@ class Checker {
   ): Narrowing {
     const binding = this.narrowableBinding(left);
     const classType = this.typeOfChecked(right);
-    if (!binding?.type || classType.kind !== 'classValue') return [];
+    const instance = instanceTypeOf(classType);
+    if (!binding?.type || !instance) return [];
     const current = this.flow.get(binding) ?? binding.type;
-    const { info } = classType;
     const members = unionMembers(nonNull(current));
     if (assumeTrue) {
-      const kept = members.filter((member) => isAssignable(member, info.instance));
-      return [[binding, kept.length > 0 ? union(kept) : info.instance]];
+      const kept = members.filter((member) => isAssignable(member, instance));
+      return [[binding, kept.length > 0 ? union(kept) : instance]];
     }
-    const kept = members.filter(
-      (member) => !(member.kind === 'class' && isSubclass(member.info, info)),
+    // A class keeps what is not its subclass; a DOM interface what is not assignable to it.
+    const kept = members.filter((member) =>
+      classType.kind === 'classValue'
+        ? !(member.kind === 'class' && isSubclass(member.info, classType.info))
+        : !isAssignable(member, instance),
     );
     return [[binding, union(isNullable(current) ? [...kept, NULL] : kept)]];
   }
@@ -1752,7 +1841,15 @@ class Checker {
   }
 
   private checkObjectLiteral(node: ast.ObjectLiteral, expected: Type | null): Type {
-    const target = expected ? nonNull(expected) : null;
+    let target = expected ? nonNull(expected) : null;
+    // `?(ScrollIntoViewOptions | bool)`: an object literal can only be the object type in it.
+    if (target?.kind === 'union') {
+      const objects = target.types.filter(
+        (type) => type.kind === 'object' || type.kind === 'class',
+      );
+      target = objects.length === 1 ? objects[0]! : null;
+    }
+    const index = target?.kind === 'object' ? target.index : undefined;
     const targetMembers =
       target?.kind === 'object'
         ? target.members
@@ -1784,7 +1881,9 @@ class Checker {
       // Fields may override those of a spread object, but not each other.
       if (written.has(name)) this.error(`duplicate field "${name}"`, property.key);
       written.add(name);
-      const expectedMember = targetMembers?.get(name);
+      const expectedMember =
+        targetMembers?.get(name) ??
+        (index && { type: index, method: false, visibility: 'public', owner: null });
       // A field that the expected type does not have is most likely a typo.
       if (targetMembers && !expectedMember && target) {
         this.error(`${typeToString(target)} has no field "${name}"`, property.key);
@@ -1915,7 +2014,7 @@ class Checker {
         }
         return BOOL;
       case 'instanceof':
-        if (right.kind !== 'classValue' && !isUntyped(right)) {
+        if (!instanceTypeOf(right) && !isUntyped(right)) {
           this.error(
             `the right side of instanceof must be a class, not ${typeToString(right)}`,
             node,
@@ -1953,7 +2052,7 @@ class Checker {
   private checkElement(node: ast.ElementExpression): Type {
     if (node.tag && /^[A-Z]/.test(node.tag.name)) return this.checkComponentUse(node, node.tag);
     const tag = node.tag?.name ?? null;
-    const type = tag === null ? DOCUMENT_FRAGMENT : elementType(tag);
+    const type = tag === null ? this.dom.fragment : this.elementOf(tag);
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxSpreadAttribute') {
         const spread = this.checkValue(attribute.argument);
@@ -1996,7 +2095,7 @@ class Checker {
         continue;
       }
       const content = this.checkValue(child.expression);
-      if (!isContent(content)) {
+      if (!isContent(content, this.dom.node)) {
         this.error(
           `cannot use ${typeToString(content)} as element content` +
             (content.kind === 'bool' ? ': use a condition, e.g. {ok ? <b>yes</b> : null}' : ''),
@@ -2010,7 +2109,7 @@ class Checker {
     const name = attribute.name.name;
     const { value } = attribute;
     if (/^on[A-Z]/.test(name)) {
-      this.checkEventAttribute(attribute, eventType(element));
+      this.checkEventAttribute(attribute, this.eventOf(name, element));
       return;
     }
     if (value?.kind === 'EventHandler') return;
@@ -2328,18 +2427,19 @@ class Checker {
       .filter((statement) => statement.kind === 'ReturnStatement')
       .map((statement) => this.markupType(statement.values[0], seen));
     const [first] = types;
-    if (first === undefined) return NODE;
+    if (first === undefined) return this.dom.node;
     if (types.every((type) => typesEqual(type, first))) return first;
-    return types.every((type) => isAssignable(type, HTML_ELEMENT)) ? HTML_ELEMENT : NODE;
+    const { element, node } = this.dom;
+    return types.every((type) => isAssignable(type, element)) ? element : node;
   }
 
   /** The type of the markup a component returns, found without checking it again. */
   private markupType(value: ast.Expression | undefined, seen: Set<ComponentInfo>): Type {
-    if (value?.kind !== 'ElementExpression') return NODE;
-    if (value.tag === null) return DOCUMENT_FRAGMENT;
-    if (!/^[A-Z]/.test(value.tag.name)) return elementType(value.tag.name);
+    if (value?.kind !== 'ElementExpression') return this.dom.node;
+    if (value.tag === null) return this.dom.fragment;
+    if (!/^[A-Z]/.test(value.tag.name)) return this.elementOf(value.tag.name);
     const other = lookupIn(this.moduleScope, value.tag.name)?.component;
-    if (!other || seen.has(other)) return NODE;
+    if (!other || seen.has(other)) return this.dom.node;
     return this.componentResult(other, new Set(seen));
   }
 
@@ -2466,16 +2566,16 @@ class Checker {
         };
       }
       case 'number':
-        member = numberMember(name);
+        member = numberMember(name) ?? this.primitiveMember('number', name);
         break;
       case 'string':
-        member = stringMember(name);
+        member = stringMember(name) ?? this.primitiveMember('string', name);
         break;
       case 'bool':
-        member = boolMember(name);
+        member = boolMember(name) ?? this.primitiveMember('bool', name);
         break;
       case 'array':
-        member = arrayMember(object.element, name);
+        member = this.arrayMemberOf(object.element, name);
         break;
       case 'object':
         member = object.members.get(name) ?? (object.index && property(object.index));
@@ -2522,13 +2622,13 @@ class Checker {
       case 'param':
         return type.constraint ? this.memberOf(type.constraint, name) : undefined;
       case 'number':
-        return numberMember(name);
+        return numberMember(name) ?? this.primitiveMember('number', name);
       case 'string':
-        return stringMember(name);
+        return stringMember(name) ?? this.primitiveMember('string', name);
       case 'bool':
-        return boolMember(name);
+        return boolMember(name) ?? this.primitiveMember('bool', name);
       case 'array':
-        return arrayMember(type.element, name);
+        return this.arrayMemberOf(type.element, name);
       case 'object':
         return type.members.get(name) ?? (type.index && property(type.index));
       case 'class': {
@@ -2662,10 +2762,9 @@ class Checker {
       if (this.diagnostics.length === errors) return { results, inferred };
       this.diagnostics.length = errors;
     }
-    this.error(
-      `no overload fits these arguments: ${signatures.map(typeToString).join('; ')}`,
-      node,
-    );
+    // The same signature may be declared twice, as `fetch` by lib.dom and @types/node.
+    const listed = [...new Set(signatures.map(typeToString))];
+    this.error(`no overload fits these arguments: ${listed.join('; ')}`, node);
     this.checkArgumentsLoosely(args);
     const results = signatures[0]!.results.map((result) => substitute(result, new Map(), UNKNOWN));
     return { results, inferred: new Map() };
@@ -2884,7 +2983,8 @@ function freeNames(component: ast.ComponentDeclaration): Set<string> {
 }
 
 /** Values that can be element children: text, numbers, nodes, lists of them, or null. */
-function isContent(type: Type): boolean {
+/** Text, numbers, nodes (`node` is the type of a DOM node), lists of them, or null. */
+function isContent(type: Type, node: Type): boolean {
   if (type === CONTENT) return true;
   switch (type.kind) {
     case 'string':
@@ -2895,12 +2995,12 @@ function isContent(type: Type): boolean {
     case 'null':
       return true;
     case 'nullable':
-      return isContent(type.type);
+      return isContent(type.type, node);
     case 'array':
-      return isContent(type.element);
+      return isContent(type.element, node);
     case 'object':
     case 'class':
-      return isAssignable(type, NODE);
+      return isAssignable(type, node);
     default:
       return false;
   }
@@ -2925,6 +3025,18 @@ function isUntyped(type: Type): boolean {
 
 function isNumeric(type: Type): boolean {
   return type.kind === 'number' || isUntyped(type);
+}
+
+/**
+ * What `x instanceof C` makes `x`: an instance of a class, or of a constructor from a `.d.ts`,
+ * like `HTMLInputElement` (`declare var HTMLInputElement: { prototype: ...; new(): ... }`).
+ */
+function instanceTypeOf(type: Type): Type | null {
+  if (type.kind === 'classValue') return type.info.instance;
+  if (type.kind !== 'object') return null;
+  const prototype = type.members.get('prototype');
+  if (prototype && !isUntyped(prototype.type)) return prototype.type;
+  return type.construct?.results[0] ?? null;
 }
 
 /** A function and its overloads, in the order they are declared. */

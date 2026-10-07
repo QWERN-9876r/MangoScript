@@ -301,6 +301,18 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ...UNTYPED_GLOBALS.map((name): [string, Type] => [name, ANY]),
 ]);
 
+/** Built-in types that a library from TypeScript's lib files replaces: untyped ones and the DOM. */
+export const LIBRARY_TYPES: ReadonlySet<string> = new Set([
+  'Date',
+  'RegExp',
+  'Map',
+  'Set',
+  'Promise',
+  'URL',
+  'Event',
+  ...[...DOM_TYPES.keys()].filter((name) => name !== 'Content'),
+]);
+
 export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['number', NUMBER],
   ['string', STRING],

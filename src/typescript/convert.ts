@@ -33,16 +33,19 @@ import {
 
 export class TypeConverter {
   private readonly ts: typeof TS;
+  private readonly program: TS.Program;
   private readonly checker: TS.TypeChecker;
   private readonly types = new Map<TS.Type, Type>();
   /** Types being converted: a function type that refers to itself becomes `any` inside. */
   private readonly converting = new Set<TS.Type>();
   private readonly params = new Map<TS.Type, TypeParam>();
   private readonly classes = new Map<TS.Symbol, ClassInfo>();
+  private arrayInterface: ObjectType | undefined;
 
-  constructor(ts: typeof TS, checker: TS.TypeChecker) {
+  constructor(ts: typeof TS, program: TS.Program) {
     this.ts = ts;
-    this.checker = checker;
+    this.program = program;
+    this.checker = program.getTypeChecker();
   }
 
   /** The values and types a module exports, converted when they are imported. */
@@ -86,12 +89,14 @@ export class TypeConverter {
     };
   }
 
-  private valueOf(symbol: TS.Symbol): Type {
+  /** The type of a value: a class is the class itself. */
+  valueOf(symbol: TS.Symbol): Type {
     if (symbol.flags & this.ts.SymbolFlags.Class) return this.classInfo(symbol).value;
     return this.convert(this.checker.getTypeOfSymbol(symbol));
   }
 
-  private typeOf(symbol: TS.Symbol): Type {
+  /** The type that a declaration names: an interface, a class instance, an alias. */
+  typeOf(symbol: TS.Symbol): Type {
     const { SymbolFlags } = this.ts;
     if (symbol.flags & SymbolFlags.Class) return this.classInfo(symbol).instance;
     const type = this.convert(this.checker.getDeclaredTypeOfSymbol(symbol));
@@ -231,9 +236,40 @@ export class TypeConverter {
     return this.object(type, null);
   }
 
+  /**
+   * `Array<T>` as an interface, for the members of arrays that the built-in types do not list.
+   * Elsewhere it is converted to `[]T`.
+   */
+  arrayTemplate(symbol: TS.Symbol): ObjectType {
+    if (!this.arrayInterface) {
+      const { checker } = this;
+      const type = checker.getDeclaredTypeOfSymbol(symbol) as TS.InterfaceType;
+      this.arrayInterface = {
+        kind: 'object',
+        name: 'Array',
+        members: new LazyMap(
+          () => propertyNames(checker, type),
+          (name) => this.member(type, name, null),
+        ),
+        call: null,
+        typeParams: (type.typeParameters ?? []).map((param) => this.typeParam(param)),
+      };
+    }
+    return this.arrayInterface;
+  }
+
+  /** Declared in TypeScript's lib files. */
+  private isLibrary(symbol: TS.Symbol): boolean {
+    return (symbol.declarations ?? []).some((declaration) =>
+      this.program.isSourceFileDefaultLibrary(declaration.getSourceFile()),
+    );
+  }
+
   /** A class or an interface; a generic one is the template its instances are made from. */
-  private declared(type: TS.InterfaceType): ClassType | ObjectType {
+  private declared(type: TS.InterfaceType): Type {
     const { symbol } = type;
+    // A value of type `Function` can be called with anything, as in TypeScript.
+    if (symbol.name === 'Function' && this.isLibrary(symbol)) return ANY;
     if (symbol.flags & this.ts.SymbolFlags.Class) return this.classInfo(symbol).instance;
     const params = (type.typeParameters ?? []).map((param) => this.typeParam(param));
     return this.object(type, symbol.name, params);
@@ -351,8 +387,6 @@ export class TypeConverter {
     return info;
   }
 }
-
-type ClassType = ClassInfo['instance'];
 
 /** Members that MangoScript code can name: not `[Symbol.iterator]` and the like. */
 function propertyNames(checker: TS.TypeChecker, type: TS.Type): string[] {

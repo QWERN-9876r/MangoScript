@@ -2,8 +2,9 @@ import { existsSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import type * as TS from 'typescript';
-import type { ImportResult } from '../checker/checker.ts';
+import type { ImportResult, Library } from '../checker/checker.ts';
 import { TypeConverter } from './convert.ts';
+import { LibraryTypes } from './library.ts';
 
 // Types of imports that are not `.mango` modules: npm packages, `node:` modules and `.ts` files.
 // The TypeScript compiler finds and reads their declarations; it is loaded only when such an
@@ -22,6 +23,7 @@ export class DeclarationImporter {
   private program: TS.Program | undefined;
   private stale = true;
   private converter: TypeConverter | undefined;
+  private libraryTypes: LibraryTypes | undefined;
   private readonly results = new Map<string, ImportResult>();
 
   /** The exports of the module `specifier` imported from the file `fromFile`. */
@@ -32,6 +34,25 @@ export class DeclarationImporter {
     const result = ts ? this.resolve(ts, fromFile, specifier) : undefined;
     this.results.set(key, result);
     return result;
+  }
+
+  /**
+   * The standard library and the DOM for a file: TypeScript's lib files and the `@types` packages
+   * above it. The globals come from the program as it is when they are used.
+   */
+  library(fromFile: string): Library | undefined {
+    const ts = this.loadTypeScript();
+    if (!ts) return undefined;
+    this.addTypeRoots(fromFile);
+    const current = () => this.current(ts).library;
+    return {
+      value: (name) => current().value(name),
+      type: (name) => current().type(name),
+      primitive: (kind) => current().primitive(kind),
+      array: (element) => current().array(element),
+      element: (tag) => current().element(tag),
+      event: (name) => current().event(name),
+    };
   }
 
   private loadTypeScript(): typeof TS | null {
@@ -104,8 +125,12 @@ export class DeclarationImporter {
    * The program with every root so far. A new program reuses the files of the old one; types
    * already imported keep coming from the old one.
    */
-  private current(ts: typeof TS): { program: TS.Program; converter: TypeConverter } {
-    if (this.stale || !this.program || !this.converter) {
+  private current(ts: typeof TS): {
+    program: TS.Program;
+    converter: TypeConverter;
+    library: LibraryTypes;
+  } {
+    if (this.stale || !this.program || !this.converter || !this.libraryTypes) {
       const options = this.options(ts);
       this.program = ts.createProgram({
         // Without a root file, a program reads neither the lib nor the `types` packages.
@@ -113,10 +138,11 @@ export class DeclarationImporter {
         options,
         ...(this.program ? { oldProgram: this.program } : {}),
       });
-      this.converter = new TypeConverter(ts, this.program.getTypeChecker());
+      this.converter = new TypeConverter(ts, this.program);
+      this.libraryTypes = new LibraryTypes(ts, this.program, this.converter);
       this.stale = false;
     }
-    return { program: this.program, converter: this.converter };
+    return { program: this.program, converter: this.converter, library: this.libraryTypes };
   }
 }
 
@@ -126,4 +152,10 @@ let shared: DeclarationImporter | undefined;
 export function importDeclarations(fromFile: string, specifier: string): ImportResult {
   shared ??= new DeclarationImporter();
   return shared.import(fromFile, specifier);
+}
+
+/** The standard library and the DOM for a file, shared like the imports. */
+export function libraryFor(fromFile: string): Library | undefined {
+  shared ??= new DeclarationImporter();
+  return shared.library(fromFile);
 }

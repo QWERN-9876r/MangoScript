@@ -651,6 +651,11 @@ function functionAssignable(source: FunctionType, target: FunctionType, assuming
   }
   // A callback that returns something can be used where nothing is expected.
   if (target.results.length === 0) return true;
+  // And one that returns nothing where `void` may be returned, as `TResult | PromiseLike[TResult]`
+  // of `then` once TResult is void.
+  if (source.results.length === 0 && target.results.length === 1) {
+    return assignable(VOID, target.results[0]!, assuming);
+  }
   return (
     source.results.length === target.results.length &&
     source.results.every((type, i) => assignable(type, target.results[i]!, assuming))
@@ -779,6 +784,8 @@ export function containsTypeParam(
     case 'object':
       if (type.typeParams?.some((param) => only === null || only.has(param))) return true;
       if (type.instanceOf) return type.instanceOf.args.some(contains);
+      // A named interface without parameters cannot use them; an object type literal might.
+      if (type.name !== null) return false;
       return [...type.members.values()].some((member) => contains(member.type));
     case 'class':
       return (type.args ?? []).some(contains);
@@ -813,26 +820,51 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
     case 'object':
       return substituteObject(type, bindings, fallback);
     case 'function': {
-      const result = func(
-        type.params.map((param) => substitute(param, bindings, fallback)),
-        type.results.map((result) => substitute(result, bindings, fallback)),
-        {
-          required: type.required,
-          ...(type.rest ? { rest: substitute(type.rest, bindings, fallback) } : {}),
-          // A generic method of a generic interface keeps its own parameters: `map[U]` of `Box[T]`.
-          typeParams: type.typeParams.filter((param) => !bindings.has(param)),
-        },
-      );
+      // A generic method of a generic interface keeps its own parameters: `map[U]` of `Box[T]`.
+      // A default that uses the interface's parameters needs a parameter of its own:
+      // `then[TResult1 = T]` of `Promise[Response]` has the default Response.
+      const own = new Map(bindings);
+      const typeParams = type.typeParams
+        .filter((param) => !bindings.has(param))
+        .map((param) => {
+          if (!param.default || !containsTypeParam(param.default, new Set(bindings.keys()))) {
+            return param;
+          }
+          const fresh = freshParam(param, substitute(param.default, bindings));
+          own.set(param, fresh);
+          return fresh;
+        });
+      const sub = (each: Type) => substitute(each, own, fallback);
+      const result = func(type.params.map(sub), type.results.map(sub), {
+        required: type.required,
+        ...(type.rest ? { rest: sub(type.rest) } : {}),
+        typeParams,
+      });
       if (type.overloads) {
-        result.overloads = type.overloads.map(
-          (overload) => substitute(overload, bindings, fallback) as FunctionType,
-        );
+        result.overloads = type.overloads.map((overload) => sub(overload) as FunctionType);
       }
       return result;
     }
     default:
       return type;
   }
+}
+
+const freshParams = new WeakMap<TypeParam, TypeParam[]>();
+
+/** A copy of a type parameter with another default; the same copy for the same default. */
+function freshParam(param: TypeParam, fallback: Type): TypeParam {
+  let copies = freshParams.get(param);
+  if (!copies) {
+    copies = [];
+    freshParams.set(param, copies);
+  }
+  let copy = copies.find((each) => each.default && typesEqual(each.default, fallback));
+  if (!copy) {
+    copy = { ...param, default: fallback };
+    copies.push(copy);
+  }
+  return copy;
 }
 
 function substituteObject(
@@ -855,20 +887,17 @@ function substituteObject(
   return { ...type, members, call: type.call && (sub(type.call) as FunctionType) };
 }
 
+const MAX_STRUCTURAL_DEPTH = 3;
+
 /** Infers type parameters in `param` from the argument type `arg`. */
 export function inferTypeParams(
   param: Type,
   arg: Type,
   bindings: Map<TypeParam, Type>,
-  seen = new Set<Type>(),
+  depth = 0,
 ): void {
   if (!containsTypeParam(param)) return;
-  // Object types can refer to themselves: `interface Node[T] { value T; children []Node[T] }`.
-  if (param.kind === 'object') {
-    if (seen.has(param)) return;
-    seen.add(param);
-  }
-  const infer = (p: Type, a: Type) => inferTypeParams(p, a, bindings, seen);
+  const infer = (p: Type, a: Type) => inferTypeParams(p, a, bindings, depth);
   switch (param.kind) {
     case 'param':
       if (!bindings.has(param) && arg.kind !== 'unknown' && arg.kind !== 'never') {
@@ -881,6 +910,23 @@ export function inferTypeParams(
     case 'nullable':
       infer(param.type, nonNull(arg));
       break;
+    case 'union': {
+      // `T | PromiseLike[T]` from `Promise[string]`: a member with structure first, so that T is
+      // string, not the whole promise; then a bare parameter.
+      const members = param.types.filter((member) => containsTypeParam(member));
+      for (const member of members) {
+        if (member.kind === 'param') continue;
+        const trial = new Map(bindings);
+        inferTypeParams(member, arg, trial, depth);
+        if (trial.size > bindings.size) {
+          for (const [key, value] of trial) bindings.set(key, value);
+          return;
+        }
+      }
+      const bare = members.find((member) => member.kind === 'param');
+      if (bare) infer(bare, arg);
+      break;
+    }
     case 'class':
       if (arg.kind === 'class' && arg.info === param.info && param.args && arg.args) {
         param.args.forEach((each, i) => infer(each, arg.args![i]!));
@@ -895,7 +941,10 @@ export function inferTypeParams(
         param.instanceOf.args.forEach((each, i) => infer(each, arg.instanceOf!.args[i]!));
         break;
       }
-      // Structurally: `{ value T }` from `{ value number }`.
+      // Structurally: `{ value T }` from `{ value number }`. Types refer to themselves, and the
+      // methods of generic interfaces give ever new instances (`then` of a promise gives a
+      // promise), so only a few levels deep, as in TypeScript.
+      if (depth >= MAX_STRUCTURAL_DEPTH) break;
       const members =
         arg.kind === 'object'
           ? arg.members
@@ -903,9 +952,10 @@ export function inferTypeParams(
             ? instanceMembers(arg.info)
             : null;
       if (!members) break;
-      for (const [name, member] of param.members) {
+      for (const name of memberNames(param.members)) {
         const found = members.get(name);
-        if (found) infer(member.type, found.type);
+        const member = found && param.members.get(name);
+        if (member) inferTypeParams(member.type, found.type, bindings, depth + 1);
       }
       break;
     }
@@ -915,6 +965,8 @@ export function inferTypeParams(
           const a = arg.params[i];
           if (a) infer(p, a);
         });
+        // A callback without a result gives void: `then(text => { ... })`.
+        if (arg.results.length === 0 && param.results.length === 1) infer(param.results[0]!, VOID);
         param.results.forEach((r, i) => {
           const a = arg.results[i];
           if (a) infer(r, a);

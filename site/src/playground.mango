@@ -39,7 +39,7 @@ comp Playground() {
     openHandler = func(code string) {
         source = code
         tab = "js"
-        document.getElementById("playground").scrollIntoView({ behavior: "smooth" })
+        document.getElementById("playground")?.scrollIntoView({ behavior: "smooth" })
     }
 
     func run() {

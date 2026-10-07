@@ -1,5 +1,5 @@
 import type * as ast from './ast.ts';
-import { check, type ImportResult } from './checker/checker.ts';
+import { check, type ImportResult, type Library } from './checker/checker.ts';
 import type { Type } from './checker/types.ts';
 import { generateJs } from './codegen/js.ts';
 import type { Diagnostic } from './diagnostics.ts';
@@ -17,6 +17,8 @@ export interface CoreCompileOptions {
   importModule?: ((specifier: string) => ImportResult) | undefined;
   /** The exports of other imports, from TypeScript declarations; without it, they are untyped. */
   importDeclarations?: ((specifier: string) => ImportResult) | undefined;
+  /** Types of the standard library and the DOM beyond the built-in ones. */
+  library?: Library | undefined;
 }
 
 export interface CompileResult {
@@ -34,10 +36,11 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
 
   let types: WeakMap<ast.Expression, Type> | undefined;
   if (options.typeCheck ?? true) {
-    const { importModule, importDeclarations } = options;
+    const { importModule, importDeclarations, library } = options;
     const checked = check(program, {
       ...(importModule ? { importModule } : {}),
       ...(importDeclarations ? { importDeclarations } : {}),
+      ...(library ? { library } : {}),
     });
     if (checked.diagnostics.length > 0) {
       return { code: '', diagnostics: checked.diagnostics, dependencies };

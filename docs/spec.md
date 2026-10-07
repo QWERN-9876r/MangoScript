@@ -943,11 +943,25 @@ hello.mango:9:11: error: cannot add string and number: use a template string, e.
 
 ### Встроенные типы JS
 
-Типизированы `console`, `Math`, `JSON`, `Number`, `String`, `Boolean`, `parseInt`,
-`parseFloat`, `setTimeout`/`setInterval`, `Error`, методы строк, чисел и массивов (`map`,
-`filter`, `find`, `reduce`, `push`… — `find`, `pop` и `at` возвращают `?T`). Остальные глобальные
-объекты JS (`Object`, `Date`, `Map`, `Promise`, `fetch`, `process`…) имеют тип `any`. Параметры
-колбэков, переданных в `any`-функции, тоже `any`.
+Типы стандартной библиотеки JS и DOM берутся из lib-файлов TypeScript (`lib.es2024`, `lib.dom`)
+и глобальных `@types` (например, `process` и `Buffer` из `@types/node`):
+
+- `document`, `window`, `fetch`, `Promise`, `Map`, `Set`, `Date`, `URL`, `Object`… типизированы:
+  `document.getElementById("app")` — это `?HTMLElement`, `new Map()` при
+  `let m Map[string, number]` — `Map[string, number]`, а `m.get(k)` — `?number`;
+- `<input>` создаёт `HTMLInputElement` со всеми членами из `HTMLElementTagNameMap`;
+- `event` в `onClick` — `PointerEvent`, в `onKeyDown` — `KeyboardEvent` (из `HTMLElementEventMap`),
+  а `event.currentTarget` — сам элемент. `event.target` — `?EventTarget`, как в TypeScript;
+- `x instanceof HTMLInputElement` сужает тип, хотя в lib.dom это не класс, а конструктор;
+- у строк, чисел и массивов есть все методы из `String`, `Number` и `Array<T>`.
+
+Часть типов написана вручную и важнее lib: `console`, `Math`, `JSON`, `Number`, `String`,
+`Boolean`, `parseInt`, `parseFloat`, `setTimeout`/`setInterval`, `Error`, `error` и основные
+методы строк, чисел и массивов (`find`, `pop` и `at` возвращают `?T`). Так программа проверяется
+одинаково в Node и в браузере.
+
+В браузере (песочница на сайте) компилятора TypeScript нет: там работают только типы, написанные
+вручную, а остальные глобальные объекты (`document`, `fetch`, `Map`…) имеют тип `any`.
 
 Типы из импортированных `.mango`-модулей проверяются: компилятор читает эти модули сам. Типы
 остальных импортов берутся из объявлений TypeScript (раздел 9).

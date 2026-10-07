@@ -1,6 +1,7 @@
 import { compileModule, type CompileResult } from './compile.ts';
 import { loadModuleExports } from './modules.ts';
-import { importDeclarations } from './typescript/importer.ts';
+import { join } from 'node:path';
+import { importDeclarations, libraryFor } from './typescript/importer.ts';
 
 export type { CompileResult } from './compile.ts';
 export type { Diagnostic } from './diagnostics.ts';
@@ -30,5 +31,7 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
     importDeclarations: filename
       ? (specifier: string) => importDeclarations(filename, specifier)
       : undefined,
+    // Without a file name, `@types` packages are looked up from the current directory.
+    library: libraryFor(filename ?? join(process.cwd(), 'main.mango')),
   });
 }

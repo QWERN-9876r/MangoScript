@@ -2,7 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { check, type ImportResult, type ModuleExports } from './checker/checker.ts';
 import { parse } from './parser/parser.ts';
-import { importDeclarations } from './typescript/importer.ts';
+import { importDeclarations, libraryFor } from './typescript/importer.ts';
 
 /** Exports of checked modules, by path; reused while the file does not change. */
 const cache = new Map<string, { version: string; exports: ModuleExports }>();
@@ -33,6 +33,7 @@ export function loadModuleExports(fromFile: string, specifier: string): ImportRe
     const { exports } = check(program, {
       importModule: (next) => loadModuleExports(path, next),
       importDeclarations: (next) => importDeclarations(path, next),
+      library: libraryFor(path),
     });
     cache.set(path, { version, exports });
     return { exports };
