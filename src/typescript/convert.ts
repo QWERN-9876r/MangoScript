@@ -31,6 +31,15 @@ import {
 // What has no counterpart becomes `any`: bigint, symbol, `object`, `unknown`, and the conditional
 // and mapped types that TypeScript itself cannot reduce. Index signatures give `index` to objects.
 
+/**
+ * Types of declarations in TypeScript's lib files and in `node_modules`, by file and name. These
+ * files do not change while the compiler runs, so the converters of later programs (a program is
+ * created again when an import adds a file) reuse the types of the first one. Otherwise the same
+ * `Node` of lib.dom would be two different types, and checking that one fits the other would go
+ * through the whole DOM.
+ */
+export type SharedTypes = Map<string, Type | ClassInfo>;
+
 export class TypeConverter {
   private readonly ts: typeof TS;
   private readonly program: TS.Program;
@@ -40,12 +49,30 @@ export class TypeConverter {
   private readonly converting = new Set<TS.Type>();
   private readonly params = new Map<TS.Type, TypeParam>();
   private readonly classes = new Map<TS.Symbol, ClassInfo>();
+  private readonly shared: SharedTypes;
   private arrayInterface: ObjectType | undefined;
 
-  constructor(ts: typeof TS, program: TS.Program) {
+  constructor(ts: typeof TS, program: TS.Program, shared: SharedTypes = new Map()) {
     this.ts = ts;
     this.program = program;
     this.checker = program.getTypeChecker();
+    this.shared = shared;
+  }
+
+  /** The key of a declaration that does not change between programs, or `null`. */
+  private sharedKey(symbol: TS.Symbol, kind: string): string | null {
+    const declarations = symbol.declarations ?? [];
+    if (declarations.length === 0) return null;
+    const stable = declarations.every((declaration) => {
+      const file = declaration.getSourceFile();
+      return (
+        this.program.isSourceFileDefaultLibrary(file) ||
+        this.program.isSourceFileFromExternalLibrary(file)
+      );
+    });
+    if (!stable) return null;
+    const file = declarations[0]!.getSourceFile().fileName;
+    return `${kind} ${file} ${this.checker.getFullyQualifiedName(symbol)}`;
   }
 
   /** The values and types a module exports, converted when they are imported. */
@@ -271,8 +298,16 @@ export class TypeConverter {
     // A value of type `Function` can be called with anything, as in TypeScript.
     if (symbol.name === 'Function' && this.isLibrary(symbol)) return ANY;
     if (symbol.flags & this.ts.SymbolFlags.Class) return this.classInfo(symbol).instance;
+    const key = this.sharedKey(symbol, 'interface');
+    const known = key === null ? undefined : this.shared.get(key);
+    if (known && !('instance' in known)) {
+      this.types.set(type, known);
+      return known;
+    }
     const params = (type.typeParameters ?? []).map((param) => this.typeParam(param));
-    return this.object(type, symbol.name, params);
+    const object = this.object(type, symbol.name, params);
+    if (key !== null) this.shared.set(key, object);
+    return object;
   }
 
   /**
@@ -363,10 +398,17 @@ export class TypeConverter {
   private classInfo(symbol: TS.Symbol): ClassInfo {
     const known = this.classes.get(symbol);
     if (known) return known;
+    const key = this.sharedKey(symbol, 'class');
+    const shared = key === null ? undefined : this.shared.get(key);
+    if (shared && 'instance' in shared) {
+      this.classes.set(symbol, shared);
+      return shared;
+    }
     const { checker } = this;
     const { SymbolFlags, SignatureKind } = this.ts;
     const info = createClass(symbol.name);
     this.classes.set(symbol, info);
+    if (key !== null) this.shared.set(key, info);
     const instance = checker.getDeclaredTypeOfSymbol(symbol) as TS.InterfaceType;
     info.typeParams = (instance.typeParameters ?? []).map((param) => this.typeParam(param));
     // TypeScript lists inherited members too, already with the base class's type arguments.

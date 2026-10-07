@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import type * as TS from 'typescript';
 import type { ImportResult, Library } from '../checker/checker.ts';
-import { TypeConverter } from './convert.ts';
+import { TypeConverter, type SharedTypes } from './convert.ts';
 import { LibraryTypes } from './library.ts';
 
 // Types of imports that are not `.mango` modules: npm packages, `node:` modules and `.ts` files.
@@ -23,6 +23,8 @@ export class DeclarationImporter {
   private program: TS.Program | undefined;
   private stale = true;
   private converter: TypeConverter | undefined;
+  /** Types of lib files and packages, shared by the converters of every program. */
+  private readonly shared: SharedTypes = new Map();
   private libraryTypes: LibraryTypes | undefined;
   private readonly results = new Map<string, ImportResult>();
 
@@ -138,7 +140,7 @@ export class DeclarationImporter {
         options,
         ...(this.program ? { oldProgram: this.program } : {}),
       });
-      this.converter = new TypeConverter(ts, this.program);
+      this.converter = new TypeConverter(ts, this.program, this.shared);
       this.libraryTypes = new LibraryTypes(ts, this.program, this.converter);
       this.stale = false;
     }
