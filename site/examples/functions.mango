@@ -1,0 +1,14 @@
+// Several parameters of the same type and several results
+func divmod(a, b number) (number, number) {
+    return Math.floor(a / b), a % b
+}
+
+const q, r = divmod(17, 5)
+console.log(`17 = 5 × ${q} + ${r}`)
+
+// A function literal and an arrow function
+const square = func(x number) number {
+    return x * x
+}
+const doubled = [1, 2, 3].map(x => x * 2)
+console.log(square(4), doubled)

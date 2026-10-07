@@ -1,0 +1,62 @@
+// The language of the page. Each page has its own entry module: en/main.mango for index.html and
+// ru/main.mango for ru/index.html. It sets the texts and the examples of its language before the
+// page is drawn, and the shared code (app, example, playground, sandbox) reads them here.
+
+export const REPOSITORY = "https://github.com/QWERN-9876r/MangoScript"
+
+/** A section of the guide: its anchor, its title in the menu and its content. */
+export interface Section {
+    id string
+    title string
+    content func() Node
+}
+
+/** Texts of the page around the guide itself. */
+export interface Strings {
+    tagline string
+    /** The name of the GitHub link when only its icon is shown. */
+    repository string
+    sections string
+    playground string
+    playgroundIntro string
+    footer string
+    footerLink string
+    /** The link to the same page in the other language, and its name. */
+    otherLanguage string
+    otherLanguageCode string
+    otherHref string
+    /** The name of the playground's text area. */
+    editor string
+    run string
+    openInPlayground string
+    reset string
+    /** `line 3, column 5`, before a compile error. */
+    position func(number, number) string
+    noImports string
+    exception string
+    emptyConsole string
+    emptyPreview string
+    /** The program the playground starts with. */
+    playgroundStart string
+}
+
+let strings ?Strings = null
+let examples any = null
+
+export func setLanguage(text Strings, code any) {
+    strings = text
+    examples = code
+}
+
+/** The texts of the current language. */
+export func text() Strings {
+    if strings == null {
+        throw error("setLanguage() was not called before the page was drawn")
+    }
+    return strings
+}
+
+/** The code of an example in site/examples (or site/examples/ru) by its file name. */
+export func exampleCode(name string) string {
+    return examples[name]
+}

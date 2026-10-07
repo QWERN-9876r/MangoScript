@@ -19,26 +19,48 @@ describe('documentation site', () => {
     expect(result.outputs.map((output) => output.output.slice(outDir.length + 1)).sort()).toEqual([
       'server.js',
       'src/app.js',
+      'src/en/guide.js',
+      'src/en/main.js',
+      'src/en/strings.js',
       'src/example.js',
-      'src/guide.js',
       'src/highlight.js',
+      'src/i18n.js',
       'src/playground.js',
+      'src/ru/guide.js',
+      'src/ru/main.js',
+      'src/ru/strings.js',
       'src/sandbox.js',
     ]);
   });
 
-  const examples = readdirSync(site('examples')).filter((name) => name.endsWith('.mango'));
+  // English examples are in site/examples, Russian ones in site/examples/ru.
+  const languages = [
+    { language: 'en', examples: 'examples', guide: 'src/en/guide.mango' },
+    { language: 'ru', examples: 'examples/ru', guide: 'src/ru/guide.mango' },
+  ];
+  const examplesOf = (dir: string) =>
+    readdirSync(site(dir)).filter((name) => name.endsWith('.mango'));
+  const all = languages.flatMap(({ examples }) =>
+    examplesOf(examples).map((name) => `${examples}/${name}`),
+  );
 
-  it.each(examples)('compiles the example %s in the browser compiler', (name) => {
-    const result = compile(readFileSync(site(`examples/${name}`), 'utf8'));
+  it.each(all)('compiles the example %s in the browser compiler', (path) => {
+    const result = compile(readFileSync(site(path), 'utf8'));
     expect(result.diagnostics).toEqual([]);
     expect(result.code).not.toBe('');
   });
 
-  it('uses every example and only existing ones', () => {
-    const guide = readFileSync(site('src/guide.mango'), 'utf8');
+  it.each(languages)('uses every $language example and only existing ones', (language) => {
+    const guide = readFileSync(site(language.guide), 'utf8');
     const used = [...guide.matchAll(/example\("([^"]+)"\)/g)].map((match) => `${match[1]}.mango`);
-    expect(used.sort()).toEqual([...examples].sort());
+    expect(used.sort()).toEqual(examplesOf(language.examples).sort());
+  });
+
+  it('has every example and section in both languages', () => {
+    expect(examplesOf('examples/ru').sort()).toEqual(examplesOf('examples').sort());
+    const sections = (path: string) =>
+      [...readFileSync(site(path), 'utf8').matchAll(/\{ id: "([^"]+)"/g)].map((match) => match[1]);
+    expect(sections('src/ru/guide.mango')).toEqual(sections('src/en/guide.mango'));
   });
 
   it('reports errors with lines and columns', () => {

@@ -2328,7 +2328,7 @@ class Checker {
     }
   }
 
-  /** `<Card title="Профиль">...</Card>`: properties are checked like the arguments of a call. */
+  /** `<Card title="Profile">...</Card>`: properties are checked like the arguments of a call. */
   private checkComponentUse(node: ast.ElementExpression, tag: ast.Identifier): Type {
     const binding = this.lookupValue(tag.name);
     const info = binding?.component;

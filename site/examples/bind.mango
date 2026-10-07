@@ -1,0 +1,12 @@
+// bind: binds an input to state both ways
+comp Greeting() {
+    state name = ""
+    state loud = false
+    return <div>
+        <input bind:value={name} placeholder="Your name" />
+        <label><input type="checkbox" bind:checked={loud} /> loud</label>
+        <p>Hello, {name == "" ? "stranger" : name}{loud ? "!!!" : "."}</p>
+    </div>
+}
+
+document.body.append(<Greeting />)

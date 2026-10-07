@@ -1,9 +1,9 @@
-// Статический сервер для сайта документации, тоже на MangoScript. Отдаёт сборку Vite из site/dist.
-// Запуск из корня репозитория:
+// A static server for the documentation site, in MangoScript too. It serves the Vite build from
+// site/dist. Run it from the root of the repository:
 //   npm run site
-// Для разработки удобнее npm run site:dev — сервер Vite сам перекомпилирует изменённые файлы.
+// For development, npm run site:dev is handier: the Vite server recompiles changed files itself.
 
-// Типы node:-модулей компилятор берёт из @types/node.
+// The compiler takes the types of node: modules from @types/node.
 import { Buffer } from "node:buffer"
 import { readFileSync } from "node:fs"
 import { createServer, IncomingMessage, ServerResponse } from "node:http"
@@ -27,7 +27,7 @@ func contentType(path string) string {
     }
 }
 
-// Путь к файлу для URL запроса; ошибка, если URL испорчен или выходит за пределы сайта.
+// The file path for the URL of a request; an error if the URL is malformed or leaves the site.
 func resolvePath(url string) (string, error) {
     let pathname = url.split("?")[0]
     if pathname.endsWith("/") {
@@ -46,7 +46,7 @@ func resolvePath(url string) (string, error) {
     return path, null
 }
 
-// readFileSync бросает исключение, если файла нет, — превращаем его в ошибку-значение.
+// readFileSync throws if there is no file; turn that into an error value.
 func readStatic(path string) (?Buffer, error) {
     try {
         return readFileSync(path), null
@@ -55,9 +55,9 @@ func readStatic(path string) (?Buffer, error) {
     }
 }
 
-// В именах файлов из assets/ Vite пишет хеш содержимого: новая версия — новое имя, поэтому их
-// можно кешировать навсегда. Остальное (index.html) — no-cache: после пересборки браузер сразу
-// получит новую страницу.
+// Vite puts a hash of the content into the names of the files in assets/: a new version gets a new
+// name, so they can be cached forever. The rest (index.html) is no-cache: after a rebuild the
+// browser gets the new page right away.
 func cacheControl(path string) string {
     if path.startsWith(ROOT + sep + "assets" + sep) {
         return "public, max-age=31536000, immutable"
@@ -72,7 +72,7 @@ func send(response ServerResponse, status number, mime string, body string | Buf
 
 func handle(request IncomingMessage, response ServerResponse) {
     const started = Date.now()
-    // Блок выполнится при выходе из функции, когда ответ уже отправлен.
+    // The block runs when the function exits, after the response is sent.
     defer {
         const time = Date.now() - started
         console.log(`${request.method} ${request.url} → ${response.statusCode} (${time} ms)`)

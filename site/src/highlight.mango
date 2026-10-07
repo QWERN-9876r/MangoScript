@@ -1,11 +1,11 @@
-// Подсветка кода лексером самого компилятора: токены MangoScript размечаются так же, как их
-// видит компилятор. Сгенерированный JS тоже размечается этим лексером, но со своими ключевыми
-// словами: синтаксис у них почти общий.
+// Code highlighting with the compiler's own lexer: MangoScript tokens are marked as the compiler
+// sees them. The generated JS is marked by the same lexer too, with its own keywords: the syntax is
+// almost the same.
 
 import { tokenize, KEYWORDS } from "../../src/browser.ts"
 
-// В компиляторе KEYWORDS — массив литеральных типов ("func" | "comp" | ...), а сравниваем мы
-// с произвольными строками.
+// In the compiler, KEYWORDS is an array of literal types ("func" | "comp" | ...), and here it is
+// compared with any strings.
 const MANGO_KEYWORDS []string = [...KEYWORDS]
 
 const MANGO_TYPES = ["number", "string", "bool", "any", "error", "void", "Content"]
@@ -19,7 +19,7 @@ const JS_KEYWORDS = [
 
 const LITERALS = ["true", "false", "null", "undefined"]
 
-// Между токенами — пробелы и комментарии; split с группой оставляет комментарии в результате.
+// Between tokens are spaces and comments; split with a group keeps the comments in the result.
 const COMMENT = new RegExp("(//[^\\n]*|/\\*[\\s\\S]*?\\*/)")
 
 export func highlight(code string, language string) DocumentFragment {
@@ -33,7 +33,7 @@ export func highlight(code string, language string) DocumentFragment {
     }
     let pos = 0
     for i, token in tokens {
-        // Точки с запятой, которые вставил лексер, и конец файла не занимают места в тексте.
+        // Semicolons inserted by the lexer and the end of the file take no room in the text.
         if token.text == "" {
             continue
         }
@@ -71,7 +71,7 @@ func tokenClass(tokens any, i number, language string) string {
     const token = tokens[i]
     const kind string = token.kind
     const text string = token.text
-    // После точки любое имя — свойство, даже если совпадает с ключевым словом: event.type
+    // After a dot, any name is a property, even if it is a keyword: event.type
     if i > 0 && (tokens[i - 1].kind == "." || tokens[i - 1].kind == "?.") {
         return tokens[i + 1].kind == "(" ? "fn" : ""
     }
@@ -114,7 +114,7 @@ func identifierClass(text string, next string, language string) string {
         if MANGO_TYPES.includes(text) {
             return "type"
         }
-        // state и mount — ключевые слова только в начале объявления: state count = 0, mount() { }
+        // state and mount are keywords only at the start of a declaration: state count = 0, mount() { }
         if text == "state" && next == "Identifier" || text == "mount" && next == "(" {
             return "kw"
         }

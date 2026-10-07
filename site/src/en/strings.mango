@@ -1,0 +1,43 @@
+// Texts of the English page around the guide.
+
+import { Strings } from "../i18n.mango"
+
+export const STRINGS Strings = {
+    tagline: "JavaScript with Go syntax, types and components",
+    repository: "GitHub repository",
+    sections: "Sections",
+    playground: "Playground",
+    playgroundIntro: "Write code in the editor: the JavaScript it compiles to, or the compile errors, appear right below it. The \"Open in playground\" button of any example above opens it here.",
+    footer: "This page is written in MangoScript and built by the compiler from the",
+    footerLink: "GitHub repository",
+    otherLanguage: "Русский",
+    otherLanguageCode: "ru",
+    otherHref: "ru/",
+    editor: "MangoScript code",
+    run: "▶ Run",
+    openInPlayground: "Open in playground",
+    reset: "Reset",
+    position: (line, column) => `line ${line}, column ${column}`,
+    noImports: "Imports do not work in the playground: there are no modules here but the program itself.",
+    exception: "Exception",
+    emptyConsole: "The program printed nothing to the console.",
+    emptyPreview: "The program added nothing to the page.",
+    playgroundStart: `// The code compiles on every change. "Run" runs it:
+// document.body is the result area, and console.log prints below it.
+
+comp Fruit(name string, price number) {
+    state count = 0
+    return <li>
+        {name}: {count} × €{price} = €{count * price}
+        <button onClick={count++}>+</button>
+    </li>
+}
+
+const fruits = [
+    { name: "Mango", price: 3 },
+    { name: "Lychee", price: 7 },
+]
+
+document.body.append(<ul>{for fruit in fruits { <Fruit {...fruit} /> }}</ul>)
+console.log("Fruits:", fruits.length)`,
+}

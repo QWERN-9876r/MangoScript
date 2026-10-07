@@ -1,0 +1,29 @@
+const fruits = ["mango", "papaya", "lychee"]
+
+// for x in xs gives values, for i, x in xs gives indexes and values
+for i, fruit in fruits {
+    console.log(i + 1, fruit)
+}
+
+// There is one loop, for: it is also while and the loop with three parts
+let left = 3
+for left > 0 {
+    left--
+}
+for let i = 0; i < 2; i++ {
+    console.log("step", i)
+}
+
+// switch has no break; without an expression it works like a chain of ifs
+func grade(score number) string {
+    switch {
+    case score >= 90:
+        return "excellent"
+    case score >= 60:
+        return "pass"
+    default:
+        return "fail"
+    }
+}
+
+console.log(grade(95), grade(70), grade(10))

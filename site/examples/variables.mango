@@ -1,0 +1,9 @@
+let count number           // without a value, the zero value of the type: 0
+let title = "Mango"        // the type is inferred from the value: string
+const prices []number = [120, 90, 250]
+
+let a, b = 1, 2
+a, b = b, a                // swap the values
+
+count += prices.length
+console.log(count, title, a, b)

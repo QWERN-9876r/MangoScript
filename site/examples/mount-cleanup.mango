@@ -1,0 +1,26 @@
+// mount() runs once the component's markup is on the page. The function it returns
+// runs when {if} removes the component, so the timer does not keep running for nothing
+comp Clock() {
+    state time = new Date().toLocaleTimeString()
+
+    mount() {
+        const timer = setInterval(() => {
+            time = new Date().toLocaleTimeString()
+        }, 1000)
+        return () => clearInterval(timer)
+    }
+
+    return <p class="card">It is {time}</p>
+}
+
+comp App() {
+    state shown = true
+    return <div>
+        <button onClick={shown = !shown}>{shown ? "Hide the clock" : "Show the clock"}</button>
+        {if shown {
+            <Clock />
+        }}
+    </div>
+}
+
+document.body.append(<App />)

@@ -1,17 +1,19 @@
-// Пример кода в руководстве: сам код, сгенерированный из него JS и результат запуска. Код лежит
-// в site/examples/<name>.mango — так тесты проверяют, что все примеры компилируются. В страницу
-// он попадает при сборке (virtual:examples в vite.config.ts), поэтому пример сразу нужной высоты.
+// An example in the guide: its code, the JS generated from it and the result of running it. The
+// code is in site/examples/<name>.mango (site/examples/ru for Russian), so tests check that every
+// example compiles. It gets into the page at build time (virtual:examples in vite.config.ts), so
+// the example has its full height when the page is first drawn.
 
-import { EXAMPLES } from "virtual:examples"
+import { exampleCode, text } from "./i18n.mango"
 import { highlight } from "./highlight.mango"
 import { openInPlayground } from "./playground.mango"
 import { compiledView, consoleView, runProgram } from "./sandbox.mango"
 
 comp Example(name string) {
-    const code string = EXAMPLES[name]
+    const t = text()
+    const code = exampleCode(name)
     state tab = "code"
     state lines []string = []
-    const preview = <div class="preview" />
+    const preview = <div class="preview" data-empty={t.emptyPreview} />
 
     func run() {
         runProgram(code, preview, output => {
@@ -25,9 +27,9 @@ comp Example(name string) {
             <button class={tab == "code" ? "tab active" : "tab"} onClick={tab = "code"}>MangoScript</button>
             <button class={tab == "js" ? "tab active" : "tab"} onClick={tab = "js"}>JavaScript</button>
             {if !code.includes("import ") {
-                <button class={tab == "result" ? "tab active" : "tab"} onClick={run()}>▶ Запустить</button>
+                <button class={tab == "result" ? "tab active" : "tab"} onClick={run()}>{t.run}</button>
             }}
-            <button class="tab open" onClick={openInPlayground(code)}>В песочницу</button>
+            <button class="tab open" onClick={openInPlayground(code)}>{t.openInPlayground}</button>
         </div>
         {switch tab {
         case "code":

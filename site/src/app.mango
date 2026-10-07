@@ -1,8 +1,8 @@
-// Страница документации MangoScript. Она сама написана на MangoScript: разделы руководства — в
-// guide.mango, примеры с вкладками «JavaScript» и «Запустить» — в example.mango, песочница — в
-// playground.mango. Компилятор работает прямо в браузере.
+// The MangoScript documentation page, itself written in MangoScript: the guide of each language is
+// in en/guide.mango and ru/guide.mango, examples with the "JavaScript" and "Run" tabs are in
+// example.mango, the playground in playground.mango. The compiler runs right in the browser.
 
-import { REPOSITORY, SECTIONS } from "./guide.mango"
+import { REPOSITORY, Section, text } from "./i18n.mango"
 import { playground } from "./playground.mango"
 
 interface Link {
@@ -10,25 +10,31 @@ interface Link {
     title string
 }
 
-const NAV []Link = [...SECTIONS, { id: "playground", title: "Песочница" }]
+comp DocsPage(sections []Section) {
+    const t = text()
+    const nav []Link = [...sections, { id: "playground", title: t.playground }]
+    state active = nav[0].id
 
-comp DocsPage() {
-    state active = NAV[0].id
-
-    // В меню выделен раздел, заголовок которого последним ушёл за верх экрана, а в самом низу
-    // страницы — последний раздел.
+    // The menu highlights the section whose title was the last to go above the top of the screen,
+    // and the last section at the very bottom of the page.
     func updateActive() {
-        let current = NAV[0].id
-        for link in NAV {
+        let current = nav[0].id
+        for link in nav {
             const element = document.getElementById(link.id)
             if element != null && element.getBoundingClientRect().top < 120 {
                 current = link.id
             }
         }
         if window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2 {
-            current = NAV[NAV.length - 1].id
+            current = nav[nav.length - 1].id
         }
         active = current
+    }
+
+    // The other language opens at the same section.
+    func switchLanguage(event Event) {
+        event.preventDefault()
+        location.assign(t.otherHref + location.hash)
     }
 
     window.addEventListener("scroll", updateActive, { passive: true })
@@ -37,43 +43,51 @@ comp DocsPage() {
     return <>
         <header class="topbar">
             <a class="brand" href="#intro"><span aria-hidden="true">🥭</span> MangoScript</a>
-            <span class="tagline">JavaScript с синтаксисом Go, типами и компонентами</span>
+            <span class="tagline">{t.tagline}</span>
             <div class="topbar-links">
-                <a class="github-link" href={REPOSITORY} aria-label="Репозиторий на GitHub">
+                <a
+                    class="language-link"
+                    href={t.otherHref}
+                    hreflang={t.otherLanguageCode}
+                    lang={t.otherLanguageCode}
+                    onClick={switchLanguage(event)}
+                >
+                    <span class="language-name">{t.otherLanguage}</span>
+                    <span class="language-code">{t.otherLanguageCode.toUpperCase()}</span>
+                </a>
+                <a class="github-link" href={REPOSITORY} aria-label={t.repository}>
                     <span>GitHub</span>
                 </a>
-                <a class="topbar-link" href="#playground">Песочница</a>
+                <a class="topbar-link" href="#playground">{t.playground}</a>
             </div>
         </header>
         <div class="layout">
-            <nav class="sidebar" aria-label="Разделы">
-                {for link in NAV {
+            <nav class="sidebar" aria-label={t.sections}>
+                {for link in nav {
                     <a href={`#${link.id}`} class={link.id == active ? "active" : ""}>{link.title}</a>
                 }}
             </nav>
             <main class="content">
-                {for section in SECTIONS {
+                {for section in sections {
                     <section id={section.id} class="doc-section">
                         <h2>{section.title}</h2>
                         {section.content()}
                     </section>
                 }}
                 <section id="playground" class="doc-section">
-                    <h2>Песочница</h2>
-                    <p>
-                        Пишите код в редакторе — под ним сразу появится JavaScript, который из него
-                        получился, или ошибки компиляции. Кнопка «В песочницу» в любом примере выше
-                        открывает его здесь.
-                    </p>
+                    <h2>{t.playground}</h2>
+                    <p>{t.playgroundIntro}</p>
                     {playground()}
                 </section>
                 <footer class="footer">
-                    Эта страница написана на MangoScript и собрана компилятором из
-                    {" "}<a href={REPOSITORY}>репозитория на GitHub</a>.
+                    {t.footer}{" "}<a href={REPOSITORY}>{t.footerLink}</a>.
                 </footer>
             </main>
         </div>
     </>
 }
 
-document.body.append(<DocsPage />)
+/** Draws the page; the entry module of the language calls it after setLanguage(). */
+export func renderPage(sections []Section) {
+    document.body.append(<DocsPage sections={sections} />)
+}

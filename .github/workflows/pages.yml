@@ -1,5 +1,5 @@
-# Проверяет компилятор и выкладывает сайт с документацией (site/) на GitHub Pages при каждом
-# пуше в main. В настройках репозитория: Settings → Pages → Source: GitHub Actions.
+# Checks the compiler and deploys the documentation site (site/) to GitHub Pages on every push to
+# main. In the repository settings: Settings → Pages → Source: GitHub Actions.
 name: Pages
 
 on:
@@ -12,7 +12,7 @@ permissions:
   pages: write
   id-token: write
 
-# Одна выкладка за раз; начатая доходит до конца.
+# One deployment at a time; a started one runs to the end.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -27,7 +27,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # Типы, линт, формат и тесты: сайт выкладывается, только если всё проходит.
+      # Types, lint, format and tests: the site is deployed only if all of them pass.
       - run: npm run check
       - run: npm run site:build
       - uses: actions/configure-pages@v6

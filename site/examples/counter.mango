@@ -1,0 +1,8 @@
+// state is a variable that the markup depends on. After count++ the compiler
+// updates the button's text by itself: no virtual DOM and no library
+comp Counter(start number) {
+    state count = start
+    return <button onClick={count++}>Clicked {count} times</button>
+}
+
+document.body.append(<Counter start={0} />)

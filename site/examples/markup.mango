@@ -1,0 +1,10 @@
+// Markup is an expression that creates a real DOM element
+const name = "MangoScript"
+const link = <a href="#markup">Hello, {name}!</a>
+
+// on* holds code that runs on the event, not when the element is created
+let clicks = 0
+const counter = <b>0</b>
+const button = <button onClick={clicks++; counter.textContent = String(clicks)}>Click</button>
+
+document.body.append(link, <p>{button} Clicks: {counter}</p>)

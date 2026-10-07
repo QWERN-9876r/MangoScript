@@ -1,0 +1,13 @@
+// A component exists only at compile time: every use is replaced
+// by its code, so JS has neither a Card function nor a library
+comp Card(title string, kind string = "info", children Content) {
+    return <section class={`card ${kind}`}>
+        <h4>{title}</h4>
+        {children}
+    </section>
+}
+
+document.body.append(
+    <Card title="Mango">A sweet tropical fruit.</Card>,
+    <Card title="Careful" kind="warning">The stone is not edible.</Card>,
+)

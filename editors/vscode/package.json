@@ -1,7 +1,7 @@
 {
   "name": "mangoscript",
   "displayName": "MangoScript",
-  "description": "Подсветка синтаксиса MangoScript: код, типы и разметка",
+  "description": "MangoScript syntax highlighting: code, types and markup",
   "version": "0.0.1",
   "publisher": "mangoscript",
   "license": "MIT",

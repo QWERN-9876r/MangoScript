@@ -1,0 +1,6 @@
+// Functions are declared with func, and the type goes after the name, as in Go
+func greet(name string) string {
+    return `Hello, ${name}!`
+}
+
+console.log(greet("MangoScript"))

@@ -72,7 +72,7 @@ a {
   color: var(--accent);
 }
 
-/* ── Верхняя панель и меню ─────────────────────────────────────────────────────────────── */
+/* ── Top bar and menu ────────────────────────────────────────────────────────────────────────── */
 
 .topbar {
   position: sticky;
@@ -93,6 +93,7 @@ a {
   font-weight: 700;
   color: var(--text);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .tagline {
@@ -107,7 +108,24 @@ a {
   margin-left: auto;
 }
 
-/* Значок — маска из SVG (Octicons, mark-github): он берёт цвет текста, в том числе в тёмной теме. */
+/* The same page in the other language. */
+.language-link {
+  padding: 6px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.language-link:hover {
+  color: var(--text);
+}
+
+.language-code {
+  display: none;
+}
+
+/* The icon is an SVG mask (Octicons, mark-github): it takes the text color, also in the dark theme. */
 .github-link {
   display: inline-flex;
   align-items: center;
@@ -179,7 +197,7 @@ a {
   font-weight: 600;
 }
 
-/* ── Текст ────────────────────────────────────────────────────────────────────────────── */
+/* ── Text ────────────────────────────────────────────────────────────────────────────────────── */
 
 .content {
   padding: 28px 0 64px;
@@ -191,7 +209,7 @@ a {
   padding-bottom: 24px;
 }
 
-/* Последний раздел можно прокрутить к верху экрана: «В песочницу» показывает редактор целиком. */
+/* The last section can be scrolled to the top of the screen: "Open in playground" shows the whole editor. */
 #playground {
   min-height: calc(100vh - var(--topbar));
 }
@@ -243,7 +261,7 @@ th {
   font-size: 0.9rem;
 }
 
-/* ── Код и подсветка ──────────────────────────────────────────────────────────────────── */
+/* ── Code and highlighting ───────────────────────────────────────────────────────────────────── */
 
 pre.code,
 .console,
@@ -292,7 +310,7 @@ pre.code {
   color: var(--hl-attr);
 }
 
-/* ── Примеры ──────────────────────────────────────────────────────────────────────────── */
+/* ── Examples ────────────────────────────────────────────────────────────────────────────────── */
 
 .example {
   margin: 20px 0;
@@ -372,7 +390,7 @@ pre.code {
   font-size: 0.9rem;
 }
 
-/* Область результата: сюда программа добавляет элементы через document.body. */
+/* The result area: the program adds elements here through document.body. */
 .preview {
   padding: 14px;
   border: 1px dashed var(--line);
@@ -381,7 +399,7 @@ pre.code {
 }
 
 .preview:empty::before {
-  content: 'Программа ничего не добавила на страницу.';
+  content: attr(data-empty);
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -416,9 +434,9 @@ pre.code {
   margin: 0 0 4px;
 }
 
-/* ── Песочница ────────────────────────────────────────────────────────────────────────── */
+/* ── Playground ──────────────────────────────────────────────────────────────────────────────── */
 
-/* Редактор и вывод друг под другом: в колонке текста рядом им не хватило бы ширины. */
+/* The editor and the output one under the other: side by side in the text column they would be too narrow. */
 .playground {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -426,7 +444,7 @@ pre.code {
   margin-top: 16px;
 }
 
-/* Поле ввода с прозрачным текстом лежит поверх <pre> с подсветкой того же кода. */
+/* The text area with transparent text lies over a <pre> with the same code highlighted. */
 .editor {
   display: grid;
   grid-template-columns: minmax(100%, max-content);
@@ -477,7 +495,7 @@ pre.code {
   border-radius: 0;
 }
 
-/* ── Узкие экраны ─────────────────────────────────────────────────────────────────────── */
+/* ── Narrow screens ──────────────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
   .layout {
@@ -506,14 +524,20 @@ pre.code {
   }
 }
 
-/* На узком экране у ссылки на GitHub остаётся только значок; название — в aria-label. */
+/* On a narrow screen the GitHub link keeps only its icon (its name is in aria-label), and the
+   language link only the code of the language. */
 @media (max-width: 480px) {
   .github-link {
     padding: 6px;
   }
 
-  .github-link span {
+  .github-link span,
+  .language-name {
     display: none;
+  }
+
+  .language-code {
+    display: inline;
   }
 }
 

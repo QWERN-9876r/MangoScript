@@ -1,0 +1,27 @@
+// A union type: a value of one of the types. Literal types catch typos in strings
+type Filter "all" | "active" | "done"
+
+func label(filter Filter) string {
+    switch filter {
+    case "active":
+        return "active"
+    case "done":
+        return "done"
+    default:
+        return "everything"   // here filter can only be "all"
+    }
+}
+
+// typeof and instanceof narrow a union: in each branch the type is more precise
+func show(value string | number | []string) string {
+    if typeof value == "string" {
+        return value.toUpperCase()
+    }
+    if typeof value == "number" {
+        return value.toFixed(2)
+    }
+    return value.join(", ")    // only []string is left
+}
+
+console.log(label("done"), show("mango"), show(3), show(["lychee", "papaya"]))
+// label("dne") is a compile error: Filter has no such value

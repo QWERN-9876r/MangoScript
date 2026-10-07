@@ -541,7 +541,7 @@ export interface IndexExpression extends NodeBase {
 
 // ─── Markup ──────────────────────────────────────────────────────────────────────────────────────
 
-/** `<a href="/">Ссылка {name}</a>`: creates a DOM element. `tag` is `null` for a fragment `<>...</>`. */
+/** `<a href="/">Link {name}</a>`: creates a DOM element. `tag` is `null` for a fragment `<>...</>`. */
 export interface ElementExpression extends NodeBase {
   kind: 'ElementExpression';
   /** The tag name as written: `div`, `my-widget`. */

@@ -1,0 +1,43 @@
+// Texts of the Russian page around the guide.
+
+import { Strings } from "../i18n.mango"
+
+export const STRINGS Strings = {
+    tagline: "JavaScript с синтаксисом Go, типами и компонентами",
+    repository: "Репозиторий на GitHub",
+    sections: "Разделы",
+    playground: "Песочница",
+    playgroundIntro: "Пишите код в редакторе — под ним сразу появится JavaScript, который из него получился, или ошибки компиляции. Кнопка «В песочницу» в любом примере выше открывает его здесь.",
+    footer: "Эта страница написана на MangoScript и собрана компилятором из",
+    footerLink: "репозитория на GitHub",
+    otherLanguage: "English",
+    otherLanguageCode: "en",
+    otherHref: "../",
+    editor: "Код на MangoScript",
+    run: "▶ Запустить",
+    openInPlayground: "В песочницу",
+    reset: "Сбросить",
+    position: (line, column) => `строка ${line}, столбец ${column}`,
+    noImports: "Импорты в песочнице не работают: здесь нет модулей, кроме самой программы.",
+    exception: "Исключение",
+    emptyConsole: "Программа ничего не вывела в консоль.",
+    emptyPreview: "Программа ничего не добавила на страницу.",
+    playgroundStart: `// Код компилируется при каждом изменении. «Запустить» выполнит его:
+// document.body — это область результата, а console.log выводит текст под ней.
+
+comp Fruit(name string, price number) {
+    state count = 0
+    return <li>
+        {name}: {count} × {price} ₽ = {count * price} ₽
+        <button onClick={count++}>+</button>
+    </li>
+}
+
+const fruits = [
+    { name: "Манго", price: 120 },
+    { name: "Личи", price: 300 },
+]
+
+document.body.append(<ul>{for fruit in fruits { <Fruit {...fruit} /> }}</ul>)
+console.log("Фруктов:", fruits.length)`,
+}

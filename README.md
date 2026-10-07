@@ -1,7 +1,9 @@
 # MangoScript
 
-Язык с семантикой JavaScript, синтаксисом в духе Go и статической типизацией. Компилируется в
-JavaScript (в планах — WebAssembly).
+**English** · [Русский](README.ru.md)
+
+A language with the semantics of JavaScript, Go-style syntax and static types. It compiles to
+JavaScript (WebAssembly is planned).
 
 ```go
 func divide(a, b number) (number, error) {
@@ -14,63 +16,71 @@ func divide(a, b number) (number, error) {
 const q, err = divide(10, 4)
 ```
 
-Спецификация: [docs/spec.md](docs/spec.md), пример: [examples/hello.mango](examples/hello.mango).
+The guide with examples and a playground: <https://qwern-9876r.github.io/MangoScript/>.
+Specification: [docs/spec.md](docs/spec.md), design of components:
+[docs/components.md](docs/components.md), an example: [examples/hello.mango](examples/hello.mango).
 
-## Требования
+## Requirements
 
-Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript, Node запускает `.ts`-файлы напрямую,
-поэтому отдельная сборка для разработки не нужна.
+Node.js ≥ 24 (`nvm use`). The compiler is written in TypeScript, and Node runs the `.ts` files
+directly, so development needs no build step.
 
-## Команды
+## Commands
 
-| Команда                              | Что делает                                                  |
-| ------------------------------------ | ----------------------------------------------------------- |
-| `npm run mango -- build file.mango`  | Скомпилировать в `file.js` вместе с импортируемыми `.mango` |
-| `npm run mango -- run file.mango`    | Скомпилировать и запустить                                  |
-| `npm run mango -- tokens file.mango` | Показать токены лексера                                     |
-| `npm run mango -- ast file.mango`    | Показать синтаксическое дерево                              |
-| `npm test` / `npm run test:watch`    | Тесты (Vitest)                                              |
-| `npm run typecheck`                  | Проверка типов                                              |
-| `npm run lint` / `npm run format`    | ESLint / Prettier                                           |
-| `npm run check`                      | Всё сразу — типы, линт, формат, тесты                       |
-| `npm run build`                      | Сборка в `dist/` (бинарь `mango`)                           |
-| `npm run vscode:install`             | Собрать и установить расширение для VS Code                 |
+| Command                              | What it does                                               |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `npm run mango -- build file.mango`  | Compile to `file.js`, with the `.mango` modules it imports |
+| `npm run mango -- run file.mango`    | Compile and run                                            |
+| `npm run mango -- tokens file.mango` | Show the lexer's tokens                                    |
+| `npm run mango -- ast file.mango`    | Show the syntax tree                                       |
+| `npm test` / `npm run test:watch`    | Tests (Vitest)                                             |
+| `npm run typecheck`                  | Type check                                                 |
+| `npm run lint` / `npm run format`    | ESLint / Prettier                                          |
+| `npm run check`                      | All at once: types, lint, format, tests                    |
+| `npm run build`                      | Build to `dist/` (the `mango` binary)                      |
+| `npm run vscode:install`             | Build and install the VS Code extension                    |
 
-Опции `build`: `--out-dir dir` — писать `.js` в отдельную папку, `--stdout` — вывести JS одного
-файла в консоль, `--no-check` — без проверки типов.
+Options of `build`: `--out-dir dir` writes the `.js` files to a separate folder, `--stdout` prints
+the JS of one file, `--no-check` skips type checking.
 
-## Подсветка в VS Code
+## Highlighting in VS Code
 
-В [editors/vscode/](editors/vscode/) лежит расширение с подсветкой синтаксиса `.mango`: код, типы
-и разметка. `npm run vscode:install` собирает его и устанавливает через `code`; подробности — в
+[editors/vscode/](editors/vscode/) has an extension that highlights `.mango` syntax: code, types and
+markup. `npm run vscode:install` builds it and installs it with `code`; see
 [editors/vscode/README.md](editors/vscode/README.md).
 
-## Сайт с документацией
+## Documentation site
 
-В [site/](site/) лежит руководство по MangoScript. И страница, и сервер написаны на MangoScript, а
-компилятор работает прямо в браузере: у каждого примера есть вкладка с JavaScript, который из него
-получается, и кнопка запуска, а внизу страницы — песочница.
+[site/](site/) holds the MangoScript guide in English (`index.html`) and Russian
+(`ru/index.html`). Both the page and its server are written in MangoScript, and the compiler runs
+right in the browser: every example has a tab with the JavaScript it compiles to and a run button,
+and the bottom of the page has a playground.
 
-- [site/src/guide.mango](site/src/guide.mango) — текст разделов;
-- [site/examples/](site/examples/) — примеры кода; тесты проверяют, что все они компилируются;
-- [site/src/example.mango](site/src/example.mango) и
-  [site/src/playground.mango](site/src/playground.mango) — пример с вкладками и песочница,
-  компоненты со `state`, `bind:` и `{if}` / `{for}`;
-- [site/src/highlight.mango](site/src/highlight.mango) — подсветка кода лексером компилятора;
-- [site/server.mango](site/server.mango) — статический сервер на `node:http` с логом через `defer`.
+- [site/src/en/guide.mango](site/src/en/guide.mango) and
+  [site/src/ru/guide.mango](site/src/ru/guide.mango): the text of the sections in each language;
+- [site/examples/](site/examples/) and [site/examples/ru/](site/examples/ru/): the examples; tests
+  check that they all compile and that each has a translation;
+- [site/src/i18n.mango](site/src/i18n.mango): the language of the page and the texts around the
+  guide;
+- [site/src/example.mango](site/src/example.mango) and
+  [site/src/playground.mango](site/src/playground.mango): the example with tabs and the playground,
+  components with `state`, `bind:` and `{if}` / `{for}`;
+- [site/src/highlight.mango](site/src/highlight.mango): code highlighting with the compiler's lexer;
+- [site/server.mango](site/server.mango): a static server on `node:http` with a log through `defer`.
 
-Сайт собирает Vite ([vite.config.ts](vite.config.ts)): `.mango`-модули компилирует плагин
-[src/vite.ts](src/vite.ts) с проверкой типов, компилятор для песочницы берётся прямо из
-[src/browser.ts](src/browser.ts), а код примеров попадает в бандл из модуля `virtual:examples`.
+Vite builds the site ([vite.config.ts](vite.config.ts)): the plugin [src/vite.ts](src/vite.ts)
+compiles `.mango` modules with type checking, the playground's compiler comes straight from
+[src/browser.ts](src/browser.ts), and the code of the examples gets into the bundle from the
+`virtual:examples/en` and `virtual:examples/ru` modules.
 
 ```sh
-npm run site:dev    # сервер разработки Vite: изменения видны сразу
-npm run site        # собирает сайт в site/dist и запускает site/server.mango на http://localhost:3000
+npm run site:dev    # the Vite dev server: changes show up right away
+npm run site        # builds the site to site/dist and runs site/server.mango at http://localhost:3000
 ```
 
 ## Vite
 
-Плагин из [src/vite.ts](src/vite.ts) подключает MangoScript к любому проекту на Vite:
+The plugin from [src/vite.ts](src/vite.ts) adds MangoScript to any Vite project:
 
 ```ts
 import { defineConfig } from 'vite';
@@ -79,10 +89,12 @@ import { mango } from './src/vite.ts';
 export default defineConfig({ plugins: [mango()] });
 ```
 
-После этого `.mango`-файлы можно импортировать из JS, TS и других `.mango`-модулей. Ошибки типов
-останавливают сборку, а в режиме разработки показываются поверх страницы.
+Then `.mango` files can be imported from JS, TS and other `.mango` modules. Type errors stop the
+build, and in development they show up over the page.
 
-## Соглашения
+## Conventions
 
-- Импорты пишутся с расширением `.ts` (`import { x } from './lexer.ts'`).
-- Только «стираемый» синтаксис TS: вместо `enum` — union-типы строк или `as const`-объекты.
+- Imports are written with the `.ts` extension (`import { x } from './lexer.ts'`).
+- Only erasable TS syntax: instead of `enum`, unions of strings or `as const` objects.
+- Text for people is written in English first (README, docs, the site, examples, comments); the
+  Russian versions are next to it: `README.ru.md`, `docs/*.ru.md`, `site/examples/ru/`.

@@ -1,0 +1,22 @@
+// defer runs a call when the function exits, even after return or an exception
+func report(title string) {
+    console.log("start:", title)
+    defer console.log("end:", title)
+    console.log("working…")
+}
+
+report("report")
+
+// try / catch catches exceptions from JS code
+func parseJson(text string) (any, error) {
+    try {
+        return JSON.parse(text), null
+    } catch e {
+        return null, error(e.message)
+    }
+}
+
+const _, err = parseJson("{ not json }")
+if err != null {
+    console.log("could not parse:", err.message)
+}

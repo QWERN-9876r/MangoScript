@@ -1,0 +1,17 @@
+// An error is the second result, as in Go
+func parseAge(text string) (number, error) {
+    const age = Number(text)
+    if isNaN(age) || age < 0 {
+        return 0, error(`"${text}" is not an age`)
+    }
+    return age, null
+}
+
+for text in ["42", "forty-two"] {
+    const age, err = parseAge(text)
+    if err != null {
+        console.log("error:", err.message)
+        continue
+    }
+    console.log("age:", age)
+}

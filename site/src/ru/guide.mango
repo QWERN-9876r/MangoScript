@@ -1,15 +1,8 @@
-// Текст руководства. Каждый раздел — функция, которая возвращает его разметку; примеры кода
-// лежат отдельными файлами в site/examples.
+// The Russian guide; the English one, en/guide.mango, has the same sections. Each section is a
+// function that returns its markup; the examples are files in site/examples/ru.
 
-import { example } from "./example.mango"
-
-export const REPOSITORY = "https://github.com/QWERN-9876r/MangoScript"
-
-export interface Section {
-    id string
-    title string
-    content func() Node
-}
+import { example } from "../example.mango"
+import { REPOSITORY, Section } from "../i18n.mango"
 
 export const SECTIONS []Section = [
     { id: "intro", title: "Что такое MangoScript", content: intro },
@@ -365,8 +358,8 @@ func tools() Node {
         </p>
         <pre class="code">{COMMANDS}</pre>
         <p>
-            Спецификация языка с обоснованиями решений — в <code>docs/spec.md</code>, концепция
-            компонентов — в <code>docs/components.md</code>. Эта страница тоже написана на
+            Спецификация языка с обоснованиями решений — в <code>docs/spec.ru.md</code>, концепция
+            компонентов — в <code>docs/components.ru.md</code>. Эта страница тоже написана на
             MangoScript: её код — в <code>site/src</code>, а сервер — <code>site/server.mango</code>.
         </p>
         <p>

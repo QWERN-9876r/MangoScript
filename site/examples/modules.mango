@@ -1,0 +1,18 @@
+// Types of node:fs come from @types/node; in the playground, without TypeScript, it is any
+import { readFileSync } from "node:fs"
+
+// Imports of .mango modules are checked: the compiler reads their exports
+// import { Todo, parseTitle } from "./todos.mango"
+
+export interface Config {
+    name string
+    port number
+}
+
+export func loadConfig(path string) (Config, error) {
+    try {
+        return JSON.parse(readFileSync(path, "utf8")), null
+    } catch {
+        return { name: "", port: 0 }, error(`could not read ${path}`)
+    }
+}

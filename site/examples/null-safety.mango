@@ -1,0 +1,14 @@
+interface Todo {
+    title string
+    done bool
+}
+
+const todos []Todo = [{ title: "Buy mangoes", done: false }]
+
+// find returns ?Todo: there may be no such task
+const todo = todos.find(t => t.title == "Buy mangoes")
+
+// console.log(todo.done) is a compile error: todo may be null
+if todo != null {
+    console.log(todo.done)     // here todo is already a Todo
+}

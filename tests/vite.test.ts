@@ -53,21 +53,35 @@ describe('Vite plugin', () => {
 });
 
 describe('documentation site', () => {
-  it('is built by Vite with the code of the examples in the bundle', async () => {
+  it('is built by Vite: a page for each language, with its examples in its bundle', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'mango-site-'));
     await build({
       configFile: join(root, 'vite.config.ts'),
       logLevel: 'silent',
       build: { outDir, emptyOutDir: true },
     });
-    const html = readFileSync(join(outDir, 'index.html'), 'utf8');
-    // Relative, so that the site works from any folder, as on GitHub Pages.
-    const script = /src="\.\/(assets\/[^"]+\.js)"/.exec(html)?.[1];
-    expect(script).toBeDefined();
-    const code = readFileSync(join(outDir, script!), 'utf8');
-    // Examples are part of the bundle, not loaded after the page is drawn.
-    const hello = readFileSync(join(root, 'site/examples/hello.mango'), 'utf8').trimEnd();
-    expect(code).toContain(JSON.stringify(hello).slice(1, 40));
-    expect(code).not.toContain('/examples/');
+    const pages = [
+      { html: 'index.html', prefix: './', examples: 'site/examples', other: 'site/examples/ru' },
+      {
+        html: 'ru/index.html',
+        prefix: '../',
+        examples: 'site/examples/ru',
+        other: 'site/examples',
+      },
+    ];
+    for (const page of pages) {
+      const html = readFileSync(join(outDir, page.html), 'utf8');
+      // Relative, so that the site works from any folder, as on GitHub Pages.
+      const script = new RegExp(
+        `src="${page.prefix.replace(/\./g, '\\.')}(assets/[^"]+\\.js)"`,
+      ).exec(html)?.[1];
+      expect(script, page.html).toBeDefined();
+      const code = readFileSync(join(outDir, script!), 'utf8');
+      // Examples are part of the bundle, not loaded after the page is drawn.
+      const hello = (dir: string) =>
+        JSON.stringify(readFileSync(join(root, dir, 'hello.mango'), 'utf8').trimEnd()).slice(1, 40);
+      expect(code).toContain(hello(page.examples));
+      expect(code).not.toContain(hello(page.other));
+    }
   });
 });

@@ -1,0 +1,28 @@
+comp Todos() {
+    state todos = ["Buy mangoes", "Learn MangoScript"]
+    state title = ""
+
+    func add() {
+        if title.trim() != "" {
+            todos.push(title.trim())
+            title = ""
+        }
+    }
+
+    // The list updates by itself: the blocks of tasks that stay are not created again
+    return <div>
+        <form onSubmit={event.preventDefault(); add()}>
+            <input bind:value={title} placeholder="New task" />
+            <button>Add</button>
+        </form>
+        {if todos.length == 0 {
+            <p>No tasks</p>
+        } else {
+            <ul>{for i, todo in todos {
+                <li>{todo} <button onClick={todos.splice(i, 1)}>×</button></li>
+            }}</ul>
+        }}
+    </div>
+}
+
+document.body.append(<Todos />)

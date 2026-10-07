@@ -1,0 +1,10 @@
+// The entry module of the English page (index.html).
+
+import { EXAMPLES } from "virtual:examples/en"
+import { renderPage } from "../app.mango"
+import { setLanguage } from "../i18n.mango"
+import { SECTIONS } from "./guide.mango"
+import { STRINGS } from "./strings.mango"
+
+setLanguage(STRINGS, EXAMPLES)
+renderPage(SECTIONS)

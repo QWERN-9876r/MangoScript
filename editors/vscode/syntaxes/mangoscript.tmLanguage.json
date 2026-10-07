@@ -393,7 +393,7 @@
     },
 
     "object-key": {
-      "comment": "`{ id: 1, label: \"Все\" }`: a name after `{` or `,` (or at the start of a line) followed by `:`.",
+      "comment": "`{ id: 1, label: \"All\" }`: a name after `{` or `,` (or at the start of a line) followed by `:`.",
       "match": "(?:(?<=[{,])|(?<=[{,]\\s)|^)\\s*(?!(?:case|default)(?![\\w$]))([A-Za-z_$][\\w$]*)\\s*(:)(?!:)",
       "captures": {
         "1": { "name": "meta.object-literal.key.mango" },

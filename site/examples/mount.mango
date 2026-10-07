@@ -1,0 +1,16 @@
+// mount() runs for every instance of a component, after all the synchronous code of the
+// program, when the markup is already on the page
+comp Fruit(name string) {
+    const item = <li>{name}</li>
+    mount() {
+        console.log("mount:", name, "on the page:", item.isConnected)
+    }
+    return item
+}
+
+console.log("creating the list")
+document.body.append(<ul>
+    <Fruit name="Mango" />
+    <Fruit name="Lychee" />
+</ul>)
+console.log("the list is inserted")

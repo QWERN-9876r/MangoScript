@@ -13,7 +13,7 @@ type Content = ast.JsxChild | ast.Statement;
 export type ControlStatement = ast.JsxStatementContainer['statement'];
 
 /**
- * Markup: `<a href="/">Ссылка {name}</a>` becomes statements that create the element. When the
+ * Markup: `<a href="/">Link {name}</a>` becomes statements that create the element. When the
  * expression is evaluated exactly once they go before the statement that contains it; otherwise
  * the element is created inside a function that is called right away.
  *
