@@ -3,6 +3,8 @@
 
 import { example } from "./example.mango"
 
+export const REPOSITORY = "https://github.com/QWERN-9876r/MangoScript"
+
 export interface Section {
     id string
     title string
@@ -302,8 +304,8 @@ npm run vscode:install                      # подсветка синтакс�
 func tools() Node {
     return <>
         <p>
-            Компилятор написан на TypeScript и работает в Node.js 24. Команды запускаются из корня
-            репозитория:
+            Компилятор написан на TypeScript и работает в Node.js 24. Исходный код — в
+            {" "}<a href={REPOSITORY}>репозитории на GitHub</a>, команды запускаются из его корня:
         </p>
         <pre class="code">{COMMANDS}</pre>
         <p>

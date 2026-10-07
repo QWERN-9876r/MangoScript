@@ -2,7 +2,7 @@
 // guide.mango, примеры с вкладками «JavaScript» и «Запустить» — в example.mango, песочница — в
 // playground.mango. Компилятор работает прямо в браузере.
 
-import { SECTIONS } from "./guide.mango"
+import { REPOSITORY, SECTIONS } from "./guide.mango"
 import { playground } from "./playground.mango"
 
 interface Link {
@@ -38,7 +38,12 @@ comp DocsPage() {
         <header class="topbar">
             <a class="brand" href="#intro"><span aria-hidden="true">🥭</span> MangoScript</a>
             <span class="tagline">JavaScript с синтаксисом Go, типами и компонентами</span>
-            <a class="topbar-link" href="#playground">Песочница</a>
+            <div class="topbar-links">
+                <a class="github-link" href={REPOSITORY} aria-label="Репозиторий на GitHub">
+                    <span>GitHub</span>
+                </a>
+                <a class="topbar-link" href="#playground">Песочница</a>
+            </div>
         </header>
         <div class="layout">
             <nav class="sidebar" aria-label="Разделы">
@@ -63,8 +68,8 @@ comp DocsPage() {
                     {playground()}
                 </section>
                 <footer class="footer">
-                    Эта страница написана на MangoScript и собрана компилятором из этого
-                    репозитория.
+                    Эта страница написана на MangoScript и собрана компилятором из
+                    {" "}<a href={REPOSITORY}>репозитория на GitHub</a>.
                 </footer>
             </main>
         </div>
