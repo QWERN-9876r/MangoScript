@@ -45,6 +45,11 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
   private earlyReturns: EarlyReturns | null = null;
   /** Setters waiting for their place at the top of an inlined component, by its result. */
   private readonly pendingSetters = new Map<string, string[]>();
+  /**
+   * In a component with `mount()`: the variable that gets its first node once the markup is
+   * created, so that `$$mount` can wait until that node is in the document.
+   */
+  private mountNode: string | null = null;
 
   /** An early `return` in a component: its markup, then the exit from the body. */
   protected override statement(node: ast.Statement): void {
@@ -67,7 +72,7 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
     this.inHandler++;
     try {
       const [, body] = this.withRendering(0, () => this.func([], node.body));
-      this.line(`$$mount(() => ${body});`);
+      this.line(`$$mount(() => ${this.mountNode ?? 'null'}, () => ${body});`);
     } finally {
       this.inHandler--;
     }
@@ -113,7 +118,8 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
 
     const result = `$$${lowerFirst(name)}${this.nextId()}`;
     const label = hasEarlyReturn(component) ? `$$body${this.nextId()}` : null;
-    this.line(`let ${result};`);
+    const mountNode = hasMount(component) ? `$$mountNode${this.nextId()}` : null;
+    this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
     const setters = new Map<string, string>();
     for (const [prop, [text, sources]] of reactiveProps) {
       const setter = `$$set${upperFirst(prop)}${this.nextId()}`;
@@ -124,7 +130,7 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
 
     const reactive = this.reactiveOf(component, setters.keys());
     const props = component.params.map((param): [string, 'const'] => [param.name.name, 'const']);
-    const block = this.inComponent(reactive, () =>
+    const block = this.inComponent(reactive, mountNode, () =>
       this.block(() =>
         this.withScope(props, () => {
           for (const param of component.params) {
@@ -155,10 +161,11 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
         props.map((param) => param.name.name),
       );
       const result = `$$${lowerFirst(component.name.name)}${this.nextId()}`;
+      const mountNode = hasMount(component) ? `$$mountNode${this.nextId()}` : null;
       const params = this.parameters(component.params, '');
-      const body = this.inComponent(reactive, () =>
+      const body = this.inComponent(reactive, mountNode, () =>
         this.block(() => {
-          this.line(`let ${result};`);
+          this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
           this.body(component, result, reactive, { kind: 'function', props }, null);
         }),
       );
@@ -211,17 +218,19 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
   }
 
   /** Writes the code of a component with its own reactivity, apart from the enclosing one. */
-  private inComponent<T>(reactive: Reactive, emit: () => T): T {
+  private inComponent<T>(reactive: Reactive, mountNode: string | null, emit: () => T): T {
     const saved = {
       reactive: this.reactive,
       inHandler: this.inHandler,
       rendering: this.rendering,
       earlyReturns: this.earlyReturns,
+      mountNode: this.mountNode,
     };
     this.reactive = reactive.sources.size > 0 ? reactive : null;
     this.inHandler = 0;
     this.rendering = 0;
     this.earlyReturns = null;
+    this.mountNode = mountNode;
     try {
       return emit();
     } finally {
@@ -229,7 +238,17 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
       this.inHandler = saved.inHandler;
       this.rendering = saved.rendering;
       this.earlyReturns = saved.earlyReturns;
+      this.mountNode = saved.mountNode;
     }
+  }
+
+  /**
+   * After the markup of a component with `mount()` is created, before anything inserts it: its
+   * first node. A fragment is empty once inserted, so its first child is taken now.
+   */
+  private captureMountNode(result: string): void {
+    if (!this.mountNode) return;
+    this.line(`${this.mountNode} = ${result}?.nodeType === 11 ? ${result}.firstChild : ${result};`);
   }
 
   /** `title, kind = "info"`: parameters with their default values, each name with a prefix. */
@@ -307,6 +326,7 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
       } else {
         this.line(`${result} = ${this.expression(value, ARROW)};`);
       }
+      this.captureMountNode(result);
       return;
     }
     const block = new Block(reactive);
@@ -322,6 +342,7 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
       reactive.depend(block.sources, `${view}?.();`);
     }
     this.line(`${result} = ${root};`);
+    this.captureMountNode(result);
   }
 
   /** The last `return` of a component with early returns, then the updates and the setters. */
@@ -399,6 +420,7 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
       } else {
         this.line(`${result} = ${this.expression(value, ARROW)};`);
       }
+      this.captureMountNode(result);
       if (ending.kind === 'function') this.line(`return [${result}];`);
       return;
     }
@@ -423,6 +445,7 @@ export abstract class ComponentEmitter extends ControlFlowEmitter {
     functions += this.updateFunctions(result, reactive);
     if (functions > 0) this.blankLine();
     this.line(`${result} = ${root};`);
+    this.captureMountNode(result);
     if (ending.kind === 'function') this.functionResult(result, reactive, ending.props);
   }
 
@@ -529,6 +552,11 @@ function withoutTrailingUndefined(args: string[]): string[] {
   let end = args.length;
   while (end > 0 && args[end - 1] === 'undefined') end--;
   return args.slice(0, end);
+}
+
+/** Whether a component has `mount() { ... }`. */
+function hasMount(component: ast.ComponentDeclaration): boolean {
+  return component.body.body.some((statement) => statement.kind === 'MountStatement');
 }
 
 /** Whether a component returns before the end of its body. */

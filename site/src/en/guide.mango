@@ -299,11 +299,12 @@ func mounting() Node {
         </p>
         <p>
             <code>mount</code> runs <b>for every instance</b> of the component: with two
-            {" "}<code>{"<Fruit />"}</code> in a list, it runs twice. And it runs <b>after all the
-            synchronous code</b> that created the component, in a microtask. By then
-            {" "}<code>document.body.append(...)</code> or an <code>{"{if}"}</code> branch has
-            inserted the markup, and the browser has not drawn a frame yet, so <code>focus()</code>
-            and measuring sizes work.
+            {" "}<code>{"<Fruit />"}</code> in a list, it runs twice. And it runs <b>only when the
+            markup is in the document</b>. That is checked after all the synchronous code that
+            created the component, in a microtask: by then <code>document.body.append(...)</code>
+            or an <code>{"{if}"}</code> branch has usually inserted the markup, and the browser has
+            not drawn a frame yet, so <code>focus()</code> and measuring sizes work. Markup created
+            earlier and inserted later, say in a timer, mounts when it is inserted.
         </p>
         {example("mount")}
         <p>
@@ -328,7 +329,8 @@ func mounting() Node {
                 several, and they run in order.
             </li>
             <li>
-                If the markup is removed before <code>mount</code> gets its turn, it does not run.
+                If <code>{"{if}"}</code>, <code>{"{switch}"}</code> or <code>{"{for}"}</code> removes
+                the markup before it gets into the document, <code>mount</code> does not run.
             </li>
             <li>
                 The compiler does not track markup that the program removes by itself

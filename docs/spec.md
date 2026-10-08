@@ -917,10 +917,13 @@ comp Clock() {
 - **For every instance.** `mount` runs for every created component: twice for a list of two
   `<Fruit />`. To do something once for the whole list, write `mount` in the component that creates
   the list.
-- **When.** In a microtask after the code that created the component: by then
-  `document.body.append(...)` or an `{if}` branch has inserted the markup, and the browser has not
-  drawn a frame yet. `focus()` and measuring sizes work. If the markup was removed earlier, `mount`
-  does not run.
+- **When.** Only when the markup is in the document. That is checked in a microtask after the
+  code that created the component: by then `document.body.append(...)` or an `{if}` branch has
+  usually inserted the markup, and the browser has not drawn a frame yet, so `focus()` and measuring
+  sizes work. Markup created earlier and inserted later (`const card = <Card />`, then
+  `document.body.append(card)` in a timer) mounts when it is inserted: while some markup waits, a
+  `MutationObserver` watches the document. If `{if}`, `{switch}` or `{for}` removes the markup
+  before that, `mount` does not run.
 - **The body of `mount`** is a function that runs later, like an event handler: changes of state in
   it update the markup, and `return` belongs to it, not to the component.
 - **What it returns:** nothing, a function without parameters that stops everything, or `null` if

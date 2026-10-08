@@ -3,6 +3,33 @@ import { compile } from '../src/index.ts';
 
 // A tiny DOM, enough to run generated code in tests without a browser.
 
+/** Observers of insertions, as MutationObserver with `childList` and `subtree` on the document. */
+const observers = new Set<FakeMutationObserver>();
+
+class FakeMutationObserver {
+  private readonly callback: () => void;
+
+  constructor(callback: () => void) {
+    this.callback = callback;
+  }
+
+  observe(): void {
+    observers.add(this);
+  }
+
+  disconnect(): void {
+    observers.delete(this);
+  }
+
+  /** As in the DOM, observers learn about changes in a microtask. */
+  static notify(): void {
+    for (const observer of observers)
+      queueMicrotask(() => {
+        if (observers.has(observer)) observer.callback();
+      });
+  }
+}
+
 export class FakeNode {
   readonly tagName: string;
   /** 1 for elements, 3 for text, 11 for fragments, as in the DOM. */
@@ -18,6 +45,15 @@ export class FakeNode {
     this.tagName = tagName;
     this.nodeType = tagName === '#text' ? 3 : tagName === '#fragment' ? 11 : 1;
     if (data !== undefined) this.data = data;
+  }
+
+  /** The body of the fake document is in the document; so are the nodes inside it. */
+  get isConnected(): boolean {
+    return this.tagName === 'body' || (this.parentNode?.isConnected ?? false);
+  }
+
+  get firstChild(): FakeNode | null {
+    return this.childNodes[0] ?? null;
   }
 
   get nextSibling(): FakeNode | null {
@@ -52,6 +88,7 @@ export class FakeNode {
     const index = reference ? this.childNodes.indexOf(reference) : this.childNodes.length;
     this.childNodes.splice(index, 0, ...nodes);
     for (const node of nodes) node.parentNode = this;
+    if (nodes.length > 0) FakeMutationObserver.notify();
   }
 
   setAttribute(name: string, value: unknown): void {
@@ -122,11 +159,13 @@ export function mountWithDom(source: string): { output: string[]; body: FakeNode
     createTextNode: (data: unknown) => new FakeNode('#text', data),
   };
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const program = new Function('console', 'document', `"use strict";\n${code}`) as (
-    console: typeof fakeConsole,
-    document: unknown,
-  ) => void;
-  program(fakeConsole, document);
+  const program = new Function(
+    'console',
+    'document',
+    'MutationObserver',
+    `"use strict";\n${code}`,
+  ) as (console: typeof fakeConsole, document: unknown, observer: unknown) => void;
+  program(fakeConsole, document, FakeMutationObserver);
   return { output, body };
 }
 

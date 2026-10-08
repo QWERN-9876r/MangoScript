@@ -59,18 +59,47 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '}',
   ],
   /**
-   * `mount() { ... }` of a component: runs after the code that creates the component, when its
-   * markup is in the document, unless it was removed before. The function it returns runs when
-   * its owner is removed.
+   * `mount() { ... }` of a component: runs when its markup is in the document. That is checked
+   * after the code that creates the component; markup that is not in the document yet is waited
+   * for with a MutationObserver, which watches only while some markup waits. Markup that its
+   * owner removes before that never mounts. The function `mount` returns runs when the owner is
+   * removed.
    */
   mount: [
-    'function $$mount(mount) {',
-    '  const owner = globalThis[$$owner];',
-    '  queueMicrotask(() => {',
-    '    if (owner?.removed) return;',
-    '    const cleanup = mount();',
-    '    if (typeof cleanup === "function") owner?.cleanups.push(cleanup);',
-    '  });',
+    'const $$waiting = new Set();',
+    'let $$observer = null;',
+    '',
+    'function $$mount(node, mount) {',
+    '  const entry = { node, mount, owner: globalThis[$$owner] };',
+    '  entry.owner?.cleanups.push(() => $$waiting.delete(entry));',
+    '  queueMicrotask(() => $$tryMount(entry));',
+    '}',
+    '',
+    'function $$tryMount(entry) {',
+    '  if (entry.owner?.removed) return;',
+    '  const node = entry.node();',
+    '  if (node != null && !node.isConnected) {',
+    '    $$waiting.add(entry);',
+    '    if (!$$observer) {',
+    '      $$observer = new MutationObserver($$mountWaiting);',
+    '      $$observer.observe(node.ownerDocument ?? document, { childList: true, subtree: true });',
+    '    }',
+    '    return;',
+    '  }',
+    '  const cleanup = entry.mount();',
+    '  if (typeof cleanup === "function") entry.owner?.cleanups.push(cleanup);',
+    '}',
+    '',
+    'function $$mountWaiting() {',
+    '  for (const entry of $$waiting) {',
+    '    if (!entry.node().isConnected) continue;',
+    '    $$waiting.delete(entry);',
+    '    $$tryMount(entry);',
+    '  }',
+    '  if ($$waiting.size === 0) {',
+    '    $$observer.disconnect();',
+    '    $$observer = null;',
+    '  }',
     '}',
   ],
   /** Appends element content whose type is not known: null adds nothing, arrays add each item. */

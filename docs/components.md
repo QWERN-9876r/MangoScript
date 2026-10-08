@@ -772,14 +772,16 @@ body of `for`: the code of one row of the list is written there once, and no ext
    becomes a function.
 7. **Conditions and loops in markup are ordinary `if`, `for` and `switch` inside `{...}`**, with no
    separate syntax like `@if`: `<div>{for product in products { <Product {...product} /> }}</div>`.
-8. **Mounting is `mount() { ... }` in a component's body.** It runs in a microtask after creation,
-   when the markup is already inserted; the function it returns runs when `{if}`, `{switch}` or
-   `{for}` removes the markup. For that, blocks are created with an "owner" that collects the
-   cleanup of the block's components and of the nested blocks. The owner of the current block is
-   shared by the modules of a page (`Symbol.for("mangoscript.owner")`), because a block of one module
-   can hold components of another. Removing markup by the program's own code is not tracked: an
-   observer of the whole document (`MutationObserver`) would cost more and run the cleanup
-   asynchronously.
+8. **Mounting is `mount() { ... }` in a component's body.** It runs only when the component's
+   markup is in the document: that is checked in a microtask after creation, and markup that is not
+   in the document yet is waited for with a `MutationObserver`, which watches only while some markup
+   waits. The first node is taken right after the markup is created, since a fragment is empty once
+   inserted. The function `mount` returns runs when `{if}`, `{switch}` or `{for}` removes the
+   markup. For that, blocks are created with an "owner" that collects the cleanup of the block's
+   components and of the nested blocks. The owner of the current block is shared by the modules of a
+   page (`Symbol.for("mangoscript.owner")`), because a block of one module can hold components of
+   another. Removing markup by the program's own code is not tracked: that would need an observer of
+   the whole document all the time, and the cleanup would run asynchronously.
 
 ## Not decided yet
 

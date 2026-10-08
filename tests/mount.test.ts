@@ -105,6 +105,63 @@ console.log("appended")
     expect(output).toEqual(['created', 'appended', 'mounted true']);
   });
 
+  it('waits until markup created earlier is inserted', async () => {
+    const { output, body } = mountWithDom(`${timer}const later = <Timer name="later" />
+document.body.append(<button onClick={document.body.append(later)}>insert</button>)
+`);
+    await flush();
+    expect(output).toEqual([]);
+    body.find('button').click();
+    await flush();
+    expect(output).toEqual(['start later']);
+  });
+
+  it('waits for the parent that holds the component to be inserted', async () => {
+    const { output, body } = mountWithDom(`${timer}comp Pair() {
+    mount() {
+        console.log("pair")
+    }
+    return <>
+        <p>a</p>
+        <p>b</p>
+    </>
+}
+const box = <div>
+    <Timer name="inner" />
+    <Pair />
+</div>
+document.body.append(<button onClick={document.body.append(box)}>insert</button>)
+`);
+    await flush();
+    expect(output).toEqual([]);
+    body.find('button').click();
+    await flush();
+    expect(output).toEqual(['start inner', 'pair']);
+  });
+
+  it('never mounts markup that {if} removed before it was inserted', async () => {
+    const { output, body } = mountWithDom(`${timer}comp Root() {
+    state shown = true
+    const box = <div>
+        {if shown {
+            <Timer name="a" />
+        }}
+    </div>
+    return <div>
+        <button onClick={shown = false}>hide</button>
+        <button onClick={document.body.append(box)}>insert</button>
+    </div>
+}
+document.body.append(<Root />)
+`);
+    await flush();
+    const [hide, insert] = body.findAll('button');
+    hide!.click();
+    insert!.click();
+    await flush();
+    expect(output).toEqual([]);
+  });
+
   it('updates the markup when it changes state', async () => {
     const { body } = mountWithDom(`comp Status() {
     state text = "загрузка"
