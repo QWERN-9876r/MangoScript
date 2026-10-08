@@ -34,6 +34,10 @@
         "language": "mangoscript",
         "scopeName": "source.mango",
         "path": "./syntaxes/mangoscript.tmLanguage.json"
+      },
+      {
+        "scopeName": "source.mango.markup",
+        "path": "./syntaxes/mangoscript-markup.tmLanguage.json"
       }
     ],
     "configurationDefaults": {

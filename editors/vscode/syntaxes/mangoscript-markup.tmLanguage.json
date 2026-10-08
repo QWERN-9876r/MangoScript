@@ -1,0 +1,112 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MangoScript markup",
+  "comment": "Markup in MangoScript code: tags, attributes, text and {...}. The main grammar, mangoscript.tmLanguage.json, includes it where a value is expected.",
+  "scopeName": "source.mango.markup",
+  "patterns": [{ "include": "#markup" }],
+  "repository": {
+    "markup": {
+      "comment": "An element where a value is expected. `<` after a value (a name, `)` or `]`, with at most one space between) is a comparison, unless the name is a keyword such as `return`; so is `<` followed by a space.",
+      "begin": "(?:(?<=\\breturn\\s|\\bthrow\\s|\\bcase\\s|\\bin\\s)|(?<![\\w$)\\]])(?<![\\w$)\\]]\\s))(?=<(?:[A-Za-z_$][\\w$\\-:.]*(?=[\\s/>{]|$)|>))",
+      "end": "(/>)|(?:(</)([A-Za-z_$][\\w$\\-:.]*)?\\s*(>))",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.mango" },
+        "2": { "name": "punctuation.definition.tag.begin.mango" },
+        "3": { "patterns": [{ "include": "#markup-tag-name" }] },
+        "4": { "name": "punctuation.definition.tag.end.mango" }
+      },
+      "patterns": [{ "include": "#markup-open-tag" }, { "include": "#markup-content" }]
+    },
+
+    "markup-child": {
+      "comment": "An element among the children of another one, where `<` always starts a tag.",
+      "begin": "(?=<(?:[A-Za-z_$]|>))",
+      "end": "(/>)|(?:(</)([A-Za-z_$][\\w$\\-:.]*)?\\s*(>))",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.mango" },
+        "2": { "name": "punctuation.definition.tag.begin.mango" },
+        "3": { "patterns": [{ "include": "#markup-tag-name" }] },
+        "4": { "name": "punctuation.definition.tag.end.mango" }
+      },
+      "patterns": [{ "include": "#markup-open-tag" }, { "include": "#markup-content" }]
+    },
+
+    "markup-open-tag": {
+      "name": "meta.tag.mango",
+      "begin": "(<)([A-Za-z_$][\\w$\\-:.]*)?",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.mango" },
+        "2": { "patterns": [{ "include": "#markup-tag-name" }] }
+      },
+      "end": "(?=/?>)",
+      "patterns": [{ "include": "#markup-attributes" }]
+    },
+
+    "markup-content": {
+      "begin": ">",
+      "beginCaptures": { "0": { "name": "punctuation.definition.tag.end.mango" } },
+      "end": "(?=</)",
+      "contentName": "meta.jsx.children.mango",
+      "patterns": [
+        { "include": "#markup-child" },
+        { "include": "#markup-expression" },
+        { "include": "#markup-entity" }
+      ]
+    },
+
+    "markup-tag-name": {
+      "patterns": [
+        { "name": "support.class.component.mango", "match": "[A-Z][\\w$.]*" },
+        { "name": "entity.name.tag.mango", "match": "[A-Za-z_$][\\w$\\-:.]*" }
+      ]
+    },
+
+    "markup-attributes": {
+      "patterns": [
+        { "include": "source.mango#comments" },
+        { "include": "#markup-expression" },
+        {
+          "match": "(bind)(:)([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.namespace.mango" },
+            "2": { "name": "punctuation.separator.namespace.mango" },
+            "3": { "name": "entity.other.attribute-name.mango" }
+          }
+        },
+        { "name": "entity.other.attribute-name.mango", "match": "[A-Za-z_$][\\w$\\-:.]*" },
+        { "name": "keyword.operator.assignment.mango", "match": "=" },
+        {
+          "name": "string.quoted.double.mango",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mango" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mango" } },
+          "patterns": [{ "include": "#markup-entity" }]
+        },
+        {
+          "name": "string.quoted.single.mango",
+          "begin": "'",
+          "end": "'",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mango" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mango" } },
+          "patterns": [{ "include": "#markup-entity" }]
+        }
+      ]
+    },
+
+    "markup-expression": {
+      "comment": "`{value}`, `{...attrs}`, handler code and `{if ...}` / `{for ...}` blocks.",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.embedded.begin.mango" } },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.mango" } },
+      "contentName": "meta.embedded.expression.mango",
+      "patterns": [{ "include": "source.mango#statements" }]
+    },
+
+    "markup-entity": {
+      "name": "constant.character.entity.mango",
+      "match": "&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#x[0-9A-Fa-f]+);"
+    }
+  }
+}

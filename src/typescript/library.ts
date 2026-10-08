@@ -30,7 +30,7 @@ export class LibraryTypes implements Library {
   value(name: string): Type | undefined {
     return this.cached(`value ${name}`, () => {
       const symbol = this.values.get(name);
-      return symbol && this.converter.valueOf(symbol);
+      return symbol && this.converter.valueType(symbol);
     });
   }
 

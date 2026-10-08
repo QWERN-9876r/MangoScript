@@ -8,7 +8,11 @@ import { beforeAll, describe, expect, it } from 'vitest';
 // The VS Code extension in editors/vscode: its grammar is run by the same engine that VS Code uses.
 
 const root = new URL('..', import.meta.url).pathname;
-const grammarPath = join(root, 'editors/vscode/syntaxes/mangoscript.tmLanguage.json');
+// The grammar of markup is a separate file that the main one includes, as in VS Code.
+const grammarPaths: Record<string, string> = {
+  'source.mango': join(root, 'editors/vscode/syntaxes/mangoscript.tmLanguage.json'),
+  'source.mango.markup': join(root, 'editors/vscode/syntaxes/mangoscript-markup.tmLanguage.json'),
+};
 
 let grammar: textmate.IGrammar;
 
@@ -22,12 +26,12 @@ beforeAll(async () => {
       createOnigScanner: (patterns) => new oniguruma.OnigScanner(patterns),
       createOnigString: (text) => new oniguruma.OnigString(text),
     }),
-    loadGrammar: (scopeName) =>
-      Promise.resolve(
-        scopeName === 'source.mango'
-          ? textmate.parseRawGrammar(readFileSync(grammarPath, 'utf8'), grammarPath)
-          : null,
-      ),
+    loadGrammar: (scopeName) => {
+      const path = grammarPaths[scopeName];
+      return Promise.resolve(
+        path ? textmate.parseRawGrammar(readFileSync(path, 'utf8'), path) : null,
+      );
+    },
   });
   const loaded = await registry.loadGrammar('source.mango');
   if (!loaded) throw new Error('the grammar did not load');
