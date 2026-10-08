@@ -3,6 +3,7 @@
 
 import { example } from "../example.mango"
 import { REPOSITORY, Section } from "../i18n.mango"
+import { components, markup, mounting, reactivity, webComponents } from "./guide-components.mango"
 
 export const SECTIONS []Section = [
     { id: "intro", title: "What is MangoScript", content: intro },
@@ -18,6 +19,7 @@ export const SECTIONS []Section = [
     { id: "components", title: "Components", content: components },
     { id: "state", title: "State", content: reactivity },
     { id: "mount", title: "Mounting", content: mounting },
+    { id: "web-components", title: "Web components", content: webComponents },
     { id: "tools", title: "Tools", content: tools },
 ]
 
@@ -216,132 +218,6 @@ func modules() Node {
             below does not run.
         </p>
         {example("modules")}
-    </>
-}
-
-func markup() Node {
-    return <>
-        <p>
-            Markup is an ordinary expression: <code>&lt;a href="/"&gt;</code> creates a real
-            {" "}<code>HTMLAnchorElement</code>, with no virtual DOM. The syntax is that of JSX, but
-            attribute names are the HTML ones: <code>class</code>, not <code>className</code>.
-            Types are checked as well: <code>&lt;input&gt;</code> is an
-            {" "}<code>HTMLInputElement</code>, and <code>{"checked={1}"}</code> is an error.
-        </p>
-        <p>
-            <code>on*</code> attributes hold code that runs on the event:
-            {" "}<code>{"onClick={save()}"}</code> calls <code>save</code> on a click, not when the
-            element is created. The variable <code>event</code> is available inside.
-        </p>
-        {example("markup")}
-        <p>
-            Inside <code>{"{...}"}</code> you can write ordinary <code>if</code>, <code>for</code>
-            and <code>switch</code>: the elements in their blocks become the content.
-        </p>
-        {example("markup-flow")}
-    </>
-}
-
-func components() Node {
-    return <>
-        <p>
-            A component is declared with <code>comp</code> and used as a tag with a capital letter.
-            Its parameters are its properties: they are checked like the arguments of a function,
-            they can have default values, and <code>children Content</code> gets the markup between
-            the tags. An object with the properties can be passed whole:
-            {" "}<code>{"<Product {...product} />"}</code>.
-        </p>
-        <p>
-            Components do not exist in JS: every use is replaced by the component's code. The
-            {" "}<b>JavaScript</b> tab shows only the elements being created.
-        </p>
-        {example("components")}
-        <p>
-            A component can use itself, for a tree or nested comments. Such a component cannot be
-            inlined, so it becomes a function, and every call of it has its own state. The recursion
-            must end: the compiler accepts a use inside <code>{"{if ...}"}</code> or
-            {" "}<code>{"{for ...}"}</code> or after an early <code>return</code>, but not an
-            unconditional one. An early <code>return</code> picks the markup once, when the
-            component is created.
-        </p>
-        {example("tree")}
-    </>
-}
-
-func reactivity() Node {
-    return <>
-        <p>
-            <code>state</code> declares a variable that the markup depends on. The compiler knows
-            which parts of the markup read it and where it changes, and after each change it updates
-            exactly those parts. There are no subscriptions and no DOM diffing, as the
-            {" "}<b>JavaScript</b> tab shows.
-        </p>
-        {example("counter")}
-        <p>
-            <code>bind:value</code> and <code>bind:checked</code> bind an input to state both ways.
-        </p>
-        {example("bind")}
-        <p>
-            <code>{"{if ...}"}</code> and <code>{"{for ...}"}</code> update too. A branch is created
-            again only when the condition changes, and the blocks of a list are found by the array
-            item itself and moved, not created again.
-        </p>
-        {example("todos")}
-    </>
-}
-
-func mounting() Node {
-    return <>
-        <p>
-            <code>{"mount() { ... }"}</code> in a component's body is code that needs the markup on
-            the page: starting a timer, listening to window events, setting the focus, measuring an
-            element, loading data.
-        </p>
-        <p>
-            <code>mount</code> runs <b>for every instance</b> of the component: with two
-            {" "}<code>{"<Fruit />"}</code> in a list, it runs twice. And it runs <b>only when the
-            markup is in the document</b>. That is checked after all the synchronous code that
-            created the component, in a microtask: by then <code>document.body.append(...)</code>
-            or an <code>{"{if}"}</code> branch has usually inserted the markup, and the browser has
-            not drawn a frame yet, so <code>focus()</code> and measuring sizes work. Markup created
-            earlier and inserted later, say in a timer, mounts when it is inserted.
-        </p>
-        {example("mount")}
-        <p>
-            If <code>mount</code> returns a function, it runs when <code>{"{if}"}</code>,
-            {" "}<code>{"{switch}"}</code>, <code>{"{for}"}</code> or a <code>?:</code> branch in
-            markup removes the component: that is where you stop what <code>mount</code> started.
-            Press "Run", then hide the clock: the timer stops.
-        </p>
-        {example("mount-cleanup")}
-        <ul>
-            <li>
-                The body of <code>mount</code> is a function that runs later, like an event
-                handler: changes of <code>state</code> in it update the markup, and
-                {" "}<code>return</code> returns from it, not from the component.
-            </li>
-            <li>
-                It can return a function without parameters, <code>null</code> when there is
-                nothing to stop, or nothing.
-            </li>
-            <li>
-                <code>mount</code> is written at the top level of a component's body; there can be
-                several, and they run in order.
-            </li>
-            <li>
-                If <code>{"{if}"}</code>, <code>{"{switch}"}</code> or <code>{"{for}"}</code> removes
-                the markup before it gets into the document, <code>mount</code> does not run.
-            </li>
-            <li>
-                The compiler does not track markup that the program removes by itself
-                (<code>element.remove()</code>): its cleanup does not run.
-            </li>
-            <li>
-                To do something once for a whole list, write <code>mount</code> in the component
-                that creates the list. Code needed once when the program starts goes simply after
-                {" "}<code>document.body.append</code>.
-            </li>
-        </ul>
     </>
 }
 

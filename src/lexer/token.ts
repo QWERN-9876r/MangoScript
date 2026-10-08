@@ -94,6 +94,7 @@ export const PUNCTUATORS = [
   '&&',
   '||',
   '!',
+  '@',
 ] as const;
 
 export type Keyword = (typeof KEYWORDS)[number];

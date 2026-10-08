@@ -52,6 +52,10 @@ func runOwned(preview HTMLElement, run func()) {
 // The number of the last run in each result area: output of earlier runs is dropped.
 let runs Map[HTMLElement, number] = new Map()
 
+// A custom element cannot be defined twice, so each run has its own tags: <app-card> of the
+// program is <app-card-3> on the page.
+let allRuns = 0
+
 /**
  * Runs a program: document.body is `preview`, and the lines of console.log go to `output` right
  * after the run and then with every new line. Compile errors and exceptions are lines too.
@@ -88,9 +92,16 @@ export func runProgram(source string, preview HTMLElement, output func([]string)
         }
     }
     const sandboxConsole = { log: print, info: print, warn: print, error: print }
+    allRuns++
+    const suffix = `-${allRuns}`
+    const pageTag = (tag string) => tag.includes("-") ? tag + suffix : tag
+    const sandboxElements = {
+        define: (tag string, element any) => customElements.define(pageTag(tag), element),
+        get: (tag string) => customElements.get(pageTag(tag)),
+    }
     const sandboxDocument = {
         body: preview,
-        createElement: (tag string) => document.createElement(tag),
+        createElement: (tag string) => document.createElement(pageTag(tag)),
         createTextNode: (text string) => document.createTextNode(text),
         createDocumentFragment: () => document.createDocumentFragment(),
         querySelector: (selector string) => preview.querySelector(selector),
@@ -98,8 +109,8 @@ export func runProgram(source string, preview HTMLElement, output func([]string)
 
     preview.replaceChildren()
     try {
-        const program = globalThis.Function("console", "document", compiled.code)
-        runOwned(preview, () => program(sandboxConsole, sandboxDocument))
+        const program = globalThis.Function("console", "document", "customElements", compiled.code)
+        runOwned(preview, () => program(sandboxConsole, sandboxDocument, sandboxElements))
     } catch e {
         lines.push(`${text().exception}: ${e.message}`)
     }

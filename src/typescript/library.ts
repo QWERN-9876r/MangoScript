@@ -50,8 +50,14 @@ export class LibraryTypes implements Library {
     return symbol && instantiate(this.converter.arrayTemplate(symbol), [element]);
   }
 
+  /** The element of a tag; custom elements like `<app-card>` are HTMLElement. */
   element(tag: string): Type | undefined {
-    return this.cached(`element ${tag}`, () => this.entry('HTMLElementTagNameMap', tag));
+    return this.cached(
+      `element ${tag}`,
+      () =>
+        this.entry('HTMLElementTagNameMap', tag) ??
+        (tag.includes('-') ? this.type('HTMLElement') : undefined),
+    );
   }
 
   event(name: string): Type | undefined {

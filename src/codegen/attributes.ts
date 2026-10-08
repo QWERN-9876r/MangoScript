@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { domProperty } from '../checker/dom.ts';
+import { attributeName } from '../html-tag.ts';
 import { eventName, mentions } from './element-helpers.ts';
 import type { Live, Source } from './reactive.ts';
 import { ARROW } from './syntax.ts';
@@ -45,6 +46,11 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     const name = attribute.name.name;
     const { value } = attribute;
 
+    const webProperty = tag === null ? null : this.webComponentProperty(tag, name);
+    if (webProperty) {
+      this.webComponentAttribute(element, webProperty, value, live);
+      return;
+    }
     if (/^on[A-Z]/.test(name)) {
       this.inHandler++;
       try {
@@ -92,6 +98,44 @@ export abstract class AttributeEmitter extends UpdateEmitter {
       // A null value leaves the attribute out.
       const text = this.once(value);
       this.line(`if (${text} != null) ${element}.setAttribute(${quoted}, ${text});`);
+    }
+  }
+
+  /** `<app-card item-count={1} />`: the property of a web component of this module, if it has one. */
+  protected webComponentProperty(tag: string, name: string): ast.Parameter | null {
+    const component = this.webComponents.get(tag);
+    if (!component) return null;
+    const param = component.params.find(
+      (param) =>
+        param.name.name !== 'children' &&
+        (param.name.name === name || attributeName(param.name.name) === name),
+    );
+    return param ?? null;
+  }
+
+  /** A property of a web component is set as a JS property, so it may be an object or a function. */
+  protected webComponentAttribute(
+    element: string,
+    param: ast.Parameter,
+    value: ast.JsxAttribute['value'],
+    live: Live | null,
+  ): void {
+    const target = `${element}.${param.name.name}`;
+    if (value === null) {
+      this.line(`${target} = true;`);
+    } else if (
+      value.kind === 'EventHandler' ||
+      value.kind === 'ArrowFunction' ||
+      value.kind === 'FuncExpression'
+    ) {
+      this.inHandler++;
+      try {
+        this.line(`${target} = ${this.handler(value)};`);
+      } finally {
+        this.inHandler--;
+      }
+    } else {
+      this.setLive(live, value, (text) => `${target} = ${text};`);
     }
   }
 

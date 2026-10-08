@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { attributeName, htmlTagName, RESERVED_PROPERTIES, tagNameProblem } from '../html-tag.ts';
 import { endlessRecursion } from '../recursion.ts';
 import type { ComponentInfo } from './context.ts';
 import { CONTENT } from './dom.ts';
@@ -7,6 +8,7 @@ import { MarkupChecker } from './markup.ts';
 import {
   BOOL,
   func,
+  hasZeroValue,
   isAssignable,
   isNullable,
   nonNull,
@@ -86,8 +88,8 @@ export abstract class ComponentChecker extends MarkupChecker {
       );
       return UNKNOWN;
     }
-    // A recursive component is a function: its code is not inlined here.
-    if (!info.recursive) this.checkHygiene(info, tag);
+    // The code of a function component is not inlined here.
+    if (!info.isFunction) this.checkHygiene(info, tag);
 
     const given = new Set<string>();
     const spread = new Set<string>();
@@ -159,7 +161,7 @@ export abstract class ComponentChecker extends MarkupChecker {
     }
   }
 
-  protected checkProp(attribute: ast.JsxAttribute, type: Type, component: string): void {
+  protected override checkProp(attribute: ast.JsxAttribute, type: Type, component: string): void {
     const name = attribute.name.name;
     const { value } = attribute;
     if (value?.kind === 'EventHandler') {
@@ -237,5 +239,65 @@ export abstract class ComponentChecker extends MarkupChecker {
         tag,
       );
     }
+  }
+
+  /** `@html-tag` components: valid and different tags, and properties HTMLElement does not have. */
+  protected checkHtmlTags(): void {
+    const tags = new Map<string, ast.ComponentDeclaration>();
+    for (const statement of this.program.body) {
+      if (statement.kind !== 'ComponentDeclaration' || !statement.htmlTag) continue;
+      const tag = htmlTagName(statement);
+      const given = statement.htmlTag.name;
+      const problem = tagNameProblem(tag);
+      const other = tags.get(tag);
+      if (problem) {
+        this.error(
+          given
+            ? `"${tag}" is not a valid name of a web component: ${problem}`
+            : `the tag of "${statement.name.name}" would be "${tag}", not a valid name of a web component: ${problem}; give one, e.g. @html-tag("app-${tag}")`,
+          given ?? statement.htmlTag,
+        );
+      } else if (other) {
+        this.error(
+          `the tag "${tag}" is already used by ${other.name.name}`,
+          given ?? statement.htmlTag,
+        );
+      }
+      tags.set(tag, statement);
+      const info = this.moduleScope.values.get(statement.name.name)?.component;
+      for (const param of statement.params) {
+        const name = param.name.name;
+        const type = info?.props.get(name)?.type;
+        if (RESERVED_PROPERTIES.has(name)) {
+          this.error(
+            `a web component cannot have the property "${name}": HTMLElement has it already`,
+            param.name,
+          );
+        } else if (name !== 'children' && !param.defaultValue && type && !hasZeroValue(type)) {
+          // `<app-card>` in HTML has no properties until they are set.
+          this.error(
+            `"${name}" needs a default value: the element can be created without it, e.g. in HTML, and ${typeToString(type)} has no zero value`,
+            param.name,
+          );
+        }
+      }
+    }
+  }
+
+  /** The type of a property of a web component of this module, by its tag and an attribute. */
+  protected override webComponentProperty(tag: string, attribute: string): Type | null {
+    for (const statement of this.program.body) {
+      if (statement.kind !== 'ComponentDeclaration' || !statement.htmlTag) continue;
+      if (htmlTagName(statement) !== tag) continue;
+      const info = this.moduleScope.values.get(statement.name.name)?.component;
+      if (!info) return null;
+      for (const [name, prop] of info.props) {
+        if (name !== 'children' && (name === attribute || attributeName(name) === attribute)) {
+          return prop.type;
+        }
+      }
+      return null;
+    }
+    return null;
   }
 }

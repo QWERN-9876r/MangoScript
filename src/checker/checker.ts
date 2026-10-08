@@ -10,6 +10,7 @@ class Checker extends CallChecker {
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
     this.checkEndlessRecursion();
+    this.checkHtmlTags();
     this.diagnostics.sort((a, b) => a.start - b.start);
     return {
       diagnostics: this.diagnostics,

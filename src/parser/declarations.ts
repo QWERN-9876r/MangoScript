@@ -159,8 +159,12 @@ export abstract class DeclarationParser extends ControlFlowParser {
     return [];
   }
 
-  /** `comp Name(properties) { ...; return <markup> }` */
-  protected override parseComponent(start: number, exported: boolean): ast.ComponentDeclaration {
+  /** `comp Name(properties) { ...; return <markup> }`, maybe after `@html-tag`. */
+  protected override parseComponent(
+    start: number,
+    exported: boolean,
+    htmlTag: ast.HtmlTag | null = null,
+  ): ast.ComponentDeclaration {
     const keyword = this.expect('comp');
     if (!this.context.topLevel) {
       this.error(
@@ -170,7 +174,8 @@ export abstract class DeclarationParser extends ControlFlowParser {
       );
     }
     const name = this.parseIdentifier('component name');
-    if (!/^[A-Z]/.test(name.name)) {
+    // A web component is used by its tag, so its name may start with a lowercase letter.
+    if (!htmlTag && !/^[A-Z]/.test(name.name)) {
       this.error(
         `component names start with a capital letter, as in <${name.name.charAt(0).toUpperCase()}${name.name.slice(1)} />`,
         name.start,
@@ -181,7 +186,43 @@ export abstract class DeclarationParser extends ControlFlowParser {
     const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () =>
       this.parseComponentBody(),
     );
-    return { kind: 'ComponentDeclaration', exported, name, params, body, ...this.span(start) };
+    return {
+      kind: 'ComponentDeclaration',
+      exported,
+      name,
+      params,
+      body,
+      htmlTag,
+      ...this.span(start),
+    };
+  }
+
+  /** `@html-tag` or `@html-tag("app-page")`: the only decorator so far. */
+  protected override parseHtmlTag(): ast.HtmlTag {
+    const at = this.expect('@');
+    const first = this.peek();
+    const isHtmlTag =
+      first.kind === 'Identifier' &&
+      first.text === 'html' &&
+      this.peek(1).kind === '-' &&
+      this.peek(2).kind === 'Identifier' &&
+      this.peek(2).text === 'tag';
+    if (!isHtmlTag) {
+      const name = first.kind === 'Identifier' ? first.text : '';
+      this.fail(`unknown decorator "@${name}": the only one is @html-tag`);
+    }
+    this.next();
+    this.next();
+    this.next();
+    let name: ast.StringLiteral | null = null;
+    if (this.accept('(')) {
+      name = this.parseStringLiteral('tag name');
+      this.expect(')');
+    }
+    const node: ast.HtmlTag = { kind: 'HtmlTag', name, ...this.span(at.start) };
+    // A line break after the decorator inserted a semicolon.
+    if (this.isImplicitSemicolon()) this.next();
+    return node;
   }
 
   /** Like a function body, but its own statements may also declare `state` and `mount()`. */

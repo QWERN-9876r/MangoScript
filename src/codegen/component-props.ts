@@ -175,7 +175,7 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     const sources = live?.dependencies(argument);
     const liveObject = sources && sources.size > 0 ? this.liveExpression(argument, POSTFIX) : null;
     for (const param of params) {
-      const name = param.name.name;
+      const { name } = param.name;
       const read = `${object}.${name}`;
       values.set(
         name,

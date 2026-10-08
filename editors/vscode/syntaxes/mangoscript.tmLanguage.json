@@ -9,6 +9,7 @@
       "patterns": [
         { "include": "#comments" },
         { "include": "#strings" },
+        { "include": "#decorators" },
         { "include": "source.mango.markup#markup" },
         { "include": "#declarations" },
         { "include": "#keywords" },
@@ -87,6 +88,15 @@
     "escape": {
       "name": "constant.character.escape.mango",
       "match": "\\\\(?:x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]+\\}|u[0-9A-Fa-f]{4}|.)"
+    },
+
+    "decorators": {
+      "comment": "@html-tag before a component",
+      "match": "(@)([A-Za-z][\\w-]*)",
+      "captures": {
+        "1": { "name": "punctuation.decorator.mango" },
+        "2": { "name": "entity.name.function.decorator.mango" }
+      }
     },
 
     "declarations": {

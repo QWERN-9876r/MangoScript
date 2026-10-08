@@ -14,7 +14,10 @@ export function generateJs(program: ast.Program, options: JsOptions): string {
 /** The whole module: its statements, plus the helpers that its code needs. */
 class JsGenerator extends FunctionEmitter {
   generate(): string {
-    this.withScope(declarationsOf(this.program.body), () => this.statements(this.program.body));
+    this.withScope(declarationsOf(this.program.body), () => {
+      this.statements(this.program.body);
+      this.webComponentClasses();
+    });
     let lines = this.lines;
     if (this.helpers.size > 0) {
       const needed = new Set<Helper>();

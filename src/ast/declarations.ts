@@ -69,6 +69,14 @@ export interface ComponentDeclaration extends NodeBase {
   name: Identifier;
   params: Parameter[];
   body: BlockStatement;
+  /** `@html-tag` before `comp`: the component is also a web component. */
+  htmlTag: HtmlTag | null;
+}
+
+/** `@html-tag` or `@html-tag("app-page")`; without a name the tag comes from the component's name. */
+export interface HtmlTag extends NodeBase {
+  kind: 'HtmlTag';
+  name: StringLiteral | null;
 }
 
 /**

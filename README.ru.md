@@ -56,8 +56,8 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 браузере: у каждого примера есть вкладка с JavaScript, который из него получается, и кнопка
 запуска, а внизу страницы — песочница.
 
-- [site/src/en/guide.mango](site/src/en/guide.mango) и
-  [site/src/ru/guide.mango](site/src/ru/guide.mango) — текст разделов на каждом языке;
+- [site/src/en/](site/src/en/) и [site/src/ru/](site/src/ru/) — текст разделов на каждом языке,
+  перечисленных в `guide.mango`; разделы о разметке и компонентах — в `guide-components.mango`;
 - [site/examples/](site/examples/) и [site/examples/ru/](site/examples/ru/) — примеры кода; тесты
   проверяют, что все они компилируются и что у каждого есть перевод;
 - [site/src/i18n.mango](site/src/i18n.mango) — язык страницы и тексты вокруг руководства;

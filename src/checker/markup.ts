@@ -67,6 +67,12 @@ export abstract class MarkupChecker extends OperatorChecker {
   protected checkAttribute(attribute: ast.JsxAttribute, tag: string, element: Type): void {
     const name = attribute.name.name;
     const { value } = attribute;
+    // `<app-card count={3} />`: a property of a web component of this module.
+    const webProperty = this.webComponentProperty(tag, name);
+    if (webProperty) {
+      this.checkProp(attribute, webProperty, tag);
+      return;
+    }
     if (/^on[A-Z]/.test(name)) {
       this.checkEventAttribute(attribute, this.eventOf(name, element));
       return;

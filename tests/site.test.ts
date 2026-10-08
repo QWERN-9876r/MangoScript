@@ -19,6 +19,7 @@ describe('documentation site', () => {
     expect(result.outputs.map((output) => output.output.slice(outDir.length + 1)).sort()).toEqual([
       'server.js',
       'src/app.js',
+      'src/en/guide-components.js',
       'src/en/guide.js',
       'src/en/main.js',
       'src/en/strings.js',
@@ -26,6 +27,7 @@ describe('documentation site', () => {
       'src/highlight.js',
       'src/i18n.js',
       'src/playground.js',
+      'src/ru/guide-components.js',
       'src/ru/guide.js',
       'src/ru/main.js',
       'src/ru/strings.js',
@@ -33,10 +35,11 @@ describe('documentation site', () => {
     ]);
   });
 
-  // English examples are in site/examples, Russian ones in site/examples/ru.
+  // English examples are in site/examples, Russian ones in site/examples/ru; the guide of a
+  // language is guide.mango with the modules of its sections.
   const languages = [
-    { language: 'en', examples: 'examples', guide: 'src/en/guide.mango' },
-    { language: 'ru', examples: 'examples/ru', guide: 'src/ru/guide.mango' },
+    { language: 'en', examples: 'examples', guide: 'src/en' },
+    { language: 'ru', examples: 'examples/ru', guide: 'src/ru' },
   ];
   const examplesOf = (dir: string) =>
     readdirSync(site(dir)).filter((name) => name.endsWith('.mango'));
@@ -51,7 +54,10 @@ describe('documentation site', () => {
   });
 
   it.each(languages)('uses every $language example and only existing ones', (language) => {
-    const guide = readFileSync(site(language.guide), 'utf8');
+    const guide = readdirSync(site(language.guide))
+      .filter((name) => name.startsWith('guide'))
+      .map((name) => readFileSync(site(`${language.guide}/${name}`), 'utf8'))
+      .join('\n');
     const used = [...guide.matchAll(/example\("([^"]+)"\)/g)].map((match) => `${match[1]}.mango`);
     expect(used.sort()).toEqual(examplesOf(language.examples).sort());
   });

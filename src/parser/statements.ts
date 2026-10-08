@@ -135,6 +135,17 @@ export abstract class StatementParser extends ParserBase {
         return this.parseClass(start, exported);
       case 'comp':
         return this.parseComponent(start, exported);
+      case '@': {
+        // `@html-tag comp Page() {...}` or `@html-tag export comp Page() {...}`
+        const htmlTag = this.parseHtmlTag();
+        const isExported = this.accept('export') || exported;
+        if (!this.check('comp')) {
+          this.fail(
+            '@html-tag is written before a component, as in @html-tag comp MainPage() { ... }',
+          );
+        }
+        return this.parseComponent(start, isExported, htmlTag);
+      }
       case 'interface':
         return this.parseInterface(start, exported);
       case 'type': {

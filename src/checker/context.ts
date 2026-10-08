@@ -84,8 +84,11 @@ export interface ComponentInfo {
   props: Map<string, { type: Type; optional: boolean }>;
   /** Names from the module that the component's code uses, computed when first needed. */
   freeNames: Set<string> | null;
-  /** Uses itself, directly or through other components: compiled to a function, not inlined. */
-  recursive: boolean;
+  /**
+   * Compiled to a function, not inlined: it uses itself, directly or through other components, or
+   * it is a web component (`@html-tag`).
+   */
+  isFunction: boolean;
 }
 
 /** A `type` alias, resolved when first used. */

@@ -56,8 +56,9 @@ markup. `npm run vscode:install` builds it and installs it with `code`; see
 right in the browser: every example has a tab with the JavaScript it compiles to and a run button,
 and the bottom of the page has a playground.
 
-- [site/src/en/guide.mango](site/src/en/guide.mango) and
-  [site/src/ru/guide.mango](site/src/ru/guide.mango): the text of the sections in each language;
+- [site/src/en/](site/src/en/) and [site/src/ru/](site/src/ru/): the text of the sections in each
+  language, listed in `guide.mango`; the sections about markup and components are in
+  `guide-components.mango`;
 - [site/examples/](site/examples/) and [site/examples/ru/](site/examples/ru/): the examples; tests
   check that they all compile and that each has a translation;
 - [site/src/i18n.mango](site/src/i18n.mango): the language of the page and the texts around the

@@ -85,7 +85,7 @@ export abstract class DeclarationChecker extends CheckerBase {
             node: statement,
             props: new Map(),
             freeNames: null,
-            recursive: false,
+            isFunction: false,
           };
           this.declareValue(statement.name, 'component', UNKNOWN).component = info;
           components.push(info);
@@ -126,7 +126,9 @@ export abstract class DeclarationChecker extends CheckerBase {
     const recursive = recursiveComponents(
       new Map(components.map((info) => [info.node.name.name, info.node])),
     );
-    for (const info of components) info.recursive = recursive.has(info.node);
+    for (const info of components) {
+      info.isFunction = recursive.has(info.node) || info.node.htmlTag !== null;
+    }
     for (const [node, info] of classes) {
       this.unresolvedClasses.set(info, () => this.resolveClass(node, info));
     }

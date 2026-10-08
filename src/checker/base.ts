@@ -113,6 +113,10 @@ export abstract class CheckerBase {
 
   protected abstract resolveProps(info: ComponentInfo): void;
 
+  protected abstract webComponentProperty(tag: string, attribute: string): Type | null;
+
+  protected abstract checkProp(attribute: ast.JsxAttribute, type: Type, component: string): void;
+
   protected abstract checkChain(
     node: ast.MemberExpression | ast.IndexExpression | ast.CallExpression,
     expected?: Type | null,

@@ -1,0 +1,182 @@
+// The sections of the English guide about markup and components; guide.mango lists them all.
+
+import { example } from "../example.mango"
+
+export func markup() Node {
+    return <>
+        <p>
+            Markup is an ordinary expression: <code>&lt;a href="/"&gt;</code> creates a real
+            {" "}<code>HTMLAnchorElement</code>, with no virtual DOM. The syntax is that of JSX, but
+            attribute names are the HTML ones: <code>class</code>, not <code>className</code>.
+            Types are checked as well: <code>&lt;input&gt;</code> is an
+            {" "}<code>HTMLInputElement</code>, and <code>{"checked={1}"}</code> is an error.
+        </p>
+        <p>
+            <code>on*</code> attributes hold code that runs on the event:
+            {" "}<code>{"onClick={save()}"}</code> calls <code>save</code> on a click, not when the
+            element is created. The variable <code>event</code> is available inside.
+        </p>
+        {example("markup")}
+        <p>
+            Inside <code>{"{...}"}</code> you can write ordinary <code>if</code>, <code>for</code>
+            and <code>switch</code>: the elements in their blocks become the content.
+        </p>
+        {example("markup-flow")}
+    </>
+}
+
+export func components() Node {
+    return <>
+        <p>
+            A component is declared with <code>comp</code> and used as a tag with a capital letter.
+            Its parameters are its properties: they are checked like the arguments of a function,
+            they can have default values, and <code>children Content</code> gets the markup between
+            the tags. An object with the properties can be passed whole:
+            {" "}<code>{"<Product {...product} />"}</code>.
+        </p>
+        <p>
+            Components do not exist in JS: every use is replaced by the component's code. The
+            {" "}<b>JavaScript</b> tab shows only the elements being created.
+        </p>
+        {example("components")}
+        <p>
+            A component can use itself, for a tree or nested comments. Such a component cannot be
+            inlined, so it becomes a function, and every call of it has its own state. The recursion
+            must end: the compiler accepts a use inside <code>{"{if ...}"}</code> or
+            {" "}<code>{"{for ...}"}</code> or after an early <code>return</code>, but not an
+            unconditional one. An early <code>return</code> picks the markup once, when the
+            component is created.
+        </p>
+        {example("tree")}
+    </>
+}
+
+export func reactivity() Node {
+    return <>
+        <p>
+            <code>state</code> declares a variable that the markup depends on. The compiler knows
+            which parts of the markup read it and where it changes, and after each change it updates
+            exactly those parts. There are no subscriptions and no DOM diffing, as the
+            {" "}<b>JavaScript</b> tab shows.
+        </p>
+        {example("counter")}
+        <p>
+            <code>bind:value</code> and <code>bind:checked</code> bind an input to state both ways.
+        </p>
+        {example("bind")}
+        <p>
+            <code>{"{if ...}"}</code> and <code>{"{for ...}"}</code> update too. A branch is created
+            again only when the condition changes, and the blocks of a list are found by the array
+            item itself and moved, not created again.
+        </p>
+        {example("todos")}
+    </>
+}
+
+export func mounting() Node {
+    return <>
+        <p>
+            <code>{"mount() { ... }"}</code> in a component's body is code that needs the markup on
+            the page: starting a timer, listening to window events, setting the focus, measuring an
+            element, loading data.
+        </p>
+        <p>
+            <code>mount</code> runs <b>for every instance</b> of the component: with two
+            {" "}<code>{"<Fruit />"}</code> in a list, it runs twice. And it runs <b>only when the
+            markup is in the document</b>. That is checked after all the synchronous code that
+            created the component, in a microtask: by then <code>document.body.append(...)</code>
+            or an <code>{"{if}"}</code> branch has usually inserted the markup, and the browser has
+            not drawn a frame yet, so <code>focus()</code> and measuring sizes work. Markup created
+            earlier and inserted later, say in a timer, mounts when it is inserted.
+        </p>
+        {example("mount")}
+        <p>
+            If <code>mount</code> returns a function, it runs when <code>{"{if}"}</code>,
+            {" "}<code>{"{switch}"}</code>, <code>{"{for}"}</code> or a <code>?:</code> branch in
+            markup removes the component: that is where you stop what <code>mount</code> started.
+            Press "Run", then hide the clock: the timer stops.
+        </p>
+        {example("mount-cleanup")}
+        <ul>
+            <li>
+                The body of <code>mount</code> is a function that runs later, like an event
+                handler: changes of <code>state</code> in it update the markup, and
+                {" "}<code>return</code> returns from it, not from the component.
+            </li>
+            <li>
+                It can return a function without parameters, <code>null</code> when there is
+                nothing to stop, or nothing.
+            </li>
+            <li>
+                <code>mount</code> is written at the top level of a component's body; there can be
+                several, and they run in order.
+            </li>
+            <li>
+                If <code>{"{if}"}</code>, <code>{"{switch}"}</code> or <code>{"{for}"}</code> removes
+                the markup before it gets into the document, <code>mount</code> does not run.
+            </li>
+            <li>
+                The compiler does not track markup that the program removes by itself
+                (<code>element.remove()</code>): its cleanup does not run.
+            </li>
+            <li>
+                To do something once for a whole list, write <code>mount</code> in the component
+                that creates the list. Code needed once when the program starts goes simply after
+                {" "}<code>document.body.append</code>.
+            </li>
+        </ul>
+    </>
+}
+
+export func webComponents() Node {
+    return <>
+        <p>
+            <code>@html-tag</code> before <code>comp</code> makes a component a web component as
+            well: a custom element that works in plain HTML, in other frameworks and from JS, like
+            {" "}<code>{"<video>"}</code>. The tag is the name of the component in kebab case,
+            {" "}<code>@html-tag comp mainPage()</code> gives <code>{"<main-page>"}</code>, or the
+            one in the decorator: <code>@html-tag("app-page") comp MainPage()</code>. HTML wants a
+            hyphen in the name of a custom element, so <code>@html-tag comp Page()</code> is a
+            compile error.
+        </p>
+        {example("html-tag")}
+        <ul>
+            <li>
+                The markup goes into the element's <b>shadow root</b> when the element gets into
+                the document. <code>{"{children}"}</code> is a <code>{"<slot>"}</code>: what is
+                written between the tags shows up there.
+            </li>
+            <li>
+                Every property is a <b>JS property</b> of the element, and setting it updates the
+                markup. Strings, numbers and bools also have <b>attributes</b>, converted by the
+                type of the property: a string as it is, a number through <code>Number()</code>,
+                a bool is true when the attribute is there. <code>itemCount</code> is the
+                attribute <code>item-count</code>. Without the attribute the property has its
+                default value.
+            </li>
+            <li>
+                Arrays, objects and functions are set only as JS properties:
+                {" "}<code>list.items = [...]</code>. An element written in HTML has none of them
+                yet, so such properties need a default value or a nullable type.
+            </li>
+            <li>
+                <code>mount</code> runs when the element is in the document, and the function it
+                returns runs when the element is removed. Moving the element keeps its markup and
+                state.
+            </li>
+            <li>
+                The element is defined with <code>customElements.define</code> at the end of the
+                module, when the names it uses have their values. Properties set before that are
+                kept.
+            </li>
+            <li>
+                Properties cannot be named like those of <code>HTMLElement</code> that the element
+                needs: <code>id</code>, <code>style</code>, <code>hidden</code>...
+            </li>
+            <li>
+                The playground on this page defines the elements again on every run, so their tags
+                get a number: <code>{"<fruit-badge-3>"}</code>.
+            </li>
+        </ul>
+    </>
+}

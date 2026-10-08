@@ -3,8 +3,8 @@
 **English** · [Русский](components.ru.md)
 
 > Status: implemented are elements, components, `state`, `bind:`, `if` / `for` / `switch` in markup
-> (stages 1–4), recursive components, early returns and `mount()`; `derived` and `effect` are not
-> yet. The decisions made are collected at the end of the document, together with what is not
+> (stages 1–4), recursive components, early returns, `mount()` and web components (`@html-tag`);
+> `derived` and `effect` are not yet. The decisions made are collected at the end of the document, together with what is not
 > decided yet.
 
 ## Goals
@@ -782,6 +782,14 @@ body of `for`: the code of one row of the list is written there once, and no ext
    page (`Symbol.for("mangoscript.owner")`), because a block of one module can hold components of
    another. Removing markup by the program's own code is not tracked: that would need an observer of
    the whole document all the time, and the cleanup would run asynchronously.
+9. **Web components are `@html-tag comp ...`.** The tag comes from the component's name in kebab
+   case or from the decorator, `@html-tag("app-card")`; a name without a hyphen is a compile error
+   rather than a guess. Such a component is compiled to a function, like a recursive one, and a
+   class of a custom element calls it in `connectedCallback` and renders into a shadow root.
+   Attributes are converted by the type of the property (string, `Number()`, presence for bool);
+   arrays, objects and functions are only JS properties. Disconnection removes the markup in a
+   microtask, unless the element is back by then, so moving it keeps the state. The element is
+   defined at the end of the module, so that it never runs before the names it uses have values.
 
 ## Not decided yet
 

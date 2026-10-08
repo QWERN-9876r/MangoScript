@@ -75,6 +75,9 @@ func tokenClass(tokens any, i number, language string) string {
     if i > 0 && (tokens[i - 1].kind == "." || tokens[i - 1].kind == "?.") {
         return tokens[i + 1].kind == "(" ? "fn" : ""
     }
+    if isDecorator(tokens, i) {
+        return "fn"
+    }
     switch kind {
     case "Number":
         return "num"
@@ -123,6 +126,19 @@ func identifierClass(text string, next string, language string) string {
         return "fn"
     }
     return isCapitalized(text) ? "type" : ""
+}
+
+// @html-tag is the tokens @, html, - and tag, written without spaces.
+func isDecorator(tokens any, i number) bool {
+    for let j = i; j >= 0 && j >= i - 3; j-- {
+        if tokens[j].kind == "@" {
+            return true
+        }
+        if j == 0 || tokens[j - 1].end != tokens[j].start {
+            return false
+        }
+    }
+    return false
 }
 
 func isCapitalized(text string) bool {

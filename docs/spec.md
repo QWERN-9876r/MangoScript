@@ -76,7 +76,7 @@ null  true  false  typeof  instanceof
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
 too, in `import` and `export` so is `from`, and at the start of a statement in a component's body,
 `state` and `mount`. Elsewhere they are ordinary names. Reserved for the future: `map`, `async`,
-`await`.
+`await`. The only decorator is `@html-tag` before `comp` (see "Web components").
 
 After `.` and in object keys, keywords can be used as ordinary names: `xs.map(f)`, `event.type`,
 `{ default: 1 }`.
@@ -941,6 +941,50 @@ $$mount(() => {
   const timer = setInterval(() => { ... }, 1000);
   return () => clearInterval(timer);
 });
+```
+
+**Web components.** `@html-tag` before `comp` makes a component a custom element as well, so it
+works in plain HTML, in other frameworks and from JS. The tag is the component's name in kebab case,
+or the one given in the decorator:
+
+```go
+@html-tag comp mainPage() { ... }               // <main-page>
+@html-tag("app-card") comp Card(title string) { ... }   // <app-card>
+```
+
+- **The name** follows the rules of HTML: lowercase letters, digits, `-`, `.` and `_`, starting
+  with a letter, with at least one hyphen, and not one of the names HTML reserves (`font-face`...).
+  A name that breaks them, or a tag used by two components, is a compile error. Without a name in
+  the decorator, the component may start with a lowercase letter: `@html-tag comp mainPage()`.
+- **Rendering.** The element creates the component's markup in its shadow root when it is connected
+  to the document. When it is disconnected and not inserted back in the same task, the markup is
+  removed and the functions returned by `mount()` run; moving the element keeps its markup and
+  state. `children` is a `<slot>`.
+- **Properties.** Every property except `children` is a JS property of the element; setting it
+  updates the markup. Properties of type `string`, `number` or `bool` (also nullable, literal
+  types and their unions) have attributes too: `itemCount` is `item-count`. The attribute is
+  converted by the type: a string as it is, a number with `Number()`, a bool is `true` when the
+  attribute is there. A removed attribute leaves the default value. Arrays, objects and functions
+  are only JS properties.
+- **Missing properties.** An element written in HTML has no properties until they are set, so a
+  property without a default value gets its zero value (`""`, `0`, `false`, `[]`, `null`). A
+  property whose type has no zero value needs a default value or a nullable type. Properties cannot
+  have the names of `HTMLElement` properties that the element needs: `id`, `style`, `hidden`,
+  `className`, `slot`...
+- **In markup of the same module** `<app-card title="Hi" item-count={2} />` sets the properties
+  directly, so they are checked like the properties of a component and may be objects or functions.
+- **Definition.** `customElements.define` is called at the end of the module, when the names the
+  component uses have their values. Properties set on an element before that are kept.
+
+```js
+class $$CardElement extends HTMLElement {
+  static observedAttributes = ["title"];
+  connectedCallback() { /* $$Card(...) into this.shadowRoot */ }
+  disconnectedCallback() { /* the cleanup of mount() */ }
+  attributeChangedCallback(name, old, value) { /* this.title = value ?? undefined */ }
+  set title(value) { /* updates the markup */ }
+}
+customElements.define("app-card", $$CardElement);
 ```
 
 The full design, reactivity included, is in [docs/components.md](components.md).

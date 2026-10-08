@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
+import { htmlTagName } from '../html-tag.ts';
 import { recursiveComponents } from '../recursion.ts';
 import { assignedNames } from '../walk.ts';
 import { collectValueNames, type BindingKind } from './analysis.ts';
@@ -63,8 +64,13 @@ export abstract class Emitter {
   protected readonly valueNames = new Set<string>();
   /** Components of the module, inlined where they are used. */
   protected readonly components = new Map<string, ast.ComponentDeclaration>();
-  /** Recursive components: they cannot be inlined, so each becomes a function. */
+  /**
+   * Components that become functions: recursive ones cannot be inlined, and web components
+   * (`@html-tag`) create their markup in the element's class.
+   */
   protected readonly functionComponents: ReadonlySet<ast.ComponentDeclaration>;
+  /** Web components of the module by their tags: `<app-card count={3} />` sets their properties. */
+  protected readonly webComponents = new Map<string, ast.ComponentDeclaration>();
 
   constructor(program: ast.Program, options: JsOptions) {
     this.program = program;
@@ -78,7 +84,13 @@ export abstract class Emitter {
     }
     this.assigned = assignedNames(program);
     collectValueNames(program, this.valueNames);
-    this.functionComponents = recursiveComponents(this.components);
+    const functionComponents = recursiveComponents(this.components);
+    for (const component of this.components.values()) {
+      if (!component.htmlTag) continue;
+      functionComponents.add(component);
+      this.webComponents.set(htmlTagName(component), component);
+    }
+    this.functionComponents = functionComponents;
   }
 
   // ─── Output ────────────────────────────────────────────────────────────────────────────────────

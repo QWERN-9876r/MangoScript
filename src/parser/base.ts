@@ -27,7 +27,13 @@ export abstract class ParserBase {
 
   protected abstract parseTry(): ast.TryStatement;
 
-  protected abstract parseComponent(start: number, exported: boolean): ast.ComponentDeclaration;
+  protected abstract parseComponent(
+    start: number,
+    exported: boolean,
+    htmlTag?: ast.HtmlTag | null,
+  ): ast.ComponentDeclaration;
+
+  protected abstract parseHtmlTag(): ast.HtmlTag;
 
   protected abstract parseExport(): ast.Statement;
 

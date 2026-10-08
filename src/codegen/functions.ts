@@ -1,11 +1,11 @@
 import type * as ast from '../ast.ts';
 import { declarationsOf, findDefers } from './analysis.ts';
 import type { DeferMode } from './emitter.ts';
-import { ComponentEmitter } from './components.ts';
+import { WebComponentEmitter } from './web-components.ts';
 import { ARROW, POSTFIX } from './syntax.ts';
 
 /** Function bodies and `defer`. */
-export abstract class FunctionEmitter extends ComponentEmitter {
+export abstract class FunctionEmitter extends WebComponentEmitter {
   /** Parameters and body of a function, method or func literal. */
   protected override func(params: ast.Parameter[], body: ast.BlockStatement): [string, string] {
     const defers = findDefers(body);

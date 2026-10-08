@@ -126,6 +126,13 @@ describe('VS Code grammar', () => {
     );
   });
 
+  it('colours @html-tag', () => {
+    const source = '@html-tag("app-card") comp Card() {';
+    expect(scopeOf(source, '@')).toBe('punctuation.decorator');
+    expect(scopeOf(source, 'html-tag')).toBe('entity.name.function.decorator');
+    expect(scopeOf(source, '"')).toBe('punctuation.definition.string.begin');
+  });
+
   it('treats mount() as a keyword only at the start of a statement', () => {
     expect(scopeOf('    mount() {', 'mount')).toBe('storage.type.mount');
     expect(scopeOf('    widget.mount(element)', 'mount')).not.toBe('storage.type.mount');
