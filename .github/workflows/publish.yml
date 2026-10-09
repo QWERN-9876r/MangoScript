@@ -1,0 +1,32 @@
+# Publishes the package to npm when a version tag such as v0.2.0 is pushed. npm trusts this
+# workflow instead of a token (trusted publishing), and the release gets provenance. On npmjs.com:
+# the package → Settings → Trusted publishing → GitHub Actions, with this repository and the
+# workflow file publish.yml.
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install --global npm@11
+      - run: npm ci
+      # The tag has to name the version in package.json, or a different version would be released.
+      - name: Check the tag
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
+      # prepublishOnly runs `npm run check`, and prepack builds dist/.
+      - run: npm publish

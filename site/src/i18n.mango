@@ -36,6 +36,9 @@ export interface Strings {
     exception string
     emptyConsole string
     emptyPreview string
+    /** In a tab until the compiler is loaded, and if it cannot be. */
+    loadingCompiler string
+    compilerFailed string
     /** The program the playground starts with. */
     playgroundStart string
 }

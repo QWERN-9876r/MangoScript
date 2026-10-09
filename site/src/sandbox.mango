@@ -2,7 +2,7 @@
 // builds it for the browser from src/browser.ts. It does not check imports: there are no modules
 // on disk here.
 
-import { compile } from "../../src/browser.ts"
+import { loadCompiler } from "./compiler.ts"
 import { highlight } from "./highlight.mango"
 import { text } from "./i18n.mango"
 
@@ -11,11 +11,55 @@ export interface Compiled {
     errors []string
 }
 
-export func compileMango(source string) Compiled {
-    const result = compile(source)
-    return {
-        code: result.code,
-        errors: result.diagnostics.map(d => `${text().position(d.line, d.column)}: ${d.message}`),
+type Compile func(string) Compiled
+
+// The compiler is loaded on the first run, when a JavaScript tab is opened and when the playground
+// comes into view; null until then. Compilations asked for while it loads wait in `waiting`.
+let compiler ?Compile = null
+let waiting []func(?Compile) = []
+
+/** Compiles `source` once the compiler is loaded: right away if it already is. */
+export func compileMango(source string, done func(Compiled)) {
+    withCompiler(compile => {
+        if compile == null {
+            done({ code: "", errors: [text().compilerFailed] })
+        } else {
+            done(compile(source))
+        }
+    })
+}
+
+/** Calls `use` with the compiler, or with null if it could not be loaded. */
+func withCompiler(use func(?Compile)) {
+    if compiler != null {
+        use(compiler)
+        return
+    }
+    waiting.push(use)
+    if waiting.length > 1 {
+        return
+    }
+    loadCompiler().then(
+        module => {
+            compiler = source => {
+                const result = module.compile(source)
+                return {
+                    code: result.code,
+                    errors: result.diagnostics.map(d => `${text().position(d.line, d.column)}: ${d.message}`),
+                }
+            }
+            resolveWaiting(compiler)
+        },
+        // Without the compiler the waiting ones get an error, and the next compilation tries again.
+        () => resolveWaiting(null),
+    )
+}
+
+func resolveWaiting(compile ?Compile) {
+    const callbacks = waiting
+    waiting = []
+    for use in callbacks {
+        use(compile)
     }
 }
 
@@ -61,16 +105,18 @@ let allRuns = 0
  * after the run and then with every new line. Compile errors and exceptions are lines too.
  */
 export func runProgram(source string, preview HTMLElement, output func([]string)) {
-    const compiled = compileMango(source)
-    if compiled.errors.length > 0 {
-        output(compiled.errors)
-        return
-    }
-    if source.includes("import ") {
-        output([text().noImports])
-        return
-    }
+    compileMango(source, compiled => {
+        if compiled.errors.length > 0 {
+            output(compiled.errors)
+        } else if source.includes("import ") {
+            output([text().noImports])
+        } else {
+            runCompiled(compiled.code, preview, output)
+        }
+    })
+}
 
+func runCompiled(code string, preview HTMLElement, output func([]string)) {
     const run = (runs.get(preview) ?? 0) + 1
     runs.set(preview, run)
     const lines []string = []
@@ -109,7 +155,7 @@ export func runProgram(source string, preview HTMLElement, output func([]string)
 
     preview.replaceChildren()
     try {
-        const program = globalThis.Function("console", "document", "customElements", compiled.code)
+        const program = globalThis.Function("console", "document", "customElements", code)
         runOwned(preview, () => program(sandboxConsole, sandboxDocument, sandboxElements))
     } catch e {
         lines.push(`${text().exception}: ${e.message}`)
@@ -128,9 +174,22 @@ func show(value any) string {
     return JSON.stringify(value)
 }
 
-/** The generated JS, highlighted, or the compile errors. */
+/**
+ * The generated JS, highlighted, or the compile errors. While the compiler loads, the view shows a
+ * note; once it is loaded, the view is filled before it is returned.
+ */
 export func compiledView(source string) Node {
-    const compiled = compileMango(source)
+    const view = <div>{loadingView()}</div>
+    compileMango(source, compiled => view.replaceChildren(compiledNode(compiled)))
+    return view
+}
+
+/** What a tab shows until the compiler is loaded. */
+export func loadingView() Node {
+    return <p class="compiler-loading">{text().loadingCompiler}</p>
+}
+
+func compiledNode(compiled Compiled) Node {
     if compiled.errors.length > 0 {
         return <ul class="errors">
             {for message in compiled.errors {

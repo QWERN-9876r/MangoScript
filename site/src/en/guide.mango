@@ -224,29 +224,33 @@ func modules() Node {
     </>
 }
 
-const COMMANDS = `npm run mango -- build app.mango            # app.js next to the source
-npm run mango -- build src --out-dir dist   # every module of a folder
-npm run mango -- run app.mango              # compile and run
-npm run site:dev                            # this site on the Vite dev server
-npm run vscode:install                      # syntax highlighting in VS Code`
+const COMMANDS = `npm install --save-dev mangoscript
+npx mango build app.mango            # app.js next to the source
+npx mango build src --out-dir dist   # every module of a folder
+npx mango run app.mango              # compile and run`
+
+const REPOSITORY_COMMANDS = `npm run site:dev         # this site on the Vite dev server
+npm run vscode:install   # syntax highlighting in VS Code`
 
 func tools() Node {
     return <>
         <p>
-            The compiler is written in TypeScript and runs on Node.js 24. The source code is in the
-            {" "}<a href={REPOSITORY}>GitHub repository</a>; the commands run from its root:
+            The compiler is the npm package <code>mangoscript</code>, and it runs on Node.js 24:
         </p>
         <pre class="code">{COMMANDS}</pre>
         <p>
-            The language specification with the reasons for its decisions is in
-            {" "}<code>docs/spec.md</code>, the design of components in
-            {" "}<code>docs/components.md</code>. This page is written in MangoScript too: its code
-            is in <code>site/src</code>, and the server is <code>site/server.mango</code>.
-        </p>
-        <p>
-            Vite projects have a plugin, <code>src/vite.ts</code>: with it <code>.mango</code>
+            Vite projects have a plugin, <code>mangoscript/vite</code>: with it <code>.mango</code>
             modules are imported like any others, and type errors show up over the page. This site
             is built that way.
         </p>
+        <p>
+            The compiler is written in TypeScript; the source code is in the
+            {" "}<a href={REPOSITORY}>GitHub repository</a>. The language specification with the
+            reasons for its decisions is in <code>docs/spec.md</code>, the design of components in
+            {" "}<code>docs/components.md</code>. This page is written in MangoScript too: its code
+            is in <code>site/src</code>, and the server is <code>site/server.mango</code>. From the
+            root of the repository:
+        </p>
+        <pre class="code">{REPOSITORY_COMMANDS}</pre>
     </>
 }

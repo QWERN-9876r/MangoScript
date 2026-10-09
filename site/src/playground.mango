@@ -3,7 +3,7 @@
 
 import { text } from "./i18n.mango"
 import { highlight } from "./highlight.mango"
-import { compiledView, consoleView, runProgram } from "./sandbox.mango"
+import { compiledView, consoleView, loadingView, runProgram } from "./sandbox.mango"
 
 
 // Examples open in the playground through openInPlayground; the component sets the function.
@@ -19,10 +19,30 @@ comp Playground() {
     state tab = "js"
     state lines []string = []
     const preview = <div class="preview" data-empty={t.emptyPreview} />
+    // The JS tab needs the compiler, which is loaded only when the playground is about to come into
+    // view or an example is opened in it: the guide is read without it.
+    state shown = false
+
+    mount() {
+        const observer = new IntersectionObserver(entries => {
+            if entries.some(entry => entry.isIntersecting) {
+                shown = true
+                observer.disconnect()
+            }
+        }, { rootMargin: "300px" })
+        const section = document.getElementById("playground")
+        if section == null {
+            shown = true
+        } else {
+            observer.observe(section)
+        }
+        return () => observer.disconnect()
+    }
 
     openHandler = func(code string) {
         source = code
         tab = "js"
+        shown = true
         document.getElementById("playground")?.scrollIntoView({ behavior: "smooth" })
     }
 
@@ -64,7 +84,7 @@ comp Playground() {
                 <button class="tab" onClick={source = t.playgroundStart}>{t.reset}</button>
             </div>
             {if tab == "js" {
-                <div class="output-body">{compiledView(source)}</div>
+                <div class="output-body">{shown ? compiledView(source) : loadingView()}</div>
             } else {
                 <div class="output-body result">{preview}{consoleView(lines)}</div>
             }}

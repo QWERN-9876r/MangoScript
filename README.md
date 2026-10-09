@@ -20,10 +20,27 @@ The guide with examples and a playground: <https://qwern-9876r.github.io/MangoSc
 Specification: [docs/spec.md](docs/spec.md), design of components:
 [docs/components.md](docs/components.md), an example: [examples/hello.mango](examples/hello.mango).
 
-## Requirements
+## Installation
+
+MangoScript needs Node.js ≥ 24.
+
+```sh
+npm install --save-dev mangoscript
+npx mango build app.mango                # app.js next to the source
+npx mango build src --out-dir dist       # every module of a folder
+npx mango run app.mango                  # compile and run
+```
+
+From code, the compiler is `import { compile } from 'mangoscript'`. The package also has the
+[Vite](#vite) plugin, `mangoscript/vite`, and `mangoscript/browser`, the compiler without the
+TypeScript compiler for running in a browser, as in the site's playground: there imports are not
+type checked.
+
+## Development
 
 Node.js ≥ 24 (`nvm use`). The compiler is written in TypeScript, and Node runs the `.ts` files
-directly, so development needs no build step.
+directly, so development needs no build step: the commands below run the compiler from `src/`.
+`dist/` is built only for the npm package.
 
 ## Commands
 
@@ -37,11 +54,18 @@ directly, so development needs no build step.
 | `npm run typecheck`                  | Type check                                                 |
 | `npm run lint` / `npm run format`    | ESLint / Prettier                                          |
 | `npm run check`                      | All at once: types, lint, format, tests                    |
-| `npm run build`                      | Build to `dist/` (the `mango` binary)                      |
+| `npm run build`                      | Build the npm package to `dist/`                           |
 | `npm run vscode:install`             | Build and install the VS Code extension                    |
 
 Options of `build`: `--out-dir dir` writes the `.js` files to a separate folder, `--stdout` prints
 the JS of one file, `--no-check` skips type checking.
+
+## Releases
+
+A release is a version tag: `npm version minor` (or `patch`) changes `package.json` and makes the
+tag `v0.2.0`, and `git push --follow-tags` sends it to GitHub. The workflow
+[.github/workflows/publish.yml](.github/workflows/publish.yml) then runs `npm run check`, builds
+`dist/` and publishes the package to npm.
 
 ## Highlighting in VS Code
 
@@ -72,7 +96,10 @@ and the bottom of the page has a playground.
 Vite builds the site ([vite.config.ts](vite.config.ts)): the plugin [src/vite.ts](src/vite.ts)
 compiles `.mango` modules with type checking, the playground's compiler comes straight from
 [src/browser.ts](src/browser.ts), and the code of the examples gets into the bundle from the
-`virtual:examples/en` and `virtual:examples/ru` modules.
+`virtual:examples/en` and `virtual:examples/ru` modules. The compiler is a chunk of its own,
+loaded by [site/src/compiler.ts](site/src/compiler.ts) on the first run, when a JavaScript tab is
+opened and when the playground comes into view: the page itself needs only the lexer, for
+highlighting.
 
 ```sh
 npm run site:dev    # the Vite dev server: changes show up right away
@@ -81,11 +108,11 @@ npm run site        # builds the site to site/dist and runs site/server.mango at
 
 ## Vite
 
-The plugin from [src/vite.ts](src/vite.ts) adds MangoScript to any Vite project:
+The plugin `mangoscript/vite` ([src/vite.ts](src/vite.ts)) adds MangoScript to any Vite project:
 
 ```ts
 import { defineConfig } from 'vite';
-import { mango } from './src/vite.ts';
+import { mango } from 'mangoscript/vite';
 
 export default defineConfig({ plugins: [mango()] });
 ```

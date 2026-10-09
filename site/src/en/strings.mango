@@ -22,6 +22,8 @@ export const STRINGS Strings = {
     exception: "Exception",
     emptyConsole: "The program printed nothing to the console.",
     emptyPreview: "The program added nothing to the page.",
+    loadingCompiler: "Loading the compiler…",
+    compilerFailed: "Could not load the compiler. Check the connection and try again.",
     playgroundStart: `// The code compiles on every change. "Run" runs it:
 // document.body is the result area, and console.log prints below it.
 

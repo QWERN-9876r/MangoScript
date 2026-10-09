@@ -224,28 +224,33 @@ func modules() Node {
     </>
 }
 
-const COMMANDS = `npm run mango -- build app.mango            # app.js рядом с исходником
-npm run mango -- build src --out-dir dist   # все модули папки
-npm run mango -- run app.mango              # скомпилировать и запустить
-npm run site:dev                            # этот сайт на сервере разработки Vite
-npm run vscode:install                      # подсветка синтаксиса в VS Code`
+const COMMANDS = `npm install --save-dev mangoscript
+npx mango build app.mango            # app.js рядом с исходником
+npx mango build src --out-dir dist   # все модули папки
+npx mango run app.mango              # скомпилировать и запустить`
+
+const REPOSITORY_COMMANDS = `npm run site:dev         # этот сайт на сервере разработки Vite
+npm run vscode:install   # подсветка синтаксиса в VS Code`
 
 func tools() Node {
     return <>
         <p>
-            Компилятор написан на TypeScript и работает в Node.js 24. Исходный код — в
-            {" "}<a href={REPOSITORY}>репозитории на GitHub</a>, команды запускаются из его корня:
+            Компилятор — npm-пакет <code>mangoscript</code>, он работает в Node.js 24:
         </p>
         <pre class="code">{COMMANDS}</pre>
         <p>
-            Спецификация языка с обоснованиями решений — в <code>docs/spec.ru.md</code>, концепция
-            компонентов — в <code>docs/components.ru.md</code>. Эта страница тоже написана на
-            MangoScript: её код — в <code>site/src</code>, а сервер — <code>site/server.mango</code>.
-        </p>
-        <p>
-            Для проектов на Vite есть плагин <code>src/vite.ts</code>: с ним
+            Для проектов на Vite есть плагин <code>mangoscript/vite</code>: с ним
             {" "}<code>.mango</code>-модули импортируются как обычные, а ошибки типов показываются
             поверх страницы. Этот сайт собран именно так.
         </p>
+        <p>
+            Компилятор написан на TypeScript, исходный код — в
+            {" "}<a href={REPOSITORY}>репозитории на GitHub</a>. Спецификация языка с обоснованиями
+            решений — в <code>docs/spec.ru.md</code>, концепция компонентов — в
+            {" "}<code>docs/components.ru.md</code>. Эта страница тоже написана на MangoScript: её
+            код — в <code>site/src</code>, а сервер — <code>site/server.mango</code>. Из корня
+            репозитория:
+        </p>
+        <pre class="code">{REPOSITORY_COMMANDS}</pre>
     </>
 }

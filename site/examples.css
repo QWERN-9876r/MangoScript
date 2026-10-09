@@ -81,6 +81,14 @@
   font-size: 0.9rem;
 }
 
+/* In a JavaScript tab while the compiler loads. */
+.compiler-loading {
+  margin: 0;
+  padding: 16px 18px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 /* The result area: the program adds elements here through document.body. */
 .preview {
   padding: 14px;

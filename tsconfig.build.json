@@ -2,7 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",
-    "noEmit": false
+    "noEmit": false,
+    // The package ships dist/ without src/, so source maps would point at missing files.
+    "sourceMap": false
   },
   "include": ["src"]
 }

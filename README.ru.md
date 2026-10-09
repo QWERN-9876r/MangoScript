@@ -20,10 +20,27 @@ const q, err = divide(10, 4)
 Спецификация: [docs/spec.ru.md](docs/spec.ru.md), концепция компонентов:
 [docs/components.ru.md](docs/components.ru.md), пример: [examples/hello.mango](examples/hello.mango).
 
-## Требования
+## Установка
+
+Нужен Node.js ≥ 24.
+
+```sh
+npm install --save-dev mangoscript
+npx mango build app.mango                # app.js рядом с исходником
+npx mango build src --out-dir dist       # все модули папки
+npx mango run app.mango                  # скомпилировать и запустить
+```
+
+Из кода компилятор подключается как `import { compile } from 'mangoscript'`. Ещё в пакете есть
+плагин для [Vite](#vite) — `mangoscript/vite` — и `mangoscript/browser`: компилятор без
+компилятора TypeScript, для работы в браузере, как в песочнице сайта; импорты там не проверяются
+по типам.
+
+## Разработка
 
 Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript, Node запускает `.ts`-файлы напрямую,
-поэтому отдельная сборка для разработки не нужна.
+поэтому отдельная сборка для разработки не нужна: команды ниже запускают компилятор из `src/`.
+`dist/` собирается только для npm-пакета.
 
 ## Команды
 
@@ -37,11 +54,18 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 | `npm run typecheck`                  | Проверка типов                                              |
 | `npm run lint` / `npm run format`    | ESLint / Prettier                                           |
 | `npm run check`                      | Всё сразу — типы, линт, формат, тесты                       |
-| `npm run build`                      | Сборка в `dist/` (бинарь `mango`)                           |
+| `npm run build`                      | Собрать npm-пакет в `dist/`                                 |
 | `npm run vscode:install`             | Собрать и установить расширение для VS Code                 |
 
 Опции `build`: `--out-dir dir` — писать `.js` в отдельную папку, `--stdout` — вывести JS одного
 файла в консоль, `--no-check` — без проверки типов.
+
+## Релизы
+
+Релиз — это тег версии: `npm version minor` (или `patch`) меняет `package.json` и создаёт тег
+`v0.2.0`, а `git push --follow-tags` отправляет его на GitHub. Дальше workflow
+[.github/workflows/publish.yml](.github/workflows/publish.yml) запускает `npm run check`, собирает
+`dist/` и публикует пакет в npm.
 
 ## Подсветка в VS Code
 
@@ -70,7 +94,9 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 Сайт собирает Vite ([vite.config.ts](vite.config.ts)): `.mango`-модули компилирует плагин
 [src/vite.ts](src/vite.ts) с проверкой типов, компилятор для песочницы берётся прямо из
 [src/browser.ts](src/browser.ts), а код примеров попадает в бандл из модулей
-`virtual:examples/en` и `virtual:examples/ru`.
+`virtual:examples/en` и `virtual:examples/ru`. Компилятор вынесен в отдельный чанк, его загружает
+[site/src/compiler.ts](site/src/compiler.ts) при первом запуске, при открытии вкладки JavaScript и
+когда песочница появляется на экране: самой странице нужен только лексер для подсветки.
 
 ```sh
 npm run site:dev    # сервер разработки Vite: изменения видны сразу
@@ -79,11 +105,12 @@ npm run site        # собирает сайт в site/dist и запускае
 
 ## Vite
 
-Плагин из [src/vite.ts](src/vite.ts) подключает MangoScript к любому проекту на Vite:
+Плагин `mangoscript/vite` ([src/vite.ts](src/vite.ts)) подключает MangoScript к любому проекту на
+Vite:
 
 ```ts
 import { defineConfig } from 'vite';
-import { mango } from './src/vite.ts';
+import { mango } from 'mangoscript/vite';
 
 export default defineConfig({ plugins: [mango()] });
 ```

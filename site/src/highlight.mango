@@ -1,8 +1,10 @@
 // Code highlighting with the compiler's own lexer: MangoScript tokens are marked as the compiler
 // sees them. The generated JS is marked by the same lexer too, with its own keywords: the syntax is
-// almost the same.
+// almost the same. Only the lexer is imported: the rest of the compiler is loaded on first use
+// (compiler.ts), and the code is highlighted as soon as the page is drawn.
 
-import { tokenize, KEYWORDS } from "../../src/browser.ts"
+import { tokenize } from "../../src/lexer/lexer.ts"
+import { KEYWORDS } from "../../src/lexer/token.ts"
 
 // In the compiler, KEYWORDS is an array of literal types ("func" | "comp" | ...), and here it is
 // compared with any strings.

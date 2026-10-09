@@ -1,9 +1,25 @@
 {
   "name": "mangoscript",
-  "version": "0.0.1",
-  "private": true,
-  "description": "MangoScript — a programming language that compiles to JavaScript",
+  "version": "0.1.0",
+  "description": "A language with JavaScript semantics, Go-style syntax and static types that compiles to readable JavaScript",
+  "keywords": [
+    "mangoscript",
+    "programming-language",
+    "compiler",
+    "javascript",
+    "static-typing",
+    "go",
+    "vite-plugin",
+    "web-components"
+  ],
+  "homepage": "https://qwern-9876r.github.io/MangoScript/",
+  "bugs": "https://github.com/QWERN-9876r/MangoScript/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QWERN-9876r/MangoScript.git"
+  },
   "license": "MIT",
+  "author": "Qwern9876r",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -15,7 +31,16 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -27,7 +52,9 @@
     "site": "npm run site:build && node src/cli.ts run site/server.mango",
     "vscode:package": "cd editors/vscode && npx --yes @vscode/vsce@4 package --allow-missing-repository --skip-license --out mangoscript.vsix",
     "vscode:install": "npm run vscode:package && code --install-extension editors/vscode/mangoscript.vsix --force",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -38,6 +65,14 @@
   },
   "dependencies": {
     "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "vite": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
