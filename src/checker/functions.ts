@@ -127,21 +127,35 @@ export abstract class FunctionChecker extends ControlFlowChecker {
         ? context.results
         : null;
     const type = func(params, []);
-    const inferring = this.inferring;
-    this.inferring = new Set();
-    try {
-      type.results = this.checkFunction(node.params, type, contextResults, node.body, {
-        closure: true,
-      });
-    } finally {
-      this.inferring = inferring;
+    const checkBody = () => {
+      const inferring = this.inferring;
+      this.inferring = new Set();
+      try {
+        return this.checkFunction(node.params, type, contextResults, node.body, {
+          closure: true,
+        });
+      } finally {
+        this.inferring = inferring;
+      }
+    };
+    // In the initializer of a variable that the body uses, the body can wait for the variable's
+    // type if the function's type is known without it: from the context, or a callback whose
+    // result is not used.
+    const knownResults =
+      contextResults ?? (untypedContext || context?.results.length === 0 ? [] : null);
+    if (knownResults && !params.includes(UNKNOWN) && this.deferBody(node.body, checkBody)) {
+      type.results = knownResults;
+      return type;
     }
+    type.results = checkBody();
     return type;
   }
 
   protected checkFuncExpression(node: ast.FuncExpression): Type {
     const type = this.signature(node.params, node.results);
-    this.checkFunction(node.params, type, type.results, node.body, { closure: true });
+    const checkBody = () =>
+      this.checkFunction(node.params, type, type.results, node.body, { closure: true });
+    if (!this.deferBody(node.body, checkBody)) checkBody();
     return type;
   }
 }

@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { isUntyped, isNumeric, countValues, callName } from './helpers.ts';
-import { TypeResolver } from './resolution.ts';
+import { InitializerChecker } from './initializers.ts';
 import {
   ANY,
   func,
@@ -16,7 +16,7 @@ import {
 
 // Statements: declarations of variables, assignments, `return`, `mount()`.
 
-export abstract class StatementChecker extends TypeResolver {
+export abstract class StatementChecker extends InitializerChecker {
   protected override checkStatement(node: ast.Statement): void {
     switch (node.kind) {
       case 'VariableDeclaration':
@@ -113,8 +113,42 @@ export abstract class StatementChecker extends TypeResolver {
   protected checkVariableDeclaration(node: ast.VariableDeclaration): void {
     const declared = node.type ? this.resolveType(node.type) : null;
     const { names, values } = node;
-    let types: Type[];
+    // The variables exist from the start of their declaration, as in JS, so functions in the
+    // initializer can use them (initializers.ts). A written type they have right away.
+    const bindings = names.map((name) => {
+      if (name.name === '_') return null;
+      // Top-level variables were declared in advance by declareStatements().
+      const existing = this.scope.values.get(name.name);
+      const binding =
+        existing && existing.type === null && existing.kind === node.keyword
+          ? existing
+          : this.declareValue(name, node.keyword, null);
+      binding.type = declared;
+      return binding;
+    });
 
+    this.checkInitializer(
+      node,
+      bindings.filter((binding) => binding !== null),
+      () => {
+        const types = this.initializerTypes(node, declared);
+        bindings.forEach((binding, i) => {
+          if (!binding) return;
+          const type = types[i] ?? UNKNOWN;
+          binding.type = type;
+          const value = values.length === names.length ? values[i] : undefined;
+          if (value && isNullable(type) && !isNullable(this.typeOfChecked(value))) {
+            this.flow.set(binding, nonNull(type));
+          }
+        });
+      },
+    );
+  }
+
+  /** The types of the variables of a declaration: the written one, or those of their values. */
+  private initializerTypes(node: ast.VariableDeclaration, declared: Type | null): Type[] {
+    const { names, values } = node;
+    let types: Type[];
     if (values.length === 0) {
       if (declared && !hasZeroValue(declared) && declared.kind !== 'unknown') {
         const type = typeToString(declared);
@@ -134,22 +168,7 @@ export abstract class StatementChecker extends TypeResolver {
     } else {
       types = this.unpack(values[0]!, names.length, declared);
     }
-
-    names.forEach((name, i) => {
-      if (name.name === '_') return;
-      const type = types[i] ?? UNKNOWN;
-      // Top-level variables were declared in advance by declareStatements().
-      const existing = this.scope.values.get(name.name);
-      const binding =
-        existing && existing.type === null && existing.kind === node.keyword
-          ? existing
-          : this.declareValue(name, node.keyword, null);
-      binding.type = type;
-      const value = values.length === names.length ? values[i] : undefined;
-      if (value && isNullable(type) && !isNullable(this.typeOfChecked(value))) {
-        this.flow.set(binding, nonNull(type));
-      }
-    });
+    return types;
   }
 
   /**

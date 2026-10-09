@@ -119,6 +119,11 @@ export abstract class ExpressionChecker extends FunctionChecker {
       this.error(`components are used as tags: <${node.name} />`, node);
       return UNKNOWN;
     }
+    const initializerError = this.initializerError(binding);
+    if (initializerError !== null) {
+      this.error(initializerError, node);
+      return UNKNOWN;
+    }
     if (binding.type === null) {
       this.error(`"${node.name}" is used before its declaration`, node);
       return UNKNOWN;

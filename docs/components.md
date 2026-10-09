@@ -106,6 +106,15 @@ assignment are statements in MangoScript anyway, not expressions.
 the element itself. So `onInput={title = event.currentTarget.value}` passes type checking without
 casts.
 
+A handler runs on the event, after its element is created, so it can use the variable the element
+is assigned to (see "A variable in its own initializer" in the specification):
+
+```go
+const close = <button onClick={close.remove()}>×</button>
+```
+
+An attribute like `title={close.title}` is read right away, so there it is an error.
+
 ### How it compiles
 
 Elements outside components are static: the values in `{...}` are computed once.

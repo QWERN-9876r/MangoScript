@@ -129,7 +129,10 @@ func functions() Node {
         <p>
             Literals <code>{"func(x number) number { ... }"}</code> and arrow functions
             {" "}<code>x =&gt; x * 2</code> compile to JS arrow functions, so <code>this</code> in
-            them is the one outside.
+            them is the one outside. Such a function in the initializer of a variable runs after
+            the initializer, so it can use the variable: a recursive literal, or a callback that
+            stops its own timer. If the type of the function depends on its body, as for
+            {" "}<code>{"const f = () => f()"}</code>, the variable needs a written type.
         </p>
         {example("functions")}
     </>

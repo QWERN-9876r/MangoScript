@@ -183,8 +183,17 @@ export abstract class MarkupChecker extends OperatorChecker {
     }
   }
 
-  /** The statements of `onClick={count++}`, with `event` declared when there is one. */
+  /**
+   * The statements of `onClick={count++}`, with `event` declared when there is one. They run on
+   * the event, so in the initializer of a variable they can use it, as functions there can:
+   * `const button = <button onClick={button.remove()}>`.
+   */
   protected checkEventHandler(handler: ast.EventHandler, event: Type | null): void {
+    const checkBody = () => this.checkHandlerBody(handler, event);
+    if (!this.deferBody(handler, checkBody)) checkBody();
+  }
+
+  private checkHandlerBody(handler: ast.EventHandler, event: Type | null): void {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
     this.scope = new Scope(this.scope);
     this.flow = this.stableFlow();

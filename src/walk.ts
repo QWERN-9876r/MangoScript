@@ -294,3 +294,13 @@ export function containsBreak(statements: readonly ast.Statement[]): boolean {
   statements.forEach(visit);
   return found;
 }
+
+/** Whether an identifier with one of `names` occurs in `node`, whatever it refers to. */
+export function mentionsName(node: ast.Node, names: ReadonlySet<string>): boolean {
+  if (node.kind === 'Identifier') return names.has(node.name);
+  let found = false;
+  forEachChild(node, (child) => {
+    found ||= mentionsName(child, names);
+  });
+  return found;
+}

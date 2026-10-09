@@ -132,6 +132,48 @@ let u User                 // error: User has no zero value
 let u ?User                // fine: u == null
 ```
 
+### A variable in its own initializer
+
+A variable exists from the start of its declaration, as in JS. A function in its initializer runs
+after the initializer, so it can use the variable:
+
+```go
+const timer = setInterval(() => {
+    if done() {
+        clearInterval(timer)
+    }
+}, 1000)
+
+const fact = func(n number) number {
+    return n <= 1 ? 1 : n * fact(n - 1)
+}
+```
+
+The same holds for event handlers in markup: `const close = <button onClick={close.remove()}>`.
+
+The body of such a function is checked once the variable has its type. That works when the type of
+the function is known without its body: a `func` literal, an event handler, or a callback whose
+parameter types and result come from the call. Otherwise the type of the variable is written:
+
+```go
+const fib = (n number) => fib(n - 1)            // error: give "fib" a type
+const fib func(number) number = n => n < 2 ? n : fib(n - 1) + fib(n - 2)
+```
+
+A use outside of functions reads the variable before it has a value: in JS that is a
+`ReferenceError`, here a compile error. In Go, `x := x + 1` in a nested scope uses the outer `x`;
+in MangoScript, as in JS, it is the new variable, so the compiler asks for another name:
+
+```go
+const x = 1
+func f() {
+    const x = x + 1    // error: "x" here is the new variable, which has no value yet
+}
+```
+
+The rule is that of JS because the declaration compiles to the same JS declaration; the compiler
+only reports at compile time what would fail at run time.
+
 ## 3. Types
 
 | MangoScript    | Values                                       | In JS             |
