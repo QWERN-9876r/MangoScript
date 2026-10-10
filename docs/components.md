@@ -4,7 +4,7 @@
 
 > Status: implemented are elements, components, `state`, `bind:`, `if` / `for` / `switch` in markup
 > (stages 1–4), recursive components, early returns, `mount()` and web components (`@html-tag`);
-> `derived` and `effect` are not yet. The decisions made are collected at the end of the document, together with what is not
+> `derived`, `effect` and decorators (`dec`) are not yet. The decisions made are collected at the end of the document, together with what is not
 > decided yet.
 
 ## Goals
@@ -630,6 +630,168 @@ comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
 Properties are read-only: a parameter cannot be assigned inside the component. To change the
 parent's state, it is passed through a function property, like `onToggle` above.
 
+### Decorators
+
+> Not implemented yet: this is the agreed design.
+
+A decorator adds logic to a component: its own state, functions, `mount()` and a wrapper around
+what the component returns. Components are not only markup, and the logic many of them share
+(loading when visible, a 404 page, analytics, access checks) is written once, in a decorator. Like
+a component, a decorator exists only at compile time: its code is inlined into every component it
+is applied to.
+
+```go
+// Tells whether the component has come into view, with a margin
+dec visible(margin string = "0px") {
+    public state shown = false
+    let node ?Element = null
+
+    public func show() {
+        shown = true
+    }
+
+    mount() {
+        const observer = new IntersectionObserver(entries => {
+            if entries.some(entry => entry.isIntersecting) {
+                show()
+                observer.disconnect()
+            }
+        }, { rootMargin: margin })
+        if node != null {
+            observer.observe(node)
+        }
+        return () => observer.disconnect()
+    }
+
+    // Changes nothing: only keeps the node for mount
+    return (content Element) => {
+        node = content
+        return content
+    }
+}
+
+@visible("300px")
+comp Playground() {
+    state source = ""
+
+    func open(code string) {
+        source = code
+        @visible.show()
+    }
+
+    return <section>
+        {if get(@visible.shown) {
+            <Editor source={source} />
+        }}
+    </section>
+}
+```
+
+- **Declaration.** `dec name(parameters) { ... }`. `dec` is a keyword only at the start of a
+  declaration at the top level of a module; elsewhere it is an ordinary name. The parameters are
+  written as for functions, but may have default values at the end: `margin string = "0px"`.
+  `export dec` exports a decorator, and in another module it is inlined like a component.
+- **The body** may hold `state`, `const`, `let`, functions, `mount() { ... }` and, at the end, the
+  `return` of a wrapper. Each of them is optional: a decorator without a wrapper only adds state
+  and logic.
+- **Application.** `@visible("300px")` before `comp`. The arguments are positional, as in a call of
+  a function; without arguments the parentheses can be left out: `@notFound`. The arguments are
+  evaluated for every instance in the scope of the component's parameters, so
+  `@card(product.price)` works on `comp ProductCard(product Product)`. When the parameter changes,
+  the decorator gets the new value, like a property of a child component.
+- **Public members** — `public state`, `public const` and `public func` — are visible to the
+  component:
+  - reading is `get(@visible.shown)`; in markup it updates like a read of the component's own
+    state;
+  - calling is `@visible.show()`;
+  - writing from outside is an error:
+    `"shown" of @visible is read-only outside it; change it with one of its public functions, e.g. @visible.show()`.
+    As with the properties of components, a decorator keeps its state consistent itself;
+  - `get` is special only when its argument starts with `@`, so the program's own `get(url)` still
+    works. `visible.shown` without `@` and `@visible.shown` outside `get` are errors that suggest
+    `get(@visible.shown)`;
+  - there is no `public let`: a value that changes and is read outside is a `state`, and one that
+    does not change is a `const`.
+
+  Without `public`, members are visible only inside the decorator, where they are used by their
+  plain names: `shown`, `show()`.
+
+- **A decorator does not see the component:** neither its state nor its parameters, except through
+  the arguments. So one decorator fits any component.
+- **The wrapper** `return (content T) => ...` gets what the component returned, and what it returns
+  is what the component returns in the end. The type of the parameter is written explicitly: the
+  body of a decorator is checked once, by itself, not again at every application. The type also
+  limits where the decorator can be applied: with `(form HTMLFormElement) => ...`, only to
+  components that return a form. The type of `<Playground />` is the result of the outermost
+  wrapper. The `return` must be a function literal.
+- **The wrapper is called once,** at creation, like the body of a component. To change what is
+  shown later, the wrapper's markup reads the decorator's state:
+
+  ```go
+  dec notFound() {
+      state missing = false
+
+      public func show() {
+          missing = true
+      }
+
+      return (page Element) => <div class="page">{missing ? <NotFoundPage /> : page}</div>
+  }
+  ```
+
+**Several decorators,** `@a @b comp X`:
+
+- the bodies run from top to bottom: `a`, `b`, then the body of the component;
+- the wrappers apply from bottom to top: the result of the component goes to `b`, and the result of
+  `b` goes to `a`;
+- `mount()` runs from the inside out: the component, `b`, `a`; the cleanup runs in the reverse
+  order;
+- a decorator applied twice is an error: `@a.x` would be ambiguous;
+- `@html-tag` must be the first one: the element is built from the final result.
+
+**Dependencies.** A decorator sees the public members of another one only if it names it with
+`needs`:
+
+```go
+dec cart() {
+    public state count = 0
+
+    public func add() {
+        count++
+    }
+}
+
+dec cartBadge() needs cart {
+    return (content Element) => <div class="with-badge">
+        {content}
+        <span class="badge">{get(@cart.count)}</span>
+    </div>
+}
+
+@cart
+@cartBadge
+comp ProductCard(product Product) {
+    return <article>
+        <h2>{product.name}</h2>
+        <button onClick={@cart.add()}>Add to cart</button>
+    </article>
+}
+```
+
+The body of `cartBadge` may read the state of `cart` at creation, so `cart` must already exist.
+`@cartBadge` without `@cart`, or with `@cart` below it, is a compile error:
+`@cartBadge needs @cart above it: @cart @cartBadge comp ...`. Several are listed with commas:
+`dec checkout() needs cart, auth { ... }`.
+
+**Compilation.** A decorator is inlined like a component: its body goes into the block of every
+instance before the body of the component, with its names renamed. `get(@visible.shown)` becomes a
+read of that variable and `@visible.show()` a call of that function, and the updates of the
+decorator's state include the component's markup that reads it. The wrapper's markup is created
+around the result of the component. There are no decorator objects and no runtime.
+
+**Later:** a built-in higher-order decorator will combine several decorators into one. A program
+cannot declare higher-order decorators of its own.
+
 ### Example: the test site with components
 
 The same task list that was in `site/src/app.mango` (about 90 lines of manual DOM work):
@@ -723,6 +885,7 @@ body of `for`: the code of one row of the list is written there once, and no ext
 | How updates are found          | VDOM diffing              | the compiler + runtime signals | the compiler; proxies only for values that go into unknown code   |
 | The handler `onClick={save()}` | called on render          | called on render               | called on a click                                                 |
 | Cleaning up effects            | a function from an effect | `onCleanup` / return           | the function returned by `mount()`                                |
+| Shared logic of components     | hooks, HOCs               | actions (Svelte), primitives   | decorators `dec`, inlined                                         |
 
 ## What the compiler needs
 
@@ -766,6 +929,8 @@ body of `for`: the code of one row of the list is written there once, and no ext
 6. **Function components** (recursion is done; the 100-line threshold is not yet) **and proxies** for
    state that goes into unknown code.
 7. **State shared by several components.**
+8. **Decorators (`dec`):** public members, `get` and `mount()`; then wrappers; then `needs`; later
+   combining decorators.
 
 ## Decisions
 
@@ -799,6 +964,15 @@ body of `for`: the code of one row of the list is written there once, and no ext
    arrays, objects and functions are only JS properties. Disconnection removes the markup in a
    microtask, unless the element is back by then, so moving it keeps the state. The element is
    defined at the end of the module, so that it never runs before the names it uses have values.
+10. **Shared logic of components is decorators, `dec name(...) { ... }`,** applied at compile time
+    (see "Decorators"). Not for the component's own state: for logic added to it. The arguments are
+    positional, evaluated in the scope of the component's parameters. Public members are
+    `public state`, `public const` and `public func`, with no `public let`; outside they are read
+    with `get(@name.member)` and called as `@name.f()`, and writing them from outside is an error.
+    The type of the wrapper's parameter is written explicitly. One decorator sees another only
+    through `needs`, and the one it needs must be applied above it. A decorator applied twice is an
+    error. Programs cannot declare higher-order decorators: only a built-in one will combine
+    decorators.
 
 ## Not decided yet
 
@@ -815,3 +989,12 @@ body of `for`: the code of one row of the list is written there once, and no ext
 4. **A `derived` of several statements.** Now it is `derived x = expression`. A block form
    `derived total number { ... return sum }` could be added. I propose only the expression in the
    first version: complex logic can go into a function.
+5. **Combining decorators.** The syntax of the built-in higher-order decorator is open, and so is
+   how it works with the rest: whether the public members of the combined decorators are read as
+   `get(@card.count)` or through the name of the combination, whether a combination containing
+   `cart` satisfies `needs cart`, and whether `@cart` next to a combination containing it counts as
+   applied twice.
+6. **A component that returns `null` for a wrapper.** A 404 page could be a wrapper
+   `(page ?Element) => ...` that shows it when the component returns `null`. Now a component returns
+   markup only, and the choice between `return`s is made once, at creation; the reactive way is the
+   decorator's state, as in `notFound` above.
