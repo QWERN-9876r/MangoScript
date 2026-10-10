@@ -53,21 +53,27 @@ async function main(): Promise<void> {
 
   if (values.version) {
     console.log(version);
+
     return;
   }
 
   const [command, ...files] = positionals;
+
   if (values.help || !command) {
     console.log(HELP);
+
     return;
   }
+
   if (files.length === 0) throw new UsageError(`missing input file for "${command}"`);
   for (const path of files) {
     if (!existsSync(path)) throw new UsageError(`file not found: ${path}`);
   }
+
   if (command !== 'build' && files.length > 1) {
     throw new UsageError(`"${command}" takes a single file`);
   }
+
   const file = files[0]!;
   const typeCheck = !values['no-check'];
 
@@ -77,21 +83,27 @@ async function main(): Promise<void> {
         if (files.length > 1 || statSync(file).isDirectory()) {
           throw new UsageError('--stdout needs a single .mango file');
         }
+
         process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck }));
       } else {
         buildFiles(files, values['out-dir'], typeCheck);
       }
+
       break;
+
     case 'run':
       registerMangoLoader(typeCheck);
       await import(pathToFileURL(resolve(file)).href);
       break;
+
     case 'tokens':
       printTokens(new SourceFile(file, readFileSync(file, 'utf8')));
       break;
+
     case 'ast':
       printAst(new SourceFile(file, readFileSync(file, 'utf8')));
       break;
+
     default:
       throw new UsageError(`unknown command "${command}"`);
   }
@@ -104,13 +116,17 @@ function buildFiles(entries: string[], outDir: string | undefined, typeCheck: bo
       throw new UsageError(`not a .mango file: ${entry}`);
     }
   }
+
   const { outputs, errors } = build(entries, { outDir, typeCheck });
+
   if (errors.length > 0) {
     const messages = errors.flatMap(({ file, diagnostics }) =>
       diagnostics.map((diagnostic) => formatDiagnostic(file, diagnostic)),
     );
+
     throw new CompileError(messages.join('\n\n'));
   }
+
   for (const { source, output, code, declarations } of outputs) {
     mkdirSync(dirname(output), { recursive: true });
     writeFileSync(output, code);
@@ -125,10 +141,13 @@ function compileFile(
 ): string {
   const source = readFileSync(path, 'utf8');
   const { code, diagnostics } = compile(source, { filename: path, ...options });
+
   if (diagnostics.length > 0) {
     const file = new SourceFile(path, source);
+
     throw new CompileError(diagnostics.map((d) => formatDiagnostic(file, d)).join('\n\n'));
   }
+
   return code;
 }
 
@@ -137,8 +156,10 @@ function registerMangoLoader(typeCheck: boolean): void {
   registerHooks({
     load(url, context, nextLoad) {
       if (!url.startsWith('file:') || !url.endsWith('.mango')) return nextLoad(url, context);
+
       const path = displayPath(fileURLToPath(url));
       const source = compileFile(path, { rewriteImports: false, typeCheck });
+
       return { format: 'module', source, shortCircuit: true };
     },
   });
@@ -146,11 +167,14 @@ function registerMangoLoader(typeCheck: boolean): void {
 
 function printTokens(file: SourceFile): void {
   const { tokens, diagnostics } = tokenize(file.text);
+
   for (const token of tokens) {
     const { line, column } = file.position(token.start);
     const text = token.kind === ';' && token.text === '' ? '(newline)' : JSON.stringify(token.text);
+
     console.log(`${line}:${column}`.padEnd(8) + token.kind.padEnd(16) + text);
   }
+
   reportDiagnostics(file, diagnostics);
 }
 
@@ -162,8 +186,10 @@ function printAst(file: SourceFile): void {
     if (typeof value === 'object' && value !== null && 'kind' in value && 'name' in value) {
       if (value.kind === 'Identifier') return value.name;
     }
+
     return value;
   };
+
   console.log(JSON.stringify(program, compact, 2));
   reportDiagnostics(file, diagnostics);
 }

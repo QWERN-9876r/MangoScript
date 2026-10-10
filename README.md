@@ -42,6 +42,10 @@ Node.js ≥ 24 (`nvm use`). The compiler is written in TypeScript, and Node runs
 directly, so development needs no build step: the commands below run the compiler from `src/`.
 `dist/` is built only for the npm package.
 
+`npm install` also installs a pre-commit hook that formats the staged files: ESLint adds the blank
+lines between statements that Prettier keeps but never adds, then Prettier formats. Only the
+staged version is formatted, so edits that are not staged stay out of the commit.
+
 ## Commands
 
 | Command                              | What it does                                               |
@@ -52,7 +56,7 @@ directly, so development needs no build step: the commands below run the compile
 | `npm run mango -- ast file.mango`    | Show the syntax tree                                       |
 | `npm test` / `npm run test:watch`    | Tests (Vitest)                                             |
 | `npm run typecheck`                  | Type check                                                 |
-| `npm run lint` / `npm run format`    | ESLint / Prettier                                          |
+| `npm run lint` / `npm run format`    | ESLint / Prettier with the blank lines from ESLint         |
 | `npm run check`                      | All at once: types, lint, format, tests                    |
 | `npm run build`                      | Build the npm package to `dist/`                           |
 | `npm run vscode:install`             | Build and install the VS Code extension                    |

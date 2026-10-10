@@ -5,7 +5,9 @@ import { compile } from '../src/index.ts';
 
 function js(source: string): string {
   const { code, diagnostics } = compile(source);
+
   expect(diagnostics).toEqual([]);
+
   return code.trimEnd();
 }
 
@@ -278,6 +280,7 @@ document.body.append($$app1, $$input19);`,
     return <ul onClick={tags.push("x")}>{tags.map(tag => <li>{tag}</li>)}</ul>
 }
 document.body.append(<Tags />)`);
+
     expect(code).toContain('function $$content(value) {');
     expect(code.slice(code.indexOf('// <Tags>'))).toBe(`// <Tags>
 let $$tags1;

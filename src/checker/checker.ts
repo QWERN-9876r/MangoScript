@@ -12,6 +12,7 @@ class Checker extends CallChecker {
     this.checkEndlessRecursion();
     this.checkHtmlTags();
     this.diagnostics.sort((a, b) => a.start - b.start);
+
     return {
       diagnostics: this.diagnostics,
       ...this.collectDeclarations(),

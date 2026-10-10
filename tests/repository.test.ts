@@ -14,11 +14,13 @@ const SKIPPED_FILES = new Set(['package-lock.json']);
 function codeFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
+
     if (entry.isDirectory()) {
       return SKIPPED_DIRECTORIES.has(entry.name) || entry.name.startsWith('.')
         ? []
         : codeFiles(path);
     }
+
     return CODE.test(entry.name) && !SKIPPED_FILES.has(entry.name) ? [path] : [];
   });
 }
@@ -32,6 +34,7 @@ describe('repository', () => {
       }))
       .filter((file) => file.lines > 400)
       .map((file) => `${file.path}: ${file.lines} lines`);
+
     expect(long).toEqual([]);
   });
 });

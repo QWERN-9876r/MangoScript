@@ -74,9 +74,11 @@ null  true  false  typeof  instanceof
 ```
 
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
-too, in `import` and `export` so is `from`, and at the start of a statement in a component's body,
-`state` and `mount`. Elsewhere they are ordinary names. Reserved for the future: `map`, `async`,
-`await`. The only decorator is `@html-tag` before `comp` (see "Web components").
+too, in `import` and `export` so is `from`, at the start of a statement in a component's body
+`state` and `mount`, at the start of a top-level declaration `dec`, after its parameters `needs`,
+and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is special only in `get(@name.member)`. Reserved
+for the future: `map`, `async`, `await`. Decorators are written before `comp`: `@html-tag` (see
+"Web components") and those declared with `dec` (see "Decorators").
 
 After `.` and in object keys, keywords can be used as ordinary names: `xs.map(f)`, `event.type`,
 `{ default: 1 }`.
@@ -887,12 +889,16 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
 - **Function properties** (`onPress func()`) take code by the same rule as `on*` of elements.
 - **Properties are read-only.** To change the parent's state, pass a function property.
 - **There is no component in JS:** its code is inlined as a block where it is used, and the values
-  of the attributes are computed before that block. The exception is recursive components, see
-  below.
+  of the attributes are computed before that block. The exceptions are recursive and exported
+  components, see below.
 - **Recursive components** (a tree, nested comments) are not inlined but compiled to a function.
   Some use on the cycle must be under a condition (`if`, `for`, a branch of `?:`), or the recursion
   never ends: that is a compile error.
-- **Not supported yet:** exporting components from a module, `derived` and `effect`.
+- **Exported components** (`export comp Card`) are imported by name,
+  `import { Card } from "./card.mango"`, and used as tags. Their module compiles them to functions,
+  `export function $$Card(...)`, which the module that uses them calls: the code of a component
+  stays in its module, with its names and components.
+- **Not supported yet:** `derived` and `effect`.
 
 **State.** `state` declares a variable that the markup depends on. It is declared like `let`, but
 only at the top level of a component's body:
@@ -1027,6 +1033,103 @@ class $$CardElement extends HTMLElement {
   set title(value) { /* updates the markup */ }
 }
 customElements.define("app-card", $$CardElement);
+```
+
+**Decorators.** `dec name(parameters) { ... }` declares logic that is added to the components it
+is applied to: state, functions, `mount()` and a wrapper around what the component returns. A
+decorator is applied with `@name(arguments)`
+before `comp`; like a component, it exists only at compile time, and its code is inlined into each
+component.
+
+```go
+dec counter(start number = 0) {
+    public state count = start
+    let clicks = 0
+
+    public func add() {
+        count++
+        clicks++
+    }
+
+    mount() {
+        console.log("counting from", start)
+    }
+}
+
+@counter(5)
+comp Clicker(label string) {
+    return <button onClick={@counter.add()}>{label}: {get(@counter.count)}</button>
+}
+```
+
+- **Parameters** are written as for functions, but may have default values at the end. The
+  arguments are positional; without arguments the parentheses can be left out: `@counter`. They
+  are evaluated for every instance with the component's properties in scope, so
+  `@counter(label.length)` works; when a property changes, the argument is computed again. In the
+  decorator its parameters are read-only.
+- **The body** may hold `state`, `const`, `let`, functions, `mount()` and, at the end, the `return`
+  of a wrapper. Its own names are used in it as usual; the component does not see them unless they
+  are `public`.
+- **Public members** are `public state`, `public const` and `public func`; there is no
+  `public let`. The component reads state and constants with `get(@counter.count)` (in markup this
+  updates like its own state) and calls functions as `@counter.add()`. Outside the decorator its
+  members are read-only: `get(@counter.count) = 0` or `get(@counter.items).push(x)` is an error,
+  changes go through its public functions. `get` is special only when its argument starts with `@`.
+- **The decorator does not see the component**, only its arguments, so it fits any component.
+- **The wrapper** `return (content Element) => ...` gets what the component returned, and what it
+  returns is what the component gives in the end. It is a function literal with one parameter, whose
+  type is written: it limits where the decorator can be applied (`(form HTMLFormElement) => ...`
+  only fits components that return a form), and the type of `<Clicker />` is what the outermost
+  wrapper returns. The wrapper is called once, when the component is created; to change what is
+  shown later, its markup reads the decorator's state, and it updates like the component's own. A
+  wrapper returns once, at the end of its body.
+- **Dependencies.** A decorator sees the public members of another one only if it names it after
+  its parameters: `dec cartBadge() needs cart, auth { ... }`. Its body may read their state right
+  away, so they must be applied above it: `@cart @cartBadge comp ...`. Decorators that need each
+  other are an error.
+- **Several decorators**, `@a @b comp X`: the bodies run from top to bottom, then the body of the
+  component; the wrappers apply from the bottom up (the result of the component goes to `b`, the
+  result of `b` to `a`); `mount()` runs from the inside out (the component, `b`, `a`), the
+  cleanup in the reverse order. A decorator applied twice is an error, and `@html-tag` must be the
+  first one.
+- **The names of the module** that a decorator and its arguments use must not be declared in the
+  component: its code runs inside the component.
+- `dec` is a keyword only at the start of a declaration at the top level of a module.
+- **Modules.** `export dec` exports a decorator; another module imports it by its name,
+  `import { counter } from "./counter.mango"`, and applies it as usual. Its code is inlined there,
+  and the names of its own module that it uses come through hidden exports:
+  `export { log as $$counter$log }` in its module, `import { $$counter$log } from "./counter.js"`
+  where it is applied. So an exported decorator cannot assign the variables of its module (other
+  modules can only read them) and cannot use its components yet, and the decorators it needs are
+  exported too.
+- Not yet: renaming a decorator on import, `return` inside the `if` or `for` of a wrapper, and
+  combining decorators.
+
+```go
+dec notFound() {
+    state missing = false
+
+    public func show() {
+        missing = true
+    }
+
+    return (page Element) => <div class="page">{missing ? <NotFoundPage /> : page}</div>
+}
+```
+
+In JS the decorator's code goes into the component's block, with its names prefixed. A wrapper is
+inlined where the component returns: its markup is created first, in the variable of the
+parameter (`$$notFound$page`), then the wrapper's markup around it.
+
+```js
+const $$counter$start = 5;
+let $$counter$count = $$counter$start;
+let $$counter$clicks = 0;
+function $$counter$add() {
+  $$counter$count++;
+  $$updateCounter$count2();
+  $$counter$clicks++;
+}
 ```
 
 The full design, reactivity included, is in [docs/components.md](components.md).

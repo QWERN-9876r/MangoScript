@@ -8,7 +8,9 @@ import { runWithDom } from './fake-dom.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   expect(diagnostics).toEqual([]);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 

@@ -9,19 +9,25 @@ import { parse } from '../src/parser/parser.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
 /** Runs a program and returns what it printed. */
 function run(source: string): string[] {
   const { code, diagnostics } = compile(source);
+
   expect(diagnostics).toEqual([]);
+
   const output: string[] = [];
   const log = (...args: unknown[]) => output.push(args.map(String).join(' '));
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const program = new Function('console', code) as (console: { log: typeof log }) => void;
+
   program({ log });
+
   return output;
 }
 
@@ -38,15 +44,24 @@ describe('syntax', () => {
     const { program, diagnostics } = parse(
       'let a string | number = 1\ntype Filter "all" | "done"\nlet b [](string | 2 | true)\nlet c ?(Filter | number)',
     );
+
     expect(diagnostics).toEqual([]);
+
     const first = program.body[0] as ast.VariableDeclaration;
+
     expect(first.type?.kind).toBe('UnionType');
+
     const alias = program.body[1] as ast.TypeAliasDeclaration;
     const union = alias.type as ast.UnionType;
+
     expect(union.types.map((type) => type.kind)).toEqual(['LiteralType', 'LiteralType']);
+
     const array = (program.body[2] as ast.VariableDeclaration).type as ast.ArrayType;
+
     expect(array.element.kind).toBe('UnionType');
+
     const nullable = (program.body[3] as ast.VariableDeclaration).type as ast.NullableType;
+
     expect(nullable.type.kind).toBe('UnionType');
   });
 });

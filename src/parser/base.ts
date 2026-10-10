@@ -3,10 +3,10 @@ import type { Diagnostic } from '../diagnostics.ts';
 import type { StringToken, Token, TokenKind } from '../lexer/token.ts';
 import { STATEMENT_KEYWORDS, BRACKETS, type Context, ParseError, describe } from './syntax.ts';
 
-// The parser is a chain of layers, one per area: base → statements → control flow → declarations →
-// classes → types → expressions → literals → markup → Parser (parser.ts). Statements, expressions
-// and markup contain each other, so methods of later layers that earlier ones call are declared
-// here as abstract.
+// The parser is a chain of layers, one per area: base → simple statements → statements → control
+// flow → declarations → decorators → classes → types → expressions → literals → markup → Parser
+// (parser.ts). Statements, expressions and markup contain each other, so methods of later layers
+// that earlier ones call are declared here as abstract.
 //
 // This layer reads tokens, reports errors and recovers from them.
 
@@ -31,9 +31,19 @@ export abstract class ParserBase {
     start: number,
     exported: boolean,
     htmlTag?: ast.HtmlTag | null,
+    decorators?: ast.DecoratorUse[],
   ): ast.ComponentDeclaration;
 
-  protected abstract parseHtmlTag(): ast.HtmlTag;
+  protected abstract parseDecorated(start: number, exported: boolean): ast.ComponentDeclaration;
+
+  protected abstract isDecoratorDeclaration(): boolean;
+
+  protected abstract parseDecoratorDeclaration(
+    start: number,
+    exported: boolean,
+  ): ast.DecoratorDeclaration;
+
+  protected abstract isDecoratorMember(): boolean;
 
   protected abstract parseExport(): ast.Statement;
 
@@ -124,29 +134,35 @@ export abstract class ParserBase {
   /** Whether the current token is the word `word`, e.g. the contextual keyword `from`. */
   protected checkWord(word: string): boolean {
     const token = this.peek();
+
     return token.kind === 'Identifier' && token.text === word;
   }
 
   protected next(): Token {
     const token = this.peek();
+
     if (token.kind !== 'EOF') this.pos++;
+
     return token;
   }
 
   protected accept(kind: TokenKind): boolean {
     if (!this.check(kind)) return false;
     this.next();
+
     return true;
   }
 
   protected acceptWord(word: string): boolean {
     if (!this.checkWord(word)) return false;
     this.next();
+
     return true;
   }
 
   protected expect(kind: TokenKind, what = `"${kind}"`): Token {
     if (this.check(kind)) return this.next();
+
     return this.fail(`expected ${what}, found ${describe(this.peek())}`);
   }
 
@@ -156,6 +172,7 @@ export abstract class ParserBase {
 
   protected isImplicitSemicolon(): boolean {
     const token = this.peek();
+
     return token.kind === ';' && token.text === '';
   }
 
@@ -173,6 +190,7 @@ export abstract class ParserBase {
   /** Reports an error at the current token and abandons the current statement. */
   protected fail(message: string): never {
     const token = this.peek();
+
     return this.failAt(message, token.start, token.end);
   }
 
@@ -184,6 +202,7 @@ export abstract class ParserBase {
   /** Runs `parse` with some context flags changed. */
   protected withContext<T>(changes: Partial<Context>, parse: () => T): T {
     const saved = this.context;
+
     this.context = { ...saved, ...changes };
     try {
       return parse();
@@ -204,7 +223,9 @@ export abstract class ParserBase {
   protected parseSeparated(isEnd: () => boolean, parseItem: () => void): void {
     while (!isEnd() && !this.check('EOF')) {
       if (this.accept(';')) continue;
+
       const start = this.pos;
+
       try {
         parseItem();
       } catch (error) {
@@ -221,12 +242,15 @@ export abstract class ParserBase {
    */
   protected synchronize(start: number): void {
     this.pos = start;
+
     // The `;` inside a `for` header do not end the statement.
     const explicitSemicolonEnds = this.peek().kind !== 'for';
     const open: TokenKind[] = [];
+
     for (;;) {
       const token = this.next();
       const kind = token.kind;
+
       if (kind === 'EOF') return;
       if (kind === ';') {
         if (open.length === 0 && (token.text === '' || explicitSemicolonEnds)) return;
@@ -238,16 +262,20 @@ export abstract class ParserBase {
         // Closes one substitution and opens the next one.
       } else {
         const opening = BRACKETS[kind];
+
         if (opening !== undefined) {
           const index = open.lastIndexOf(opening);
+
           if (index !== -1) open.length = index;
           else if (kind === '}') {
             // A `}` without a matching `{` closes the enclosing block: leave it to the block.
             this.pos--;
+
             return;
           }
         }
       }
+
       if (this.check('}') && !open.includes('{')) return;
     }
   }

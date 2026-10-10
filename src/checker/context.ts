@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import type { Wrapper } from '../decorators.ts';
 import type { Diagnostic } from '../diagnostics.ts';
 import { GLOBAL_TYPES, GLOBAL_VALUES, LIBRARY_TYPES } from './builtins.ts';
 import { type ClassInfo, type Type, type TypeParam } from './types.ts';
@@ -9,6 +10,10 @@ import { type ClassInfo, type Type, type TypeParam } from './types.ts';
 export interface ModuleExports {
   values: Map<string, Type>;
   types: Map<string, Type>;
+  /** `export dec`: decorators have a namespace of their own. */
+  decorators?: Map<string, DecoratorInfo>;
+  /** `export comp`: components are used as tags, not as values. */
+  components?: Map<string, ComponentInfo>;
 }
 
 /** What `importModule` found: the module's exports, an error for the import, or nothing (untyped). */
@@ -85,10 +90,46 @@ export interface ComponentInfo {
   /** Names from the module that the component's code uses, computed when first needed. */
   freeNames: Set<string> | null;
   /**
-   * Compiled to a function, not inlined: it uses itself, directly or through other components, or
-   * it is a web component (`@html-tag`).
+   * Compiled to a function, not inlined: it uses itself, directly or through other components, it
+   * is a web component (`@html-tag`), or other modules use it (`export comp`).
    */
   isFunction: boolean;
+  /** The decorators applied to it that exist, in the order they are written. */
+  decorators: DecoratorInfo[];
+  /** The component with its decorators applied: the code that is inlined where it is used. */
+  expanded: ast.ComponentDeclaration;
+  /**
+   * The type of `<Card />` for an exported component, found in its module: the tags of its markup
+   * are names there.
+   */
+  result: Type | null;
+}
+
+export interface DecoratorInfo {
+  node: ast.DecoratorDeclaration;
+  /** The types of the parameters, resolved with the other declarations of the module. */
+  params: Type[];
+  /** Public state, constants and functions, known once the body is checked. */
+  members: Map<string, PublicMember>;
+  /** The declarations of the body and the parameters: a member that is not public is one of them. */
+  names: Set<string>;
+  /** Names from the module that the decorator's code uses, computed when first needed. */
+  freeNames: Set<string> | null;
+  /** `return (content Element) => ...`, with the type of what it gets from the component. */
+  wrapper: { node: Wrapper; param: Type } | null;
+  /** The decorators after `needs` that exist; they are applied above it. */
+  needed: DecoratorInfo[];
+  /**
+   * For an exported decorator: the names of its module that its code uses, which other modules get
+   * through hidden exports, and the types of its expressions, for the code generator there.
+   */
+  moduleNames: string[];
+  expressionTypes: WeakMap<ast.Expression, Type> | null;
+}
+
+export interface PublicMember {
+  kind: 'state' | 'const' | 'func';
+  type: Type;
 }
 
 /** A `type` alias, resolved when first used. */
@@ -147,13 +188,16 @@ export const NARROWABLE: ReadonlySet<BindingKind> = new Set([
 /** Built-in globals. With a library, the untyped ones and the DOM types come from it instead. */
 export function globalScope(library: Library | undefined): Scope {
   const scope = new Scope(null);
+
   for (const [name, type] of GLOBAL_VALUES) {
     if (library && type.kind === 'any') continue;
     scope.values.set(name, { name, kind: 'builtin', type });
   }
+
   for (const [name, type] of GLOBAL_TYPES) {
     if (library && LIBRARY_TYPES.has(name)) continue;
     scope.types.set(name, type);
   }
+
   return scope;
 }

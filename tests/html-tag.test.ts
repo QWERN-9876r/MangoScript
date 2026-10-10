@@ -8,7 +8,9 @@ import { FakeNode, mountWithDom } from './fake-dom.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
@@ -45,20 +47,23 @@ describe('syntax', () => {
     const { program, diagnostics } = parse(
       '@html-tag\ncomp mainPage() {\n    return <p />\n}\n@html-tag("app-page") comp Page() {\n    return <p />\n}',
     );
+
     expect(diagnostics).toEqual([]);
+
     const [first, second] = program.body;
+
     expect(first?.kind === 'ComponentDeclaration' && first.htmlTag?.name).toBe(null);
     expect(second?.kind === 'ComponentDeclaration' && second.htmlTag?.name?.value).toBe('app-page');
   });
 
   it.each([
     [
-      '@html\ncomp A() {\n    return <p />\n}',
-      'unknown decorator "@html": the only one is @html-tag',
+      '@html-tag\nfunc a() {\n}',
+      'decorators are written before a component, as in @html-tag comp MainPage() { ... }',
     ],
     [
-      '@html-tag\nfunc a() {\n}',
-      '@html-tag is written before a component, as in @html-tag comp MainPage() { ... }',
+      'dec a() {\n}\n@a @html-tag comp B() {\n    return <p />\n}',
+      '@html-tag must be the first decorator: the element is built from what the others give',
     ],
   ])('reports %j', (source, message) => {
     expect(errors(source)).toEqual([message]);
@@ -137,6 +142,7 @@ element.setAttribute("label", "Apples")
 element.setAttribute("count", "3")
 document.body.append(element)`);
     const element = body.find('item-counter');
+
     expect(shadow(element)).toBe('<p><b>Apples</b> 3 small 0<button>+</button><slot></slot></p>');
     element.setAttribute('big', '');
     element.setAttribute('count', '7');
@@ -159,6 +165,7 @@ comp App() {
 }
 document.body.append(<App />)`);
     const element = body.find('item-counter');
+
     expect(element.count).toBe(1);
     expect(String(element.childNodes[0])).toBe('inside');
     expect(shadow(element)).toContain('<b>A</b> 1 small');
@@ -174,6 +181,7 @@ comp TagList(tags []string, onPick ?func(string)) {
 const list = <tag-list tags={["a", "b"]} onPick={(tag) => console.log("picked", tag)} />
 document.body.append(list)`);
     const list = body.find('tag-list');
+
     expect(shadow(list)).toBe('<ul><li>a</li><li>b</li></ul>');
     list.tags = ['c'];
     expect(shadow(list)).toBe('<ul><li>c</li></ul>');
@@ -184,10 +192,13 @@ document.body.append(list)`);
   it('mounts when connected, cleans up when removed, and keeps its markup when moved', async () => {
     const { body, output } = mountWithDom(`${timer}
 document.body.append(<app-timer name="a" />)`);
+
     await flush();
     expect(output).toEqual(['start a']);
+
     const element = body.find('app-timer');
     const box = new FakeNode('div');
+
     body.append(box);
     box.append(element);
     await flush();
@@ -205,6 +216,7 @@ document.body.append(<app-timer name="a" />)`);
   it('defines the elements at the end of the module', () => {
     const { code } = compile(`${timer}
 console.log("ready")`);
+
     expect(code.trimEnd().split('\n').at(-1)).toBe(
       'customElements.define("app-timer", $$TimerElement);',
     );

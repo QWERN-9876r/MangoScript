@@ -8,7 +8,9 @@ import { parse } from '../src/parser/parser.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   expect(diagnostics).toEqual([]);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
@@ -272,6 +274,7 @@ describe('classes', () => {
 
 describe('interfaces and objects', () => {
   const point = 'interface Point {\n  x, y number\n  label ?string\n}\n';
+
   valid([
     ['object literals', `${point}const p Point = { x: 1, y: 2 }`],
     ['optional fields', `${point}const p Point = { x: 1, y: 2, label: "a" }`],
@@ -342,10 +345,12 @@ describe('JS interop', () => {
 
 describe('modules', () => {
   const dir = mkdtempSync(join(tmpdir(), 'mango-check-'));
+
   writeFileSync(
     join(dir, 'geom.mango'),
     'export interface Point {\n    x, y number\n}\n\nexport func dist(p Point) number {\n    return Math.sqrt(p.x ** 2 + p.y ** 2)\n}\n\nfunc hidden() {}\n',
   );
+
   const compileIn = (source: string) =>
     compile(source, { filename: join(dir, 'main.mango') }).diagnostics.map((d) => d.message);
 
@@ -372,5 +377,6 @@ describe('modules', () => {
 
 it('accepts examples/hello.mango', () => {
   const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
+
   expect(errors(source)).toEqual([]);
 });

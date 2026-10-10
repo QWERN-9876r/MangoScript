@@ -1,9 +1,10 @@
 import type * as ast from '../ast.ts';
-import { mentionsName } from '../walk.ts';
+import { mentionsName } from '../names.ts';
 import type {
   Binding,
   ComponentInfo,
   ClassContext,
+  DecoratorInfo,
   Flow,
   FunctionContext,
   Scope,
@@ -48,12 +49,14 @@ export abstract class InitializerChecker extends TypeResolver {
       fn: this.fn,
       deferred: [],
     };
+
     this.initializers.push(initializer);
     try {
       check();
     } finally {
       this.initializers.pop();
     }
+
     for (const body of initializer.deferred) body();
   }
 
@@ -65,12 +68,17 @@ export abstract class InitializerChecker extends TypeResolver {
     // The outermost initializer ends last: then every variable the body may use has its type.
     const initializer = this.initializers.find((candidate) => {
       const untyped = [...candidate.bindings].filter((binding) => binding.type === null);
+
       return untyped.length > 0 && mentionsName(body, new Set(untyped.map(({ name }) => name)));
     });
+
     if (!initializer) return false;
+
     const state = this.saveState();
+
     initializer.deferred.push(() => {
       const current = this.saveState();
+
       this.restoreState(state);
       try {
         check();
@@ -78,24 +86,32 @@ export abstract class InitializerChecker extends TypeResolver {
         this.restoreState(current);
       }
     });
+
     return true;
   }
 
   /** The error for `binding` used in its own initializer, or `null` if this use is fine. */
   protected initializerError(binding: Binding): string | null {
     const initializer = this.initializers.find((candidate) => candidate.bindings.has(binding));
+
     if (!initializer) return null;
+
     const { name } = binding;
+
     if (initializer.fn === this.fn) {
       const outer = this.lookupFrom(initializer.scope.parent, name);
+
       return outer
         ? `"${name}" here is the new variable, which has no value yet; give it another name to use the outer "${name}"`
         : `"${name}" is used in its own initializer, before it has a value`;
     }
+
     if (binding.type !== null) return null;
+
     const { declaration } = initializer;
     const value = declaration.values[declaration.names.findIndex((id) => id.name === name)];
     const isFunction = value?.kind === 'ArrowFunction' || value?.kind === 'FuncExpression';
+
     return isFunction
       ? `"${name}" is used in its own initializer: give it a type, e.g. ${declaration.keyword} ${name} func() = ...`
       : `"${name}" is used in its own initializer: write its type after the name`;
@@ -104,8 +120,10 @@ export abstract class InitializerChecker extends TypeResolver {
   private lookupFrom(scope: Scope | null, name: string): Binding | undefined {
     for (; scope; scope = scope.parent) {
       const binding = scope.values.get(name);
+
       if (binding) return binding;
     }
+
     return undefined;
   }
 
@@ -117,6 +135,7 @@ export abstract class InitializerChecker extends TypeResolver {
       cls: this.cls,
       inferring: this.inferring,
       component: this.component,
+      decorator: this.decorator,
     };
   }
 
@@ -128,6 +147,7 @@ export abstract class InitializerChecker extends TypeResolver {
       cls: this.cls,
       inferring: this.inferring,
       component: this.component,
+      decorator: this.decorator,
     } = state);
   }
 }
@@ -140,4 +160,5 @@ interface CheckState {
   cls: ClassContext | null;
   inferring: ReadonlySet<TypeParam>;
   component: ComponentInfo | null;
+  decorator: DecoratorInfo | null;
 }

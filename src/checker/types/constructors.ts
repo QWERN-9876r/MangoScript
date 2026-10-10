@@ -29,6 +29,7 @@ export function nullable(type: Type): Type {
     case 'any':
     case 'unknown':
       return type;
+
     default:
       return { kind: 'nullable', type };
   }
@@ -55,22 +56,32 @@ export function union(types: readonly Type[]): Type {
     switch (type.kind) {
       case 'union':
         type.types.forEach(add);
+
         return;
+
       case 'nullable':
         hasNull = true;
         add(type.type);
+
         return;
+
       case 'null':
         hasNull = true;
+
         return;
+
       case 'never':
         return;
+
       default:
         if (!members.some((member) => typesEqual(member, type))) members.push(type);
     }
   };
+
   types.forEach(add);
+
   const special = members.find((member) => member.kind === 'any' || member.kind === 'unknown');
+
   if (special) return special;
   if (
     members.some((m) => m.kind === 'literal' && m.value === true) &&
@@ -78,6 +89,7 @@ export function union(types: readonly Type[]): Type {
   ) {
     members.push(BOOL);
   }
+
   const kept = members.filter(
     (member) =>
       member.kind !== 'literal' ||
@@ -91,6 +103,7 @@ export function union(types: readonly Type[]): Type {
       : kept.length === 1
         ? kept[0]!
         : { kind: 'union', types: kept };
+
   return hasNull ? nullable(result) : result;
 }
 
@@ -99,10 +112,13 @@ export function widenLiterals(type: Type): Type {
   switch (type.kind) {
     case 'literal':
       return literalBase(type);
+
     case 'union':
       return union(type.types.map(widenLiterals));
+
     case 'nullable':
       return nullable(widenLiterals(type.type));
+
     default:
       return type;
   }
@@ -115,6 +131,7 @@ export function unionMembers(type: Type): readonly Type[] {
 
 export function nonNull(type: Type): Type {
   if (type.kind === 'nullable') return type.type;
+
   return type.kind === 'null' ? NEVER : type;
 }
 
@@ -158,7 +175,9 @@ export function createClass(name: string): ClassInfo {
     instance: undefined as unknown as ClassType,
     value: undefined as unknown as ClassValueType,
   };
+
   info.instance = { kind: 'class', info };
   info.value = { kind: 'classValue', info };
+
   return info;
 }

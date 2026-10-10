@@ -1,5 +1,6 @@
 import type {
   ClassMember,
+  DecoratorUse,
   ImportSpecifier,
   NodeBase,
   Parameter,
@@ -169,6 +170,7 @@ export type Node =
   | TypeNode
   | ImportSpecifier
   | Parameter
+  | DecoratorUse
   | TypeParameter
   | ClassMember
   | TypeMember

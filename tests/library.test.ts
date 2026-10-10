@@ -52,6 +52,7 @@ const host string = new URL("https://example.com").host`),
 
   it('has the browser-free check without a library', () => {
     const { program } = parse('document.whatever(1)\nconst n number = window');
+
     expect(check(program).diagnostics).toEqual([]);
   });
 });

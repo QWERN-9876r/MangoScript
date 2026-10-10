@@ -16,12 +16,15 @@ export class LibraryTypes implements Library {
   constructor(ts: typeof TS, program: TS.Program, converter: TypeConverter) {
     this.checker = program.getTypeChecker();
     this.converter = converter;
+
     // The scope of a script file is the global scope.
     const lib = program.getSourceFile(ts.getDefaultLibFilePath(program.getCompilerOptions()));
+
     if (!lib) return;
     for (const symbol of this.checker.getSymbolsInScope(lib, ts.SymbolFlags.Value)) {
       this.values.set(symbol.name, symbol);
     }
+
     for (const symbol of this.checker.getSymbolsInScope(lib, ts.SymbolFlags.Type)) {
       this.types.set(symbol.name, symbol);
     }
@@ -30,6 +33,7 @@ export class LibraryTypes implements Library {
   value(name: string): Type | undefined {
     return this.cached(`value ${name}`, () => {
       const symbol = this.values.get(name);
+
       return symbol && this.converter.valueType(symbol);
     });
   }
@@ -37,6 +41,7 @@ export class LibraryTypes implements Library {
   type(name: string): Type | undefined {
     return this.cached(`type ${name}`, () => {
       const symbol = this.types.get(name);
+
       return symbol && this.converter.typeOf(symbol);
     });
   }
@@ -47,6 +52,7 @@ export class LibraryTypes implements Library {
 
   array(element: Type): Type | undefined {
     const symbol = this.types.get('Array');
+
     return symbol && instantiate(this.converter.arrayTemplate(symbol), [element]);
   }
 
@@ -67,16 +73,20 @@ export class LibraryTypes implements Library {
   /** `Map[key]` of an interface that maps names to types. */
   private entry(map: string, key: string): Type | undefined {
     const symbol = this.types.get(map);
+
     if (!symbol) return undefined;
+
     const property = this.checker.getPropertyOfType(
       this.checker.getDeclaredTypeOfSymbol(symbol),
       key,
     );
+
     return property && this.converter.convert(this.checker.getTypeOfSymbol(property));
   }
 
   private cached(key: string, compute: () => Type | undefined): Type | undefined {
     if (!this.converted.has(key)) this.converted.set(key, compute());
+
     return this.converted.get(key);
   }
 }

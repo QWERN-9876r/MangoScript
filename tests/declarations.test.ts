@@ -105,7 +105,9 @@ beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'mango-dts-'));
   writeFileSync(join(dir, 'geom.mango'), GEOM);
   writeFileSync(join(dir, 'todos.mango'), TODOS);
+
   const { outputs, errors } = build([join(dir, 'todos.mango')]);
+
   expect(errors).toEqual([]);
   for (const output of outputs) {
     writeFileSync(output.output, output.code);
@@ -116,7 +118,9 @@ beforeAll(() => {
 /** Errors of a TypeScript file that imports the built modules, the `.d.ts` files included. */
 function typescriptErrors(source: string): string[] {
   const file = join(dir, `consumer-${Math.random().toString(36).slice(2)}.ts`);
+
   writeFileSync(file, source);
+
   const program = ts.createProgram([file], {
     strict: true,
     noEmit: true,
@@ -125,6 +129,7 @@ function typescriptErrors(source: string): string[] {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     types: [],
   });
+
   return ts
     .getPreEmitDiagnostics(program)
     .map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n').split('\n')[0]!);

@@ -7,7 +7,9 @@ import { compile } from '../src/index.ts';
 /** Generated code, without type checking: the snippets use names they do not declare. */
 function js(source: string, options?: { rewriteImports?: boolean }): string {
   const { code, diagnostics } = compile(source, { ...options, typeCheck: false });
+
   expect(diagnostics).toEqual([]);
+
   return code.trimEnd();
 }
 
@@ -109,6 +111,7 @@ import "./setup.mango"
 const p Point = { x: 1, y: 2 }
 console.log(dist(p), path.sep)
 let t Types`;
+
     expect(js(source)).toBe(`import { dist } from "./geom.js";
 import * as path from "node:path";
 import "./setup.js";

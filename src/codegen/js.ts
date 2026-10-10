@@ -17,8 +17,11 @@ class JsGenerator extends FunctionEmitter {
     this.withScope(declarationsOf(this.program.body), () => {
       this.statements(this.program.body);
       this.webComponentClasses();
+      this.hiddenExports();
     });
+
     let lines = this.lines;
+
     if (this.helpers.size > 0) {
       const needed = new Set<Helper>();
       const add = (helper: Helper) => {
@@ -26,13 +29,18 @@ class JsGenerator extends FunctionEmitter {
         needed.add(helper);
         for (const other of HELPER_NEEDS[helper] ?? []) add(other);
       };
+
       for (const helper of this.helpers) add(helper);
+
       const helpers = [...needed]
         .sort()
         .flatMap((helper, i) => [...(i > 0 ? [''] : []), ...HELPERS[helper]]);
       let imports = 0;
+
       while (lines[imports]?.startsWith('import ')) imports++;
+
       const rest = lines.slice(imports);
+
       while (rest[0] === '') rest.shift();
       lines = [
         ...lines.slice(0, imports),
@@ -42,6 +50,7 @@ class JsGenerator extends FunctionEmitter {
         ...rest,
       ];
     }
+
     return lines.length === 0 ? '' : `${lines.join('\n')}\n`;
   }
 }

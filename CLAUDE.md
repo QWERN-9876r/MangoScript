@@ -27,7 +27,7 @@ npm run mango -- build app.mango      # compile (app.js next to the source); `ru
 node src/cli.ts ast file.mango        # print the AST
 npm run site:dev / site:build / site  # the docs site: Vite dev server / build / build and serve
 npm run vscode:install                # rebuild and install the VS Code extension
-npm run format                        # prettier --write
+npm run format                        # prettier --write, then eslint --fix for blank lines
 ```
 
 ## Code rules
@@ -53,6 +53,9 @@ npm run format                        # prettier --write
 - Diagnostics: English, lowercase, and say how to fix the problem, with an example where it helps:
   `"page" ... must have a hyphen; give one, e.g. @html-tag("app-page")`.
 - Comments are in English and explain why, at the density of the surrounding code.
+- Blank lines between statements are an ESLint rule (`@stylistic/padding-line-between-statements`
+  in `eslint.config.js`): Prettier keeps them but never adds them. The pre-commit hook
+  (`scripts/format-staged.ts`) formats the staged files, so check `git status` after a commit.
 
 ## Documentation and the site
 

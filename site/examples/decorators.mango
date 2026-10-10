@@ -1,0 +1,38 @@
+// A decorator adds logic to components: state, functions and mount(). Its code is
+// inlined into every component it is applied to, so each one ticks on its own
+dec ticker(interval number = 1000) {
+    public state ticks = 0
+    public state running = true
+
+    public func toggle() {
+        running = !running
+    }
+
+    mount() {
+        const timer = setInterval(() => {
+            if running {
+                ticks++
+            }
+        }, interval)
+        return () => clearInterval(timer)
+    }
+}
+
+// The component reads public state with get(@...) and calls public functions with @
+@ticker
+comp Stopwatch(label string) {
+    return <p class="card">
+        {label}: {get(@ticker.ticks)} s{" "}
+        <button onClick={@ticker.toggle()}>{get(@ticker.running) ? "Pause" : "Go on"}</button>
+    </p>
+}
+
+// The same logic in another component; the argument makes it tick faster
+const FRAMES = ["◐", "◓", "◑", "◒"]
+
+@ticker(150)
+comp Spinner() {
+    return <p class="card">{FRAMES[get(@ticker.ticks) % FRAMES.length]}</p>
+}
+
+document.body.append(<Stopwatch label="Tea" />, <Stopwatch label="Eggs" />, <Spinner />)

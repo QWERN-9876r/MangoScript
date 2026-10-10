@@ -3,9 +3,9 @@
 **English** · [Русский](components.ru.md)
 
 > Status: implemented are elements, components, `state`, `bind:`, `if` / `for` / `switch` in markup
-> (stages 1–4), recursive components, early returns, `mount()` and web components (`@html-tag`);
-> `derived`, `effect` and decorators (`dec`) are not yet. The decisions made are collected at the end of the document, together with what is not
-> decided yet.
+> (stages 1–4), recursive components, early returns, `mount()`, web components (`@html-tag`) and
+> decorators (`dec`); `derived` and `effect` are not yet. The decisions
+> made are collected at the end of the document, together with what is not decided yet.
 
 ## Goals
 
@@ -320,9 +320,10 @@ Inlining has three advantages:
   child's code ends up in the same place. So the update of its nodes simply goes into the parent's
   `$$updateCount`, with no subscriptions between components.
 
-A component from another module (`export comp`) is inlined the same way. The compiler reads imported
-`.mango` modules for their types already, and will take the component's body from there too. A
-component cannot be called from JS: outside MangoScript it does not exist.
+A component from another module (`export comp`) is called for now, not inlined: its module compiles it
+to a function, see "When a component becomes a function". Inlining small components across modules
+will come with the 100-line threshold, the same choice as for the module's own. A component is not
+meant to be called from JS: the function is a detail of compilation.
 
 ### How updates work
 
@@ -378,15 +379,20 @@ This is how it was implemented in stage 3.
 
 ### When a component becomes a function
 
-Inlining is not always possible. In two cases the compiler makes a function of a component:
+Inlining is not always possible. In three cases the compiler makes a function of a component:
 
 1. **The component is recursive** (a tree, nested comments), directly or through other components.
    This is implemented, see below.
 2. **Inlining adds more than 100 extra lines.** Extra lines are the total size of all the inlined
    copies minus the size of one function and its calls. A component used once is always inlined.
+3. **The component is exported** (`export comp`). Implemented: its module exports the function,
+   `export function $$Card(...)`, and a module that imports `Card` imports it,
+   `import { $$Card } from "./card.js"`. The code of the component stays in its module, so it uses
+   the names and the components there; the module that uses it gets only the types of its
+   properties and of what it returns.
 
-Such a function is a detail of compilation: it is not among the module's exports, and its name is
-internal (`$$Tree`). It gets the properties as arguments and returns the node and a function that
+Such a function is a detail of compilation: its name is internal (`$$Tree`), and only an exported
+component's is among the module's exports. It gets the properties as arguments and returns the node and a function that
 sets the properties again:
 
 ```go
@@ -632,7 +638,9 @@ parent's state, it is passed through a function property, like `onToggle` above.
 
 ### Decorators
 
-> Not implemented yet: this is the agreed design.
+> Implemented: declarations, arguments, public members with `get`, `mount()`, wrappers, `needs`
+> and exporting. Not yet: renaming a decorator on import, a `return` inside the `if` or `for` of
+> a wrapper, and combining decorators.
 
 A decorator adds logic to a component: its own state, functions, `mount()` and a wrapper around
 what the component returns. Components are not only markup, and the logic many of them share
@@ -723,7 +731,8 @@ comp Playground() {
   body of a decorator is checked once, by itself, not again at every application. The type also
   limits where the decorator can be applied: with `(form HTMLFormElement) => ...`, only to
   components that return a form. The type of `<Playground />` is the result of the outermost
-  wrapper. The `return` must be a function literal.
+  wrapper. The `return` must be a function literal. The wrapper is inlined where the component
+  returns, so it returns once, at the end of its body.
 - **The wrapper is called once,** at creation, like the body of a component. To change what is
   shown later, the wrapper's markup reads the decorator's state:
 
@@ -787,7 +796,11 @@ The body of `cartBadge` may read the state of `cart` at creation, so `cart` must
 instance before the body of the component, with its names renamed. `get(@visible.shown)` becomes a
 read of that variable and `@visible.show()` a call of that function, and the updates of the
 decorator's state include the component's markup that reads it. The wrapper's markup is created
-around the result of the component. There are no decorator objects and no runtime.
+around the result of the component. There are no decorator objects and no runtime. A decorator of
+another module uses the names of its module through hidden exports, `export { log as $$visible$log }`
+there and `import { $$visible$log }` where it is applied; so it cannot assign the variables of its
+module. Components in its code are not supported yet: their tags would be names of the module that
+applies it.
 
 **Later:** a built-in higher-order decorator will combine several decorators into one. A program
 cannot declare higher-order decorators of its own.
@@ -926,11 +939,11 @@ body of `for`: the code of one row of the list is written there once, and no ext
    are found by the item itself, without a key. Spread of properties into a component came along.
    The test site shows the filters, the tasks and the message with `{for}` and `{if}`.
 5. **`derived` and `effect`** (`mount()` is done).
-6. **Function components** (recursion is done; the 100-line threshold is not yet) **and proxies** for
-   state that goes into unknown code.
+6. **Function components** (recursion and exported components are done; the 100-line threshold is
+   not yet) **and proxies** for state that goes into unknown code.
 7. **State shared by several components.**
-8. **Decorators (`dec`):** public members, `get` and `mount()`; then wrappers; then `needs`; later
-   combining decorators.
+8. **Decorators (`dec`):** ~~public members, `get`, `mount()`, wrappers and `needs`~~ (done);
+   ~~exporting decorators~~ (done); later combining them.
 
 ## Decisions
 
@@ -973,6 +986,9 @@ body of `for`: the code of one row of the list is written there once, and no ext
     through `needs`, and the one it needs must be applied above it. A decorator applied twice is an
     error. Programs cannot declare higher-order decorators: only a built-in one will combine
     decorators.
+11. **A component of another module is called, not inlined,** for now: `export comp` makes it a
+    function in its module, `export function $$Card`. Then its code needs nothing from the module
+    that uses it. Inlining small ones will come with the 100-line threshold.
 
 ## Not decided yet
 

@@ -21,6 +21,9 @@ const JS_KEYWORDS = [
 
 const LITERALS = ["true", "false", "null", "undefined"]
 
+// What follows public when it is a modifier: public state x, public func f(), public name string
+const PUBLIC_NEXT = ["Identifier", "const", "let", "func"]
+
 // Between tokens are spaces and comments; split with a group keeps the comments in the result.
 const COMMENT = new RegExp("(//[^\\n]*|/\\*[\\s\\S]*?\\*/)")
 
@@ -80,6 +83,12 @@ func tokenClass(tokens any, i number, language string) string {
     if isDecorator(tokens, i) {
         return "fn"
     }
+    if language != "js" && isNeeds(tokens, i) {
+        return "kw"
+    }
+    if language != "js" && isNeeded(tokens, i) {
+        return "fn"
+    }
     switch kind {
     case "Number":
         return "num"
@@ -119,8 +128,12 @@ func identifierClass(text string, next string, language string) string {
         if MANGO_TYPES.includes(text) {
             return "type"
         }
-        // state and mount are keywords only at the start of a declaration: state count = 0, mount() { }
+        // state, mount and dec are keywords only at the start of a declaration: state count = 0,
+        // mount() { }, dec visible() { }; so is public, in classes and decorators
         if text == "state" && next == "Identifier" || text == "mount" && next == "(" {
+            return "kw"
+        }
+        if text == "dec" && next == "Identifier" || text == "public" && PUBLIC_NEXT.includes(next) {
             return "kw"
         }
     }
@@ -141,6 +154,25 @@ func isDecorator(tokens any, i number) bool {
         }
     }
     return false
+}
+
+// needs is a keyword only after the parameters of a decorator: dec cartBadge() needs cart, auth {
+func isNeeds(tokens any, i number) bool {
+    return tokens[i].text == "needs" && i > 0 && tokens[i - 1].kind == ")" &&
+        tokens[i + 1].kind == "Identifier"
+}
+
+// The decorators after needs: cart and auth in needs cart, auth
+func isNeeded(tokens any, i number) bool {
+    if tokens[i].kind != "Identifier" {
+        return false
+    }
+    let j = i - 1
+    for j > 0 && tokens[j].kind == "," && tokens[j - 1].kind == "Identifier" &&
+        !isNeeds(tokens, j - 1) {
+        j -= 2
+    }
+    return j > 0 && isNeeds(tokens, j)
 }
 
 func isCapitalized(text string) bool {

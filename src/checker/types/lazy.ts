@@ -17,6 +17,7 @@ export class LazyMap<V> extends Map<string, V> {
 
   private known(): Set<string> {
     this.names ??= new Set(this.listNames());
+
     return this.names;
   }
 
@@ -29,7 +30,9 @@ export class LazyMap<V> extends Map<string, V> {
   private fill(): void {
     if (this.complete || this.filling) return;
     this.filling = true;
+
     const values = [...this.known()].map((name) => [name, this.get(name)] as const);
+
     this.complete = true;
     this.filling = false;
     super.clear();
@@ -39,9 +42,12 @@ export class LazyMap<V> extends Map<string, V> {
   override get(name: string): V | undefined {
     if (super.has(name)) return super.get(name);
     if (this.complete || !this.known().has(name)) return undefined;
+
     const value = this.compute(name);
+
     if (value === undefined) this.names!.delete(name);
     else super.set(name, value);
+
     return value;
   }
 
@@ -51,11 +57,13 @@ export class LazyMap<V> extends Map<string, V> {
 
   override set(name: string, value: V): this {
     this.known().add(name);
+
     return super.set(name, value);
   }
 
   override delete(name: string): boolean {
     const known = this.known().delete(name);
+
     return super.delete(name) || known;
   }
 
@@ -67,21 +75,25 @@ export class LazyMap<V> extends Map<string, V> {
 
   override get size(): number {
     this.fill();
+
     return super.size;
   }
 
   override keys(): MapIterator<string> {
     this.fill();
+
     return super.keys();
   }
 
   override values(): MapIterator<V> {
     this.fill();
+
     return super.values();
   }
 
   override entries(): MapIterator<[string, V]> {
     this.fill();
+
     return super.entries();
   }
 

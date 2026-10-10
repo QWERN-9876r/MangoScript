@@ -142,15 +142,20 @@ export function describe(token: Token): string {
   switch (token.kind) {
     case 'EOF':
       return 'end of file';
+
     case ';':
       return token.text === '' ? 'newline' : '";"';
+
     case 'String':
       return 'string';
+
     case 'Number':
       return `number ${token.text}`;
+
     case 'Template':
     case 'TemplateHead':
       return 'template literal';
+
     default:
       return `"${token.text}"`;
   }
@@ -168,12 +173,15 @@ export function plural(count: number, word: string): string {
 export function cleanJsxText(text: string): string {
   const lines = text.split(/\r?\n/);
   const kept: string[] = [];
+
   lines.forEach((line, i) => {
     let part = line.replace(/\t/g, ' ');
+
     if (i > 0) part = part.trimStart();
     if (i < lines.length - 1) part = part.trimEnd();
     if (part !== '') kept.push(part);
   });
+
   return kept.join(' ');
 }
 
@@ -186,12 +194,14 @@ export function isHandlerReference(node: ast.Expression): boolean {
   ) {
     return true;
   }
+
   return node.kind === 'MemberExpression' && !node.optional && isHandlerReference(node.object);
 }
 
 export function templateElement(token: StringToken): ast.TemplateElement {
   const text = token.text;
   const end = text.endsWith('${') ? -2 : text.length > 1 && text.endsWith('`') ? -1 : text.length;
+
   return {
     kind: 'TemplateElement',
     value: token.value,

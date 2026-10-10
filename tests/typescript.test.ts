@@ -83,8 +83,11 @@ beforeAll(() => {
 /** Errors of a module in the temporary project. */
 function errors(source: string, file = join(project, 'main.mango')): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   const options = { importDeclarations: (specifier: string) => importer.import(file, specifier) };
+
   return check(program, options).diagnostics.map((d) => d.message);
 }
 
@@ -269,6 +272,7 @@ anything()`),
 
   it('reads node: modules from @types/node', () => {
     const file = join(import.meta.dirname, 'main.mango');
+
     expect(
       errors(
         `import { readFileSync } from "node:fs"
@@ -286,6 +290,7 @@ const path number = join("a", "b")`,
     const { diagnostics } = compile('import { distance } from "shapes"\ndistance(1, 2)', {
       filename: file,
     });
+
     expect(diagnostics.map((d) => d.message)).toEqual([
       'cannot use number as Point in argument 1',
       'cannot use number as Point in argument 2',

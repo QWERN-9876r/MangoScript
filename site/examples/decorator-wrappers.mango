@@ -1,0 +1,37 @@
+// A wrapper gets what the component returns and gives other markup instead.
+// This one puts it in a card with a title that folds it
+dec folded(title string) {
+    state open = true
+
+    return (content Element) => <section class="card">
+        <h3 onClick={open = !open}>{open ? "▾" : "▸"} {title}</h3>
+        {open ? content : null}
+    </section>
+}
+
+dec quantity() {
+    public state count = 0
+
+    public func add() {
+        count++
+    }
+}
+
+// A decorator that needs another one sees its public members
+dec quantityBadge() needs quantity {
+    return (content Element) => <div>
+        {content}
+        <p>Taken: {get(@quantity.count)}</p>
+    </div>
+}
+
+// The wrappers apply from the bottom up: quantityBadge, then folded.
+// quantity goes above quantityBadge, which needs it
+@folded(name)
+@quantity
+@quantityBadge
+comp Product(name string, price number) {
+    return <p>Price: {price} <button onClick={@quantity.add()}>Take one</button></p>
+}
+
+document.body.append(<Product name="Mango" price={3} />, <Product name="Papaya" price={2} />)

@@ -23,22 +23,27 @@ const EXAMPLES: Record<string, string> = {
  */
 function examples(): Plugin {
   const prefix = 'virtual:examples/';
+
   return {
     name: 'mangoscript-examples',
     resolveId: (source) =>
       source.startsWith(prefix) && source.slice(prefix.length) in EXAMPLES ? `\0${source}` : null,
     load(id) {
       if (!id.startsWith(`\0${prefix}`)) return null;
+
       const dir = EXAMPLES[id.slice(prefix.length + 1)]!;
       const files = readdirSync(dir)
         .filter((name) => name.endsWith('.mango'))
         .sort();
       const code: Record<string, string> = {};
+
       for (const file of files) {
         const path = join(dir, file);
+
         this.addWatchFile(path);
         code[file.slice(0, -'.mango'.length)] = readFileSync(path, 'utf8').trimEnd();
       }
+
       return `export const EXAMPLES = ${JSON.stringify(code)};\n`;
     },
   };

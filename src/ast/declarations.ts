@@ -41,6 +41,8 @@ export interface ImportSpecifier extends NodeBase {
 export interface FuncDeclaration extends NodeBase {
   kind: 'FuncDeclaration';
   exported: boolean;
+  /** `public func` in a decorator: the component calls it as `@name.f()`. */
+  isPublic: boolean;
   name: Identifier;
   /** `[T any, U Shape]` after the name; empty for ordinary functions. */
   typeParams: TypeParameter[];
@@ -55,7 +57,7 @@ export interface Parameter extends NodeBase {
   kind: 'Parameter';
   name: Identifier;
   type: TypeNode | null;
-  /** `kind string = "info"`: only properties of components have default values. */
+  /** `kind string = "info"`: only properties of components and decorators have default values. */
   defaultValue: Expression | null;
 }
 
@@ -71,12 +73,35 @@ export interface ComponentDeclaration extends NodeBase {
   body: BlockStatement;
   /** `@html-tag` before `comp`: the component is also a web component. */
   htmlTag: HtmlTag | null;
+  /** `@visible("300px")` before `comp`, in the order they are written. */
+  decorators: DecoratorUse[];
 }
 
 /** `@html-tag` or `@html-tag("app-page")`; without a name the tag comes from the component's name. */
 export interface HtmlTag extends NodeBase {
   kind: 'HtmlTag';
   name: StringLiteral | null;
+}
+
+/**
+ * `dec visible(margin string = "0px") { ... }`: logic added to the components it is applied to.
+ * Like a component, it exists only at compile time: its code is inlined into each of them.
+ */
+export interface DecoratorDeclaration extends NodeBase {
+  kind: 'DecoratorDeclaration';
+  exported: boolean;
+  name: Identifier;
+  params: Parameter[];
+  /** `needs cart, auth`: the decorators whose public members it uses; they are applied above it. */
+  needs: Identifier[];
+  body: BlockStatement;
+}
+
+/** `@visible("300px")` or `@visible` before `comp`; the arguments are positional. */
+export interface DecoratorUse extends NodeBase {
+  kind: 'DecoratorUse';
+  name: Identifier;
+  arguments: Expression[];
 }
 
 /**
@@ -90,6 +115,8 @@ export interface VariableDeclaration extends NodeBase {
   kind: 'VariableDeclaration';
   exported: boolean;
   keyword: 'let' | 'const' | 'state';
+  /** `public state` or `public const` in a decorator: the component reads it with `get(@name.x)`. */
+  isPublic: boolean;
   /** `_` is an ordinary identifier here; the checker treats it as "skip this value". */
   names: Identifier[];
   type: TypeNode | null;

@@ -6,7 +6,9 @@ import type { Token } from '../src/lexer/token.ts';
 /** Token texts, with automatic semicolons shown as "⏎" and EOF dropped. Fails on diagnostics. */
 function texts(source: string): string[] {
   const { tokens, diagnostics } = tokenize(source);
+
   expect(diagnostics).toEqual([]);
+
   return tokens
     .filter((t) => t.kind !== 'EOF')
     .map((t) => (t.kind === ';' && t.text === '' ? '⏎' : t.text));
@@ -14,7 +16,9 @@ function texts(source: string): string[] {
 
 function kinds(source: string): string[] {
   const { tokens, diagnostics } = tokenize(source);
+
   expect(diagnostics).toEqual([]);
+
   return tokens.map((t) => t.kind);
 }
 
@@ -25,7 +29,9 @@ function errors(source: string): string[] {
 /** The first token of a one-token source. */
 function single(source: string): Token {
   const { tokens, diagnostics } = tokenize(source);
+
   expect(diagnostics).toEqual([]);
+
   return tokens[0]!;
 }
 
@@ -44,6 +50,7 @@ describe('identifiers and keywords', () => {
 
   it('treats predeclared types and contextual words as identifiers', () => {
     const words = ['number', 'string', 'bool', 'any', 'error', 'static', 'private', 'from'];
+
     expect(kinds(words.join(' '))).toEqual([...words.map(() => 'Identifier'), ';', 'EOF']);
   });
 
@@ -120,6 +127,7 @@ describe('template literals', () => {
 
   it('splits a template around substitutions', () => {
     const { tokens } = tokenize('`a${x}b${y}c`');
+
     expect(tokens.map((t) => [t.kind, 'value' in t ? t.value : t.text])).toEqual([
       ['TemplateHead', 'a'],
       ['Identifier', 'x'],
@@ -187,6 +195,7 @@ describe('punctuators', () => {
 
   it('suggests == instead of ===', () => {
     const { tokens, diagnostics } = tokenize('a === b');
+
     expect(tokens[1]).toMatchObject({ kind: '==', text: '===' });
     expect(diagnostics).toEqual([
       { message: '"===" is not needed: "==" is already strict', start: 2, end: 5 },
@@ -239,6 +248,7 @@ describe('automatic semicolons', () => {
     'does not insert one after %j',
     (line) => {
       const result = texts(`${line}\nb`);
+
       expect(result[result.indexOf('b') - 1]).not.toBe('⏎');
     },
   );
@@ -257,6 +267,7 @@ describe('automatic semicolons', () => {
 
   it('continues a method chain on the next line', () => {
     const source = 'users\n  .filter(f)\n  // only names\n  ?.map(g)\nnext';
+
     expect(texts(source)).toEqual([
       ...['users', '.', 'filter', '(', 'f', ')', '?.', 'map', '(', 'g', ')', '⏎'],
       ...['next', '⏎'],
@@ -276,6 +287,7 @@ describe('automatic semicolons', () => {
 
 it('records token offsets', () => {
   const offsets = tokenize('let x = 10').tokens.map((t) => [t.start, t.end]);
+
   expect(offsets).toEqual([
     [0, 3],
     [4, 5],
@@ -288,5 +300,6 @@ it('records token offsets', () => {
 
 it('tokenizes examples/hello.mango without errors', () => {
   const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
+
   expect(tokenize(source).diagnostics).toEqual([]);
 });

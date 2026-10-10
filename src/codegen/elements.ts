@@ -35,22 +35,32 @@ export abstract class ElementEmitter extends AttributeEmitter {
 
   protected override element(node: ast.ElementExpression): string {
     if (this.hoist) return this.create(node, null);
+
     const body = this.withHoisting(true, () =>
       this.block(() => this.line(`return ${this.create(node, null)};`)),
     );
+
     return `(() => ${body})()`;
   }
 
   protected override elementDeclaration(declaration: string, node: ast.ElementExpression): void {
-    const live = this.reactive?.topLevel.has(node) ? this.reactive : null;
+    const live = this.declaredLive(node);
     const component = this.componentOf(node);
+
     if (component) this.line(`${declaration} = ${this.expand(node, component, live)};`);
     else this.build(node, declaration, live);
   }
 
+  /** Where the updates of `const x = <markup>` go: markup at the top level of a component is live. */
+  protected declaredLive(node: ast.ElementExpression): Live | null {
+    return this.reactive?.topLevel.has(node) ? this.reactive : null;
+  }
+
   protected override elementStatement(node: ast.JsxElementStatement): void {
     if (this.contentTarget === null) throw new Error('an element statement outside of markup');
+
     const element = this.create(node.element, null);
+
     this.line(`${this.contentTarget}.append(${element});`);
   }
 
@@ -62,6 +72,7 @@ export abstract class ElementEmitter extends AttributeEmitter {
   /** Writes the code for an element or a component and returns the variable with the result. */
   protected create(node: ast.ElementExpression, live: Live | null): string {
     const component = this.componentOf(node);
+
     return component ? this.expand(node, component, live) : this.build(node, null, live);
   }
 
@@ -84,9 +95,12 @@ export abstract class ElementEmitter extends AttributeEmitter {
       tag === null
         ? 'document.createDocumentFragment()'
         : `document.createElement(${JSON.stringify(tag)})`;
+
     this.line(`${declaration ?? `const ${name}`} = ${create};`);
+
     // Bindings go last: `valueAsNumber` needs the `type` attribute to be set.
     const bindings: ast.JsxAttribute[] = [];
+
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxAttribute' && attribute.name.name.startsWith('bind:')) {
         bindings.push(attribute);
@@ -94,10 +108,13 @@ export abstract class ElementEmitter extends AttributeEmitter {
         this.attribute(name, tag, attribute, live);
       }
     }
+
     if (tag !== null) {
       for (const attribute of bindings) this.binding(name, tag, attribute, live);
     }
+
     this.children(name, node.children, live);
+
     return name;
   }
 
@@ -120,14 +137,18 @@ export abstract class ElementEmitter extends AttributeEmitter {
         case 'JsxText':
           pending.push(JSON.stringify(child.value));
           break;
+
         case 'ElementExpression':
         case 'JsxElementStatement': {
           // A child element is created before the append; earlier calls must still run first.
           if (pendingCalls) flush();
+
           const node = child.kind === 'ElementExpression' ? child : child.element;
+
           pending.push(this.create(node, live));
           break;
         }
+
         case 'JsxStatementContainer':
         case 'IfStatement':
         case 'ForStatement':
@@ -135,6 +156,7 @@ export abstract class ElementEmitter extends AttributeEmitter {
         case 'SwitchStatement': {
           const statement = child.kind === 'JsxStatementContainer' ? child.statement : child;
           const sources = live?.dependencies(statement);
+
           if (live && sources && sources.size > 0) {
             if (pendingCalls) flush();
             pending.push(this.liveControl(statement, live, sources));
@@ -143,54 +165,68 @@ export abstract class ElementEmitter extends AttributeEmitter {
             flush();
             this.withContentTarget(element, () => this.statement(statement));
           }
+
           break;
         }
+
         case 'VariableDeclaration':
           flush();
           this.blockConst(child, live);
           break;
+
         case 'JsxExpressionContainer': {
           const { expression } = child;
           const sources = live?.dependencies(expression);
+
           if (live && sources && sources.size > 0) {
             if (pendingCalls) flush();
             pending.push(this.liveChild(expression, live, sources));
             break;
           }
+
           switch (contentKind(expression, this.typeOf(expression))) {
             case 'value':
               pending.push(this.expression(expression, ARROW));
               pendingCalls ||= !isSimple(expression);
               break;
+
             case 'list':
               pending.push(`...${this.expression(expression, ARROW)}`);
               pendingCalls ||= !isSimple(expression);
               break;
+
             case 'nullable': {
               flush();
+
               const text = this.once(expression);
+
               this.line(`if (${text} != null) ${element}.append(${text});`);
               break;
             }
+
             case 'unknown':
               flush();
               this.helpers.add('append');
               this.line(`$$append(${element}, ${this.expression(expression, ARROW)});`);
               break;
           }
+
           break;
         }
+
         default:
           // The parser allows no other statements in markup.
           flush();
           this.statement(child);
       }
     }
+
     flush();
   }
 
   protected withContentTarget<T>(element: string, emit: () => T): T {
     const saved = this.contentTarget;
+
     this.contentTarget = element;
     try {
       return emit();
@@ -202,6 +238,7 @@ export abstract class ElementEmitter extends AttributeEmitter {
   /** `() => value`, evaluated by a helper when the markup is created and on updates. */
   protected liveFunction(node: ast.Expression): string {
     const text = this.liveExpression(node);
+
     return `() => ${startsWithObjectLiteral(node) ? `(${text})` : text}`;
   }
 
@@ -226,18 +263,24 @@ export abstract class ElementEmitter extends AttributeEmitter {
   ): string {
     const kind = this.typeOf(expression)?.kind;
     const id = this.nextId();
+
     if (kind === 'string' || kind === 'number') {
       const text = this.liveExpression(expression);
       const node = `$$text${id}`;
+
       this.line(`const ${node} = document.createTextNode(${text});`);
       live.depend(sources, `${node}.data = ${text};`);
+
       return node;
     }
+
     const name = `$$content${id}`;
     const update = `$$updateContent${id}`;
+
     this.helpers.add('content');
     this.line(`const [${name}, ${update}] = $$content(${this.liveFunction(expression)});`);
     live.depend(sources, `${update}();`);
+
     return name;
   }
 
@@ -248,15 +291,19 @@ export abstract class ElementEmitter extends AttributeEmitter {
   protected blockConst(node: ast.VariableDeclaration, live: Live | null): void {
     const sources = live?.dependencies(node);
     const names = node.names.map((name) => (name.name === '_' ? '' : this.name(name.name)));
+
     if (!live || !sources || sources.size === 0 || names.every((name) => name === '')) {
       this.statement(node);
+
       return;
     }
+
     const values = node.values.map((value) => this.liveExpression(value));
     const assignments =
       values.length === names.length
         ? names.flatMap((name, i) => (name === '' ? [] : [`${name} = ${values[i]}`]))
         : [`${arrayPattern(names)} = ${values[0]}`];
+
     this.line(`let ${assignments.join(', ')};`);
     for (const assignment of assignments) live.depend(sources, `${assignment};`);
   }
@@ -264,8 +311,11 @@ export abstract class ElementEmitter extends AttributeEmitter {
   /** The expression if it can be repeated, otherwise a temporary that holds its value. */
   protected override once(node: ast.Expression): string {
     if (isSimple(node)) return this.expression(node, ARROW);
+
     const temp = this.temp();
+
     this.line(`const ${temp} = ${this.expression(node, ARROW)};`);
+
     return temp;
   }
 }

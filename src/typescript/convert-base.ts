@@ -74,27 +74,36 @@ export abstract class ConverterBase {
   /** The key of a declaration that does not change between programs, or `null`. */
   protected sharedKey(symbol: TS.Symbol, kind: string): string | null {
     const declarations = symbol.declarations ?? [];
+
     if (declarations.length === 0) return null;
+
     const stable = declarations.every((declaration) => {
       const file = declaration.getSourceFile();
+
       return (
         this.program.isSourceFileDefaultLibrary(file) ||
         this.program.isSourceFileFromExternalLibrary(file)
       );
     });
+
     if (!stable) return null;
+
     const file = declarations[0]!.getSourceFile().fileName;
+
     return `${kind} ${file} ${this.checker.getFullyQualifiedName(symbol)}`;
   }
 
   convert(type: TS.Type): Type {
     const known = this.types.get(type);
+
     if (known) return known;
     if (this.converting.has(type)) return ANY;
     this.converting.add(type);
     try {
       const converted = this.convertType(type);
+
       this.types.set(type, converted);
+
       return converted;
     } finally {
       this.converting.delete(type);
@@ -104,6 +113,7 @@ export abstract class ConverterBase {
   protected convertType(type: TS.Type): Type {
     const { TypeFlags } = this.ts;
     const { flags } = type;
+
     if (flags & (TypeFlags.Any | TypeFlags.Unknown)) return ANY;
     // `boolean` is the union `true | false` in TypeScript.
     if (flags & TypeFlags.Boolean) return BOOL;
@@ -121,6 +131,7 @@ export abstract class ConverterBase {
     if (flags & TypeFlags.Union) return this.union((type as TS.UnionType).types);
     if (flags & TypeFlags.Intersection) return this.object(type, null);
     if (flags & TypeFlags.Object) return this.objectType(type as TS.ObjectType);
+
     return ANY;
   }
 
@@ -130,8 +141,11 @@ export abstract class ConverterBase {
     const empty = (type: TS.Type) =>
       (type.flags & (TypeFlags.Null | TypeFlags.Undefined | TypeFlags.Void)) !== 0;
     const rest = types.filter((type) => !empty(type)).map((type) => this.convert(type));
+
     if (rest.length === 0) return NULL;
+
     const result = union(rest);
+
     return types.some(empty) ? nullable(result) : result;
   }
 
@@ -139,8 +153,10 @@ export abstract class ConverterBase {
     // `this` in an interface or a class is the type itself.
     if ((type as { isThisType?: boolean }).isThisType) {
       const constraint = type.getConstraint();
+
       return constraint ? this.convert(constraint) : ANY;
     }
+
     return this.typeParam(type);
   }
 
@@ -151,12 +167,16 @@ export abstract class ConverterBase {
    */
   protected typeParam(type: TS.Type): TypeParam {
     let param = this.params.get(type);
+
     if (!param) {
       param = { kind: 'param', name: type.symbol?.name ?? 'T', constraint: null };
       this.params.set(type, param);
+
       const fallback = this.checker.getDefaultFromTypeParameter(type);
+
       if (fallback) param.default = this.convert(fallback);
     }
+
     return param;
   }
 

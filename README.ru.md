@@ -42,6 +42,11 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 поэтому отдельная сборка для разработки не нужна: команды ниже запускают компилятор из `src/`.
 `dist/` собирается только для npm-пакета.
 
+`npm install` ставит и pre-commit хук, который форматирует застейдженные файлы: ESLint добавляет
+пустые строки между операторами, которые Prettier сохраняет, но сам не добавляет, затем
+форматирует Prettier. Форматируется только застейдженная версия, так что незастейдженные правки
+в коммит не попадают.
+
 ## Команды
 
 | Команда                              | Что делает                                                  |
@@ -52,7 +57,7 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 | `npm run mango -- ast file.mango`    | Показать синтаксическое дерево                              |
 | `npm test` / `npm run test:watch`    | Тесты (Vitest)                                              |
 | `npm run typecheck`                  | Проверка типов                                              |
-| `npm run lint` / `npm run format`    | ESLint / Prettier                                           |
+| `npm run lint` / `npm run format`    | ESLint / Prettier с пустыми строками от ESLint              |
 | `npm run check`                      | Всё сразу — типы, линт, формат, тесты                       |
 | `npm run build`                      | Собрать npm-пакет в `dist/`                                 |
 | `npm run vscode:install`             | Собрать и установить расширение для VS Code                 |

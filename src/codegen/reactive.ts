@@ -1,8 +1,10 @@
 import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
+import { wrappedMarkup } from '../decorators.ts';
 import { containsReturn, returnedMarkup } from '../recursion.ts';
 import { forEachChild } from '../walk.ts';
-import { mayChange, readNames, rootName } from './mutations.ts';
+import { mayChange } from '../methods.ts';
+import { readNames, rootName } from './mutations.ts';
 
 // Reactivity of components: which markup depends on which state, and which code changes it.
 
@@ -96,8 +98,10 @@ export class Reactive implements Live {
   ) {
     this.setup = setup;
     for (const name of props) this.sources.set(name, createSource(name, 'prop'));
+
     // Markup declared after an early return may never be created, so it is not updated.
     let returned = false;
+
     for (const statement of component.body.body) {
       if (statement.kind === 'VariableDeclaration') {
         for (const name of statement.names) {
@@ -105,10 +109,13 @@ export class Reactive implements Live {
             this.sources.set(name.name, createSource(name.name, 'state'));
           }
         }
+
         const [value] = statement.values;
+
         if (statement.names.length === 1 && value?.kind === 'ElementExpression' && !returned) {
           this.topLevel.add(value);
         }
+
         if (
           statement.keyword === 'const' &&
           statement.names.length === 1 &&
@@ -119,30 +126,41 @@ export class Reactive implements Live {
       } else if (statement.kind === 'FuncDeclaration') {
         this.functions.set(statement.name.name, statement);
       }
+
       returned ||= containsReturn(statement);
     }
+
     this.findAliases(component.body);
 
-    const markup: ast.Node[] = [...this.topLevel, ...returnedMarkup(component)];
+    const markup: ast.Node[] = [
+      ...this.topLevel,
+      ...returnedMarkup(component),
+      ...wrappedMarkup(component),
+    ];
     const seen = new Set<string>();
     const visit = (node: ast.Node): void => {
       const names = new Set<string>();
+
       readNames(node, names);
       for (const name of names) {
         const fn = this.functions.get(name);
+
         if (!fn || seen.has(name)) continue;
         seen.add(name);
         this.renderFunctions.add(fn);
         visit(fn);
       }
     };
+
     markup.forEach(visit);
   }
 
   /** Whether a statement of the body declares a function that the live markup calls. */
   declaresRenderFunction(node: ast.Statement): boolean {
     if (node.kind === 'FuncDeclaration') return this.renderFunctions.has(node);
+
     const [value] = node.kind === 'VariableDeclaration' ? node.values : [];
+
     return value !== undefined && this.renderFunctions.has(value);
   }
 
@@ -162,18 +180,25 @@ export class Reactive implements Live {
     const seen = new Set<string>();
     const visit = (node: ast.Node): void => {
       const names = new Set<string>();
+
       readNames(node, names);
       for (const name of names) {
         if (seen.has(name)) continue;
         seen.add(name);
+
         const source = this.sources.get(name);
+
         if (source) found.add(source);
         for (const aliased of this.aliases.get(name) ?? EMPTY) found.add(aliased);
+
         const fn = this.functions.get(name);
+
         if (fn) visit(fn);
       }
     };
+
     visit(node);
+
     return found;
   }
 
@@ -198,39 +223,53 @@ export class Reactive implements Live {
         case 'ArrowFunction':
         case 'ClassDeclaration':
           return;
+
         case 'SwitchCase':
           node.tests.forEach(visit);
+
           return;
+
         case 'AssignmentStatement':
           node.targets.forEach(write);
           break;
+
         case 'IncDecStatement':
           write(node.target);
           break;
+
         case 'CallExpression': {
           const { callee } = node;
+
           if (
             callee.kind === 'MemberExpression' &&
             mayChange(typeOf(callee.object), callee.property.name)
           ) {
             write(callee.object);
           }
+
           break;
         }
+
         default:
           break;
       }
+
       forEachChild(node, visit);
     };
+
     visit(node);
+
     return found;
   }
 
   /** Sources whose value `node` refers into: `todos`, `todos[i].tags`, `todos.find(...)`. */
   rootSources(node: ast.Expression): ReadonlySet<Source> {
     const name = rootName(node);
+
     if (name === null) return EMPTY;
+
     const source = this.sources.get(name);
+
     return source ? new Set([source]) : (this.aliases.get(name) ?? EMPTY);
   }
 
@@ -239,7 +278,9 @@ export class Reactive implements Live {
     let changed = true;
     const add = (name: string, sources: ReadonlySet<Source>) => {
       if (name === '_' || this.sources.has(name)) return;
+
       let set = this.aliases.get(name);
+
       for (const source of sources) {
         if (set?.has(source)) continue;
         set ??= new Set();
@@ -254,48 +295,63 @@ export class Reactive implements Live {
       switch (node.kind) {
         case 'JsxStatementContainer': {
           const saved = inMarkup;
+
           inMarkup = true;
           visit(node.statement);
           inMarkup = saved;
+
           return;
         }
+
         case 'FuncExpression':
         case 'ArrowFunction': {
           const saved = inMarkup;
+
           inMarkup = false;
           forEachChild(node, visit);
           inMarkup = saved;
+
           return;
         }
+
         case 'ForInStatement':
           add(node.value.name, this.rootSources(node.iterable));
           if (node.key && inMarkup) add(node.key.name, this.dependencies(node.iterable));
           break;
+
         case 'VariableDeclaration':
           node.names.forEach((name, i) => {
             const value =
               node.values.length === node.names.length ? node.values[i] : node.values[0];
+
             if (!value) return;
             add(name.name, this.rootSources(value));
             if (inMarkup) add(name.name, this.dependencies(value));
           });
           break;
+
         case 'CallExpression': {
           if (node.callee.kind !== 'MemberExpression') break;
+
           const sources = this.rootSources(node.callee.object);
+
           if (sources.size === 0) break;
           for (const arg of node.arguments) {
             if (arg.kind === 'ArrowFunction' || arg.kind === 'FuncExpression') {
               for (const param of arg.params) add(param.name.name, sources);
             }
           }
+
           break;
         }
+
         default:
           break;
       }
+
       forEachChild(node, visit);
     };
+
     while (changed) {
       changed = false;
       visit(body);

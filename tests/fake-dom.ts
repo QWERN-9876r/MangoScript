@@ -68,7 +68,9 @@ export class FakeNode {
 
   get nextSibling(): FakeNode | null {
     if (!this.parentNode) return null;
+
     const siblings = this.parentNode.childNodes;
+
     return siblings[siblings.indexOf(this) + 1] ?? null;
   }
 
@@ -83,8 +85,10 @@ export class FakeNode {
 
   remove(): void {
     if (!this.parentNode) return;
+
     const connected = this.isConnected;
     const siblings = this.parentNode.childNodes;
+
     siblings.splice(siblings.indexOf(this), 1);
     this.parentNode = null;
     if (connected) registry?.disconnected(this);
@@ -97,19 +101,25 @@ export class FakeNode {
 
   attachShadow(): FakeNode {
     const root = new FakeNode('#shadow-root');
+
     root.host = this;
     this.shadowRoot = root;
+
     return root;
   }
 
   private insertBefore(reference: FakeNode | null, items: unknown[]): void {
     const nodes = items.flatMap((item) => {
       if (!(item instanceof FakeNode)) return [new FakeNode('#text', String(item))];
+
       // As in the DOM, inserting a fragment moves its children.
       return item.nodeType === 11 ? [...item.childNodes] : [item];
     });
+
     for (const node of nodes) node.remove();
+
     const index = reference ? this.childNodes.indexOf(reference) : this.childNodes.length;
+
     this.childNodes.splice(index, 0, ...nodes);
     for (const node of nodes) node.parentNode = this;
     if (this.isConnected) for (const node of nodes) registry?.connected(node);
@@ -118,12 +128,14 @@ export class FakeNode {
 
   setAttribute(name: string, value: unknown): void {
     const old = this.attributes.get(name) ?? null;
+
     this.attributes.set(name, String(value));
     registry?.attributeChanged(this, name, old, String(value));
   }
 
   removeAttribute(name: string): void {
     const old = this.attributes.get(name) ?? null;
+
     this.attributes.delete(name);
     registry?.attributeChanged(this, name, old, null);
   }
@@ -152,16 +164,21 @@ export class FakeNode {
 
   find(tag: string, index = 0): FakeNode {
     const found = this.findAll(tag)[index];
+
     if (!found) throw new Error(`no <${tag}> #${index}`);
+
     return found;
   }
 
   /** HTML-like text: properties that were set are shown as attributes. */
   toString(): string {
     if (this.nodeType === 3) return String(this.data);
+
     const shadow = this.shadowRoot ? `<#shadow-root>${String(this.shadowRoot)}</#shadow-root>` : '';
     const content = shadow + this.childNodes.map(String).join('');
+
     if (this.nodeType === 11) return content;
+
     const shown = ['id', 'className', 'href', 'type', 'value', 'checked', 'disabled', 'htmlFor'];
     const attributes = [
       ...shown
@@ -171,6 +188,7 @@ export class FakeNode {
       ...(this.style.cssText ? [`style=${this.style.cssText}`] : []),
     ];
     const open = [this.tagName, ...attributes].join(' ');
+
     return `<${open}>${content}</${this.tagName}>`;
   }
 }
@@ -216,14 +234,17 @@ class FakeCustomElements {
 
   create(tag: string): FakeNode {
     const element = this.classes.get(tag);
+
     return element ? new element() : new FakeNode(tag);
   }
 
   /** Called by the base class while an element is constructed. */
   construct(target: unknown): FakeNode {
     const node = this.upgrading ?? new FakeNode(this.tags.get(target) ?? '');
+
     this.upgrading = null;
     this.upgraded.add(node);
+
     return node;
   }
 
@@ -242,6 +263,7 @@ class FakeCustomElements {
 
   attributeChanged(node: FakeNode, name: string, old: string | null, value: string | null): void {
     const element = this.classes.get(node.tagName);
+
     if (this.upgraded.has(node) && element?.observedAttributes?.includes(name)) {
       callback(node, 'attributeChangedCallback', name, old, value);
     }
@@ -249,6 +271,7 @@ class FakeCustomElements {
 
   private upgrade(node: FakeNode): void {
     const element = this.classes.get(node.tagName);
+
     if (!element || this.upgraded.has(node)) return;
     this.upgrading = node;
     new element();
@@ -260,22 +283,35 @@ class FakeCustomElements {
 function baseClass(registry: FakeCustomElements): new () => FakeNode {
   function HTMLElement(): FakeNode {
     const node = registry.construct(new.target);
+
     Object.setPrototypeOf(node, (new.target as { prototype: object }).prototype);
+
     return node;
   }
+
   HTMLElement.prototype = Object.create(FakeNode.prototype) as object;
+
   return HTMLElement as unknown as new () => FakeNode;
 }
 
 /** Compiles and runs a program with a fake `document`; returns what it printed and the body. */
 export function mountWithDom(source: string): { output: string[]; body: FakeNode } {
   const { code, diagnostics } = compile(source);
+
   expect(diagnostics).toEqual([]);
+
+  return mountJsWithDom(code);
+}
+
+/** Runs generated JS without imports and exports, e.g. a bundle, with a fake `document`. */
+export function mountJsWithDom(code: string): { output: string[]; body: FakeNode } {
   const output: string[] = [];
   const fakeConsole = { log: (...args: unknown[]) => output.push(args.map(String).join(' ')) };
   const body = new FakeNode('body');
   const customElements = new FakeCustomElements(body);
+
   registry = customElements;
+
   const document = {
     body,
     createElement: (tag: string) => customElements.create(tag),
@@ -291,7 +327,9 @@ export function mountWithDom(source: string): { output: string[]; body: FakeNode
     'HTMLElement',
     `"use strict";\n${code}`,
   ) as (console: typeof fakeConsole, document: unknown, ...dom: unknown[]) => void;
+
   program(fakeConsole, document, FakeMutationObserver, customElements, customElements.HTMLElement);
+
   return { output, body };
 }
 

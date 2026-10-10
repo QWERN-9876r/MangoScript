@@ -9,19 +9,25 @@ import { parse } from '../src/parser/parser.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
 /** Runs a program and returns what it printed. */
 function run(source: string): string[] {
   const { code, diagnostics } = compile(source);
+
   expect(diagnostics).toEqual([]);
+
   const output: string[] = [];
   const log = (...args: unknown[]) => output.push(args.map(String).join(' '));
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const program = new Function('console', code) as (console: { log: typeof log }) => void;
+
   program({ log });
+
   return output;
 }
 
@@ -59,10 +65,15 @@ type Pair[A, B any] {
 }
 let b Box[[]number] = { value: [1] }
 let m Pair[string, ?number] = { first: "a", second: null }`);
+
     expect(diagnostics).toEqual([]);
+
     const first = program.body[0] as ast.FuncDeclaration;
+
     expect(first.typeParams.map((param) => param.name.name)).toEqual(['T']);
+
     const pick = program.body[1] as ast.FuncDeclaration;
+
     expect(pick.typeParams.map((param) => param.name.name)).toEqual(['K', 'V', 'S']);
     // `K, V any`: every name of the group has the constraint.
     expect(pick.typeParams.map((param) => param.constraint?.kind)).toEqual([
@@ -70,9 +81,13 @@ let m Pair[string, ?number] = { first: "a", second: null }`);
       'TypeReference',
       'TypeReference',
     ]);
+
     const box = (program.body[4] as ast.VariableDeclaration).type as ast.TypeReference;
+
     expect(box.typeArgs.map((arg) => arg.kind)).toEqual(['ArrayType']);
+
     const pair = (program.body[5] as ast.VariableDeclaration).type as ast.TypeReference;
+
     expect(pair.typeArgs.map((arg) => arg.kind)).toEqual(['TypeReference', 'NullableType']);
   });
 
@@ -153,6 +168,7 @@ func names[T Named](xs []T) []string {
     return xs.map(x => x.name)
 }
 `;
+
     expect(errors(`${source}names([{ name: "a", age: 1 }])`)).toEqual([]);
     expect(errors(`${source}names([1])`)).toEqual([
       'number does not satisfy the constraint Named of T',
@@ -254,6 +270,7 @@ let n number = unbox(b)`),
 
   it('checks the number of type arguments and constraints', () => {
     const box = 'interface Box[T] {\n    value T\n}\n';
+
     expect(errors(`${box}let b Box = { value: 1 }`)).toEqual([
       '"Box" needs type arguments: Box[T]',
     ]);

@@ -264,8 +264,10 @@ const SPECIFIC_ELEMENTS: Record<string, [string, Record<string, Member>]> = {
 };
 
 const elementTypes = new Map<string, ObjectType>();
+
 for (const [tag, [name, members]] of Object.entries(SPECIFIC_ELEMENTS)) {
   const existing = [...elementTypes.values()].find((type) => type.name === name);
+
   elementTypes.set(tag, existing ?? object(name, { ...ELEMENT_MEMBERS, ...members }));
 }
 
@@ -328,13 +330,17 @@ const READ_ONLY = new Set([
   'duration',
   'paused',
 ]);
+
 READ_ONLY.delete('textContent');
 
 /** The DOM property that an attribute sets, e.g. `class` → `className`; `null` for setAttribute. */
 export function domProperty(tag: string, attribute: string): { name: string; type: Type } | null {
   const name = Object.hasOwn(PROPERTY_NAMES, attribute) ? PROPERTY_NAMES[attribute]! : attribute;
+
   if (READ_ONLY.has(name)) return null;
+
   const member = elementType(tag).members.get(name);
+
   return member && !member.method ? { name, type: member.type } : null;
 }
 

@@ -31,10 +31,14 @@ export class DeclarationImporter {
   /** The exports of the module `specifier` imported from the file `fromFile`. */
   import(fromFile: string, specifier: string): ImportResult {
     const key = `${dirname(fromFile)}\0${specifier}`;
+
     if (this.results.has(key)) return this.results.get(key);
+
     const ts = this.loadTypeScript();
     const result = ts ? this.resolve(ts, fromFile, specifier) : undefined;
+
     this.results.set(key, result);
+
     return result;
   }
 
@@ -44,9 +48,12 @@ export class DeclarationImporter {
    */
   library(fromFile: string): Library | undefined {
     const ts = this.loadTypeScript();
+
     if (!ts) return undefined;
     this.addTypeRoots(fromFile);
+
     const current = () => this.current(ts).library;
+
     return {
       value: (name) => current().value(name),
       type: (name) => current().type(name),
@@ -65,25 +72,32 @@ export class DeclarationImporter {
         this.ts = null;
       }
     }
+
     return this.ts;
   }
 
   private resolve(ts: typeof TS, fromFile: string, specifier: string): ImportResult {
     this.addTypeRoots(fromFile);
+
     const { resolvedModule } = ts.resolveModuleName(specifier, fromFile, this.options(ts), ts.sys);
+
     if (resolvedModule) {
       const file = resolvedModule.resolvedFileName;
+
       // A JS file without declarations next to it.
       if (!TYPESCRIPT_EXTENSIONS.some((extension) => file.endsWith(extension))) return undefined;
       if (!this.roots.has(file)) {
         this.roots.add(file);
         this.stale = true;
       }
+
       const { program, converter } = this.current(ts);
       const source = program.getSourceFile(file);
       const module = source && program.getTypeChecker().getSymbolAtLocation(source);
+
       return module ? { exports: converter.moduleExports(module) } : undefined;
     }
+
     // `node:fs`, `fs`: modules declared with `declare module "..."`, as in @types/node.
     const { program, converter } = this.current(ts);
     const name = JSON.stringify(specifier);
@@ -91,19 +105,23 @@ export class DeclarationImporter {
       .getTypeChecker()
       .getAmbientModules()
       .find((module) => module.name === name);
+
     return ambient ? { exports: converter.moduleExports(ambient) } : undefined;
   }
 
   private addTypeRoots(fromFile: string): void {
     for (let directory = dirname(fromFile); ; directory = dirname(directory)) {
       const types = join(directory, 'node_modules', '@types');
+
       if (!this.typeRoots.has(types) && existsSync(types)) {
         this.typeRoots.add(types);
         for (const name of readdirSync(types)) {
           if (!name.startsWith('.')) this.typePackages.add(name);
         }
+
         this.stale = true;
       }
+
       if (dirname(directory) === directory) break;
     }
   }
@@ -134,6 +152,7 @@ export class DeclarationImporter {
   } {
     if (this.stale || !this.program || !this.converter || !this.libraryTypes) {
       const options = this.options(ts);
+
       this.program = ts.createProgram({
         // Without a root file, a program reads neither the lib nor the `types` packages.
         rootNames: [ts.getDefaultLibFilePath(options), ...this.roots],
@@ -144,6 +163,7 @@ export class DeclarationImporter {
       this.libraryTypes = new LibraryTypes(ts, this.program, this.converter);
       this.stale = false;
     }
+
     return { program: this.program, converter: this.converter, library: this.libraryTypes };
   }
 }
@@ -153,11 +173,13 @@ let shared: DeclarationImporter | undefined;
 /** Imports with declarations, shared by every compilation in this process. */
 export function importDeclarations(fromFile: string, specifier: string): ImportResult {
   shared ??= new DeclarationImporter();
+
   return shared.import(fromFile, specifier);
 }
 
 /** The standard library and the DOM for a file, shared like the imports. */
 export function libraryFor(fromFile: string): Library | undefined {
   shared ??= new DeclarationImporter();
+
   return shared.library(fromFile);
 }

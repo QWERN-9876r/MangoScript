@@ -23,6 +23,7 @@ describe('formatDiagnostic', () => {
   it('points at the error in the source line', () => {
     const file = new SourceFile('hello.mango', 'let a = 1\nlet s = "abc\n');
     const diagnostic = { message: 'unterminated string literal', start: 18, end: 22 };
+
     expect(formatDiagnostic(file, diagnostic)).toBe(
       [
         'hello.mango:2:9: error: unterminated string literal',
@@ -39,6 +40,7 @@ describe('formatDiagnostic', () => {
       start: 5,
       end: 6,
     });
+
     expect(output.split('\n')[2]).toBe('  | \t    ^');
   });
 });

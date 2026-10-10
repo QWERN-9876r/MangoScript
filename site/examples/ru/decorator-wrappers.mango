@@ -1,0 +1,37 @@
+// Обёртка получает то, что возвращает компонент, и отдаёт вместо этого другую разметку.
+// Эта кладёт его в карточку с заголовком, который его сворачивает
+dec folded(title string) {
+    state open = true
+
+    return (content Element) => <section class="card">
+        <h3 onClick={open = !open}>{open ? "▾" : "▸"} {title}</h3>
+        {open ? content : null}
+    </section>
+}
+
+dec quantity() {
+    public state count = 0
+
+    public func add() {
+        count++
+    }
+}
+
+// Декоратор, которому нужен другой, видит его публичные члены
+dec quantityBadge() needs quantity {
+    return (content Element) => <div>
+        {content}
+        <p>Взято: {get(@quantity.count)}</p>
+    </div>
+}
+
+// Обёртки применяются снизу вверх: quantityBadge, затем folded.
+// quantity стоит выше quantityBadge, которому он нужен
+@folded(name)
+@quantity
+@quantityBadge
+comp Product(name string, price number) {
+    return <p>Цена: {price} ₽ <button onClick={@quantity.add()}>Взять</button></p>
+}
+
+document.body.append(<Product name="Манго" price={120} />, <Product name="Папайя" price={90} />)

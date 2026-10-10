@@ -19,6 +19,7 @@ export function isSubclass(info: ClassInfo, base: ClassInfo): boolean {
   for (let current: ClassInfo | null = info; current; current = current.superClass) {
     if (current === base) return true;
   }
+
   return false;
 }
 
@@ -30,8 +31,10 @@ export function findClassMember(
 ): Member | undefined {
   for (let current: ClassInfo | null = info; current; current = current.superClass) {
     const member = (isStatic ? current.statics : current.members).get(name);
+
     if (member) return member;
   }
+
   return undefined;
 }
 
@@ -39,18 +42,23 @@ export function hasUntypedBase(info: ClassInfo): boolean {
   for (let current: ClassInfo | null = info; current; current = current.superClass) {
     if (current.untypedBase) return true;
   }
+
   return false;
 }
 
 /** All instance members, including inherited ones. */
 export function instanceMembers(info: ClassInfo): Map<string, Member> {
   const chain: ClassInfo[] = [];
+
   for (let current: ClassInfo | null = info; current; current = current.superClass) {
     chain.unshift(current);
   }
+
   const members = new Map<string, Member>();
+
   for (const current of chain)
     for (const [name, member] of current.members) members.set(name, member);
+
   return members;
 }
 
@@ -60,13 +68,17 @@ export function instanceMembers(info: ClassInfo): Map<string, Member> {
  */
 export function spreadFields(type: Type): Map<string, Type> | null {
   let members: Map<string, Member>;
+
   if (type.kind === 'object') members = type.members;
   else if (type.kind === 'class') members = instanceMembers(type.info);
   else return null;
+
   const fields = new Map<string, Type>();
+
   for (const [name, member] of members) {
     if (!member.method && member.visibility === 'public') fields.set(name, member.type);
   }
+
   return fields;
 }
 
@@ -76,6 +88,7 @@ export function constructorOf(info: ClassInfo): { type: FunctionType; owner: Cla
     if (current.ctor) return { type: current.ctor, owner: current };
     if (current.untypedBase) return { type: func([], [], { rest: ANY }), owner: null };
   }
+
   return { type: func([], []), owner: null };
 }
 
@@ -84,13 +97,17 @@ export function publicMembers(type: Type): Map<string, Member> | null {
   switch (type.kind) {
     case 'object':
       return type.members;
+
     case 'class': {
       const members = new Map<string, Member>();
+
       for (const [name, member] of instanceMembers(type.info)) {
         if (member.visibility === 'public') members.set(name, member);
       }
+
       return members;
     }
+
     default:
       return null;
   }

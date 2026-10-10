@@ -24,7 +24,9 @@ export type Expression =
   | NewExpression
   | MemberExpression
   | IndexExpression
-  | ElementExpression;
+  | ElementExpression
+  | DecoratorMember
+  | DecoratorGet;
 
 export interface Identifier extends NodeBase {
   kind: 'Identifier';
@@ -197,4 +199,20 @@ export interface IndexExpression extends NodeBase {
   object: Expression;
   index: Expression;
   optional: boolean;
+}
+
+/**
+ * `@visible.shown`: a public member of a decorator applied to the component. The names belong to
+ * the decorator, not to any scope, so walkers do not visit them as identifiers.
+ */
+export interface DecoratorMember extends NodeBase {
+  kind: 'DecoratorMember';
+  decorator: Identifier;
+  member: Identifier;
+}
+
+/** `get(@visible.shown)`: reads public state or a constant of a decorator. */
+export interface DecoratorGet extends NodeBase {
+  kind: 'DecoratorGet';
+  target: DecoratorMember;
 }

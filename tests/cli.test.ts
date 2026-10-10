@@ -17,10 +17,12 @@ function node(cwd: string, file: string) {
 /** A temporary project: `files` maps relative paths to contents. */
 function project(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'mango-cli-'));
+
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(join(dir, path, '..'), { recursive: true });
     writeFileSync(join(dir, path), text);
   }
+
   return dir;
 }
 
@@ -43,6 +45,7 @@ describe('mango run', () => {
   it('runs a program that imports another .mango module', () => {
     const dir = project({ 'geom.mango': geom, 'main.mango': main('./geom.mango') });
     const result = mango(dir, 'run', 'main.mango');
+
     expect(result.stderr).toBe('');
     expect(result.stdout).toBe('5\n');
   });
@@ -50,6 +53,7 @@ describe('mango run', () => {
   it('reports compile errors and exits with code 1', () => {
     const dir = project({ 'bad.mango': 'let = 1\n' });
     const result = mango(dir, 'run', 'bad.mango');
+
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('bad.mango:1:5: error: expected variable name, found "="');
   });
@@ -59,6 +63,7 @@ describe('mango build', () => {
   it('writes .js files next to the sources, with the modules they import', () => {
     const dir = project({ 'lib/geom.mango': geom, 'main.mango': main('./lib/geom.mango') });
     const result = mango(dir, 'build', 'main.mango');
+
     expect(result.stderr).toBe('');
     expect(result.stdout).toBe(
       'main.mango → main.js + .d.ts\nlib/geom.mango → lib/geom.js + .d.ts\n',
@@ -78,12 +83,14 @@ export declare function dist(p: Point): number;
   it('writes no .d.ts without type checking', () => {
     const dir = project({ 'geom.mango': geom });
     const result = mango(dir, 'build', 'geom.mango', '--no-check');
+
     expect(result.stdout).toBe('geom.mango → geom.js\n');
     expect(existsSync(join(dir, 'geom.d.ts'))).toBe(false);
   });
 
   it('writes to --out-dir, keeping the folder structure', () => {
     const dir = project({ 'src/lib/geom.mango': geom, 'src/main.mango': main('./lib/geom.mango') });
+
     mango(dir, 'build', 'src/main.mango', '--out-dir', 'build');
     expect(existsSync(join(dir, 'build/main.js'))).toBe(true);
     expect(existsSync(join(dir, 'build/lib/geom.js'))).toBe(true);
@@ -97,6 +104,7 @@ export declare function dist(p: Point): number;
       'src/nested/b.mango': 'console.log("b")\n',
       'src/node_modules/c.mango': 'console.log("c")\n',
     });
+
     mango(dir, 'build', 'src', '--out-dir', 'out');
     expect(existsSync(join(dir, 'out/a.js'))).toBe(true);
     expect(existsSync(join(dir, 'out/nested/b.js'))).toBe(true);
@@ -109,6 +117,7 @@ export declare function dist(p: Point): number;
       'main.mango': 'import { dist } from "./geom.mango"\nconsole.log(dist(1))\n',
     });
     const result = mango(dir, 'build', 'main.mango');
+
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('geom.mango:2:12: error: cannot use string as number');
     expect(existsSync(join(dir, 'main.js'))).toBe(false);
@@ -118,6 +127,7 @@ export declare function dist(p: Point): number;
   it('prints the JS of one file with --stdout', () => {
     const dir = project({ 'hello.mango': 'console.log("hi")\n' });
     const result = mango(dir, 'build', 'hello.mango', '--stdout');
+
     expect(result.stdout).toBe('console.log("hi");\n');
     expect(existsSync(join(dir, 'hello.js'))).toBe(false);
   });
@@ -125,6 +135,7 @@ export declare function dist(p: Point): number;
   it('rejects files that are not .mango', () => {
     const dir = project({ 'notes.txt': 'hi' });
     const result = mango(dir, 'build', 'notes.txt');
+
     expect(result.status).toBe(1);
     expect(result.stderr).toBe('mango: not a .mango file: notes.txt\n');
   });

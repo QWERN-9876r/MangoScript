@@ -8,7 +8,9 @@ import { mountWithDom } from './fake-dom.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
@@ -100,6 +102,7 @@ console.log("created")
 document.body.append(<Box />)
 console.log("appended")
 `);
+
     expect(output).toEqual(['created', 'appended']);
     await flush();
     expect(output).toEqual(['created', 'appended', 'mounted true']);
@@ -109,6 +112,7 @@ console.log("appended")
     const { output, body } = mountWithDom(`${timer}const later = <Timer name="later" />
 document.body.append(<button onClick={document.body.append(later)}>insert</button>)
 `);
+
     await flush();
     expect(output).toEqual([]);
     body.find('button').click();
@@ -132,6 +136,7 @@ const box = <div>
 </div>
 document.body.append(<button onClick={document.body.append(box)}>insert</button>)
 `);
+
     await flush();
     expect(output).toEqual([]);
     body.find('button').click();
@@ -154,8 +159,11 @@ document.body.append(<button onClick={document.body.append(box)}>insert</button>
 }
 document.body.append(<Root />)
 `);
+
     await flush();
+
     const [hide, insert] = body.findAll('button');
+
     hide!.click();
     insert!.click();
     await flush();
@@ -172,6 +180,7 @@ document.body.append(<Root />)
 }
 document.body.append(<Status />)
 `);
+
     expect(String(body)).toBe('<body><p>загрузка</p></body>');
     await flush();
     expect(String(body)).toBe('<body><p>готово</p></body>');
@@ -189,6 +198,7 @@ document.body.append(<Status />)
 }
 document.body.append(<App />)
 `);
+
     await flush();
     expect(output).toEqual(['start a']);
     body.find('button').click();
@@ -214,6 +224,7 @@ document.body.append(<App />)
 }
 document.body.append(<App />)
 `);
+
     await flush();
     expect(output).toEqual(['start a', 'start b', 'start c']);
     body.find('button').click();
@@ -232,6 +243,7 @@ document.body.append(<App />)
 }
 document.body.append(<App />)
 `);
+
     await flush();
     expect(output).toEqual(['start a']);
     body.find('button').click();
@@ -254,6 +266,7 @@ document.body.append(<App />)
 }
 document.body.append(<App />)
 `);
+
     body.find('button').click();
     await flush();
     expect(output).toEqual([]);
@@ -283,6 +296,7 @@ comp Tree(node Node) {
 
 document.body.append(<Tree node={{ name: "root", children: [{ name: "leaf", children: [] }] }} />)
 `);
+
     await flush();
     expect(output).toEqual(['start root', 'start leaf']);
     body.find('button').click();

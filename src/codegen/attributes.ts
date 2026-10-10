@@ -30,6 +30,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
 
   protected elementName(tag: string | null): string {
     const base = tag === null ? 'fragment' : /^[a-z][a-z0-9]*$/.test(tag) ? tag : 'element';
+
     return `$$${base}${this.nextId()}`;
   }
 
@@ -41,16 +42,21 @@ export abstract class AttributeEmitter extends UpdateEmitter {
   ): void {
     if (attribute.kind === 'JsxSpreadAttribute') {
       this.setLive(live, attribute.argument, (text) => `Object.assign(${element}, ${text});`);
+
       return;
     }
+
     const name = attribute.name.name;
     const { value } = attribute;
 
     const webProperty = tag === null ? null : this.webComponentProperty(tag, name);
+
     if (webProperty) {
       this.webComponentAttribute(element, webProperty, value, live);
+
       return;
     }
+
     if (/^on[A-Z]/.test(name)) {
       this.inHandler++;
       try {
@@ -60,21 +66,26 @@ export abstract class AttributeEmitter extends UpdateEmitter {
       } finally {
         this.inHandler--;
       }
+
       return;
     }
+
     if (value?.kind === 'EventHandler') return;
 
     if (name === 'style' && value !== null) {
       const isString = value.kind === 'StringLiteral' || this.typeOf(value)?.kind === 'string';
+
       this.setLive(live, value, (text) =>
         isString
           ? `${element}.style.cssText = ${text};`
           : `Object.assign(${element}.style, ${text});`,
       );
+
       return;
     }
 
     const property = tag === null ? null : domProperty(tag, name);
+
     if (value === null) {
       // `<input disabled>`: true for boolean properties, an empty attribute otherwise.
       this.line(
@@ -82,13 +93,18 @@ export abstract class AttributeEmitter extends UpdateEmitter {
           ? `${element}.${property.name} = true;`
           : `${element}.setAttribute(${JSON.stringify(name)}, "");`,
       );
+
       return;
     }
+
     if (property) {
       this.setLive(live, value, (text) => `${element}.${property.name} = ${text};`);
+
       return;
     }
+
     const quoted = JSON.stringify(name);
+
     if (this.typeOf(value)?.kind !== 'nullable') {
       this.setLive(live, value, (text) => `${element}.setAttribute(${quoted}, ${text});`);
     } else if (live && live.dependencies(value).size > 0) {
@@ -97,6 +113,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     } else {
       // A null value leaves the attribute out.
       const text = this.once(value);
+
       this.line(`if (${text} != null) ${element}.setAttribute(${quoted}, ${text});`);
     }
   }
@@ -104,12 +121,15 @@ export abstract class AttributeEmitter extends UpdateEmitter {
   /** `<app-card item-count={1} />`: the property of a web component of this module, if it has one. */
   protected webComponentProperty(tag: string, name: string): ast.Parameter | null {
     const component = this.webComponents.get(tag);
+
     if (!component) return null;
+
     const param = component.params.find(
       (param) =>
         param.name.name !== 'children' &&
         (param.name.name === name || attributeName(param.name.name) === name),
     );
+
     return param ?? null;
   }
 
@@ -121,6 +141,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     live: Live | null,
   ): void {
     const target = `${element}.${param.name.name}`;
+
     if (value === null) {
       this.line(`${target} = true;`);
     } else if (
@@ -149,11 +170,15 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     statement: (text: string) => string,
   ): void {
     const sources = live && value.kind !== 'StringLiteral' ? live.dependencies(value) : null;
+
     if (!live || !sources || sources.size === 0) {
       this.line(statement(this.expression(value, ARROW)));
+
       return;
     }
+
     const text = statement(this.liveExpression(value));
+
     this.line(text);
     live.depend(sources, text);
   }
@@ -174,6 +199,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
       attribute.name.name === 'bind:checked' ? 'checked' : isNumber ? 'valueAsNumber' : 'value';
     const target = this.liveExpression(value);
     const current = `${element}.${property}`;
+
     this.line(`${current} = ${target};`);
 
     const event = property === 'checked' || tag === 'select' ? 'change' : 'input';
@@ -181,6 +207,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
       (source) => source.kind === 'state',
     );
     const dependsOn = live?.dependencies(value) ?? new Set<Source>();
+
     this.inHandler++;
     try {
       const body = this.block(() => {
@@ -188,9 +215,11 @@ export abstract class AttributeEmitter extends UpdateEmitter {
         for (const source of written) {
           // The element already shows what was entered: its own update is skipped.
           const own = live && dependsOn.has(source) ? live.ownIndex(source) : null;
+
           this.line(`${this.write(source, own)};`);
         }
       });
+
       this.line(`${element}.addEventListener(${JSON.stringify(event)}, () => ${body});`);
     } finally {
       this.inHandler--;
@@ -198,6 +227,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
 
     // NaN from an unfinished number must not clear the input while the user types.
     const differs = isNumber ? `!Object.is(${current}, ${target})` : `${current} !== ${target}`;
+
     if (live && dependsOn.size > 0) {
       live.depend(dependsOn, `if (${differs}) ${current} = ${target};`);
     }
@@ -206,6 +236,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
   protected handlerFunction(value: ast.JsxAttribute['value']): string {
     if (value === null) return '() => {}';
     if (value.kind !== 'EventHandler') return this.expression(value, ARROW);
+
     const name: ast.Identifier = {
       kind: 'Identifier',
       name: 'event',
@@ -224,8 +255,10 @@ export abstract class AttributeEmitter extends UpdateEmitter {
           },
         ]
       : [];
+
     return this.withFunction('none', params, () => {
       const body = this.block(() => this.statements(value.body));
+
       return `(${params.length > 0 ? 'event' : ''}) => ${body}`;
     });
   }

@@ -1,8 +1,10 @@
 import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
+import { decorate, type DecoratorSource } from '../decorators.ts';
 import { htmlTagName } from '../html-tag.ts';
+import { assignedNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
-import { assignedNames } from '../walk.ts';
+import { forEachChild } from '../walk.ts';
 import { collectValueNames, type BindingKind } from './analysis.ts';
 import type { Helper } from './helpers.ts';
 import { JS_RESERVED, JS_UNDECLARABLE } from './syntax.ts';
@@ -14,6 +16,15 @@ export interface JsOptions {
   rewriteImports: boolean;
   /** Types from the checker, when it ran; without them the generated code is more general. */
   types?: WeakMap<ast.Expression, Type> | undefined;
+  /** Decorators imported from other modules, by name: their code is inlined here. */
+  decorators?: ReadonlyMap<string, ImportedDecorator> | undefined;
+  /** Components imported from other modules, by name: their modules export them as functions. */
+  components?: ReadonlyMap<string, ast.ComponentDeclaration> | undefined;
+}
+
+/** A decorator of another module, with the types of the expressions of that module. */
+export interface ImportedDecorator extends DecoratorSource {
+  types: WeakMap<ast.Expression, Type> | null;
 }
 
 /** How a function implements its `defer` statements. */
@@ -62,7 +73,7 @@ export abstract class Emitter {
   protected readonly assigned: Set<string>;
   /** Names used as values; imports used only as types are dropped. */
   protected readonly valueNames = new Set<string>();
-  /** Components of the module, inlined where they are used. */
+  /** Components of the module with their decorators applied, inlined where they are used. */
   protected readonly components = new Map<string, ast.ComponentDeclaration>();
   /**
    * Components that become functions: recursive ones cannot be inlined, and web components
@@ -71,25 +82,77 @@ export abstract class Emitter {
   protected readonly functionComponents: ReadonlySet<ast.ComponentDeclaration>;
   /** Web components of the module by their tags: `<app-card count={3} />` sets their properties. */
   protected readonly webComponents = new Map<string, ast.ComponentDeclaration>();
+  /** The JS functions of components of other modules: `$$Card`, imported from their modules. */
+  protected readonly functionNames = new Map<ast.ComponentDeclaration, string>();
+  /** The decorators that components of the module apply, by name. */
+  protected readonly appliedDecorators = new Set<string>();
+  /** Copies of the code of other modules: their positions are in the sources of those. */
+  private readonly foreign = new WeakSet<ast.Node>();
 
   constructor(program: ast.Program, options: JsOptions) {
     this.program = program;
     this.options = options;
+
+    const decorators = new Map<string, DecoratorSource>(options.decorators);
+    const imported = [...(options.decorators?.values() ?? [])];
+
+    for (const statement of program.body) {
+      if (statement.kind === 'DecoratorDeclaration') {
+        decorators.set(statement.name.name, { node: statement, moduleNames: [] });
+      } else if (statement.kind === 'ComponentDeclaration') {
+        for (const use of statement.decorators) this.appliedDecorators.add(use.name.name);
+      }
+    }
+
+    const originals = new WeakSet<ast.Node>();
+    const collect = (node: ast.Node): void => {
+      originals.add(node);
+      forEachChild(node, collect);
+    };
+
+    for (const each of imported) collect(each.node);
+
+    // Copies of the decorators' code keep the types of the originals, from their own modules.
+    const { types } = options;
+    const keepType = (copy: ast.Node, original: ast.Node) => {
+      const expression = original as ast.Expression;
+      const type =
+        types?.get(expression) ??
+        imported.map((each) => each.types?.get(expression)).find((each) => each !== undefined);
+
+      if (type) types?.set(copy as ast.Expression, type);
+      if (originals.has(original)) this.foreign.add(copy);
+    };
+
     for (const statement of program.body) {
       if (statement.kind === 'TypeAliasDeclaration') {
         this.typeAliases.set(statement.name.name, statement.type);
       } else if (statement.kind === 'ComponentDeclaration') {
-        this.components.set(statement.name.name, statement);
+        this.components.set(statement.name.name, decorate(statement, decorators, keepType));
       }
     }
+
     this.assigned = assignedNames(program);
+    for (const component of this.components.values()) assignedNames(component, this.assigned);
     collectValueNames(program, this.valueNames);
+
     const functionComponents = recursiveComponents(this.components);
+
     for (const component of this.components.values()) {
+      // Other modules call an exported component, so it is a function here too.
+      if (component.exported) functionComponents.add(component);
       if (!component.htmlTag) continue;
       functionComponents.add(component);
       this.webComponents.set(htmlTagName(component), component);
     }
+
+    // A component of another module is called, never inlined: its code uses the names there.
+    for (const [name, component] of options.components ?? []) {
+      this.components.set(name, component);
+      this.functionNames.set(component, `$$${name}`);
+      functionComponents.add(component);
+    }
+
     this.functionComponents = functionComponents;
   }
 
@@ -111,10 +174,12 @@ export abstract class Emitter {
   /** Returns the lines written by `emit`, one level deeper than the current one. */
   protected capture(emit: () => void): string[] {
     const saved = this.lines;
+
     this.lines = [];
     this.level++;
     try {
       emit();
+
       return this.lines;
     } finally {
       this.level--;
@@ -125,11 +190,19 @@ export abstract class Emitter {
   /** Renders the lines written by `emit` as a `{ ... }` block, for use inside a line. */
   protected block(emit: () => void): string {
     const inner = this.capture(emit);
+
     return inner.length === 0 ? '{}' : `{\n${inner.join('\n')}\n${this.indent()}}`;
   }
 
-  protected blankLineBetween(previous: ast.NodeBase, next: ast.NodeBase): boolean {
+  protected blankLineBetween(previous: ast.Node, next: ast.Node): boolean {
+    if (this.foreign.has(previous) || this.foreign.has(next)) return false;
+
     return /\n[^\S\n]*\n/.test(this.options.source.slice(previous.end, next.start));
+  }
+
+  /** A component of the module as it is inlined: with its decorators applied. */
+  protected applied(component: ast.ComponentDeclaration): ast.ComponentDeclaration {
+    return this.components.get(component.name.name) ?? component;
   }
 
   // ─── Scopes and names ──────────────────────────────────────────────────────────────────────────
@@ -146,8 +219,10 @@ export abstract class Emitter {
   protected lookup(name: string): BindingKind | undefined {
     for (let i = this.scopes.length - 1; i >= 0; i--) {
       const kind = this.scopes[i]!.get(name);
+
       if (kind !== undefined) return kind;
     }
+
     return undefined;
   }
 
@@ -155,6 +230,7 @@ export abstract class Emitter {
   protected name(name: string): string {
     const rename =
       JS_RESERVED.has(name) || (JS_UNDECLARABLE.has(name) && this.lookup(name) !== undefined);
+
     return rename ? `${name}$` : name;
   }
 
@@ -168,6 +244,7 @@ export abstract class Emitter {
   protected params(params: ast.Parameter[]): string {
     // Several `_` parameters would be duplicate names in JS.
     const blanks = params.filter((param) => param.name.name === '_').length;
+
     return params
       .map((param, i) =>
         param.name.name === '_' && blanks > 1 ? `_${i}` : this.name(param.name.name),
@@ -179,6 +256,7 @@ export abstract class Emitter {
 
   protected withFunction<T>(mode: DeferMode, params: ast.Parameter[], emit: () => T): T {
     const saved = this.fn;
+
     this.fn = { deferMode: mode, temps: 0, breakTargets: [] };
     try {
       return this.withScope(
@@ -192,6 +270,7 @@ export abstract class Emitter {
 
   protected withHoisting<T>(hoist: boolean, emit: () => T): T {
     const saved = this.hoist;
+
     this.hoist = hoist;
     try {
       return emit();

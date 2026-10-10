@@ -13,6 +13,7 @@ describe('runtime behavior', () => {
   it('updates text when state changes', () => {
     const { body } = mountWithDom(`${counter}document.body.append(<Counter initialValue={5} />)`);
     const button = body.find('button');
+
     expect(String(body)).toBe('<body><button>Нажато 5 раз</button></body>');
     button.click();
     button.click();
@@ -23,6 +24,7 @@ describe('runtime behavior', () => {
     const { body } = mountWithDom(
       `${counter}document.body.append(<Counter initialValue={0} />, <Counter initialValue={10} />)`,
     );
+
     body.find('button', 1).click();
     expect(String(body)).toBe(
       '<body><button>Нажато 0 раз</button><button>Нажато 11 раз</button></body>',
@@ -39,6 +41,7 @@ describe('runtime behavior', () => {
     </p>
 }
 document.body.append(<Toggle />)`);
+
     expect(String(body)).toBe(
       '<body><p className=off data-mode=выкл><button disabled=false>Включить</button><button>Выключить</button>Выключено</p></body>',
     );
@@ -65,6 +68,7 @@ document.body.append(<Toggle />)`);
 document.body.append(<List />)`);
     const [push, pop, toggle] = body.findAll('button');
     const list = () => String(body.find('div')).replace(/<button>.<\/button>/g, '');
+
     expect(list()).toBe('<div><ul><li>a</li></ul><b>1</b></div>');
     push!.click();
     push!.click();
@@ -96,6 +100,7 @@ comp Todos() {
     </div>
 }
 document.body.append(<Todos />)`);
+
     body.find('li', 1).click();
     expect(String(body.find('ul'))).toBe('<ul><li>a</li><li>b+</li></ul>');
     body.find('button', 1).click();
@@ -116,6 +121,7 @@ comp View() {
     return <button onClick={counter.increment()}>{counter.value}</button>
 }
 document.body.append(<View />)`);
+
     body.find('button').click();
     expect(String(body)).toBe('<body><button>1</button></body>');
   });
@@ -141,6 +147,7 @@ comp View() {
     </div>
 }
 document.body.append(<View />)`);
+
     body.find('button').click();
     body.find('button').click();
     expect(String(body)).toBe('<body><div><button>Нажато 2</button><i>1</i><i>2</i></div></body>');
@@ -157,6 +164,7 @@ document.body.append(<View />)`);
     return <button onClick={tick()}>{ticks}</button>
 }
 document.body.append(<Clock />)`);
+
     expect(String(body)).toBe('<body><button>2</button></body>');
     body.find('button').click();
     expect(String(body)).toBe('<body><button>3</button></body>');
@@ -183,6 +191,7 @@ document.body.append(<Clock />)`);
 }
 document.body.append(<Stack />)`);
     const text = () => String(body.find('div')).replace(/<button>\w+<\/button>/g, '');
+
     body.find('button').click();
     expect(text()).toBe('<div>1</div>');
     body.find('button', 1).click();
@@ -204,6 +213,7 @@ comp Cart() {
     </p>
 }
 document.body.append(<Cart />)`);
+
     expect(String(body.find('p'))).toBe(
       '<p><button>+</button><b className=empty>0 шт.</b><b className=empty>0 г</b></p>',
     );
@@ -229,6 +239,7 @@ document.body.append(<Cart />)`);
 document.body.append(<Signup />)`);
     const [name, age, subscribed] = body.findAll('input');
     const text = () => String(body.find('p'));
+
     expect(name!.value).toBe('');
     expect(age!.valueAsNumber).toBe(18);
     expect(text()).toBe('<p>незнакомец, 18</p>');
@@ -260,6 +271,7 @@ comp Todos() {
 }
 document.body.append(<Todos />)`);
     const checkbox = body.find('input');
+
     checkbox.checked = true;
     checkbox.dispatch('change');
     expect(String(body.find('div'))).toBe('<div><input type=checkbox checked=true></input>1</div>');
@@ -272,8 +284,11 @@ document.body.append(<Todos />)`);
     return <div>{input}<button onClick={query = "mango"}>Пример</button></div>
 }
 document.body.append(<Search />)`);
+
     body.find('button').click();
+
     const input = body.find('input');
+
     expect(input.value).toBe('mango');
     expect(input.placeholder).toBe('');
   });

@@ -36,8 +36,10 @@ export function tagNameProblem(tag: string): string | null {
   if (!/^[a-z][a-z0-9._-]*$/.test(tag)) {
     return 'it must start with a lowercase letter and have only lowercase letters, digits, "-", "." and "_"';
   }
+
   if (!tag.includes('-')) return 'it must have a hyphen';
   if (RESERVED_TAGS.has(tag)) return 'HTML reserves this name';
+
   return null;
 }
 
@@ -92,23 +94,30 @@ export function attributeKind(
   switch (type.kind) {
     case 'NullableType':
       return attributeKind(type.type, aliases, seen);
+
     case 'LiteralType':
       return type.value.kind === 'StringLiteral'
         ? 'string'
         : type.value.kind === 'NumberLiteral'
           ? 'number'
           : 'bool';
+
     case 'UnionType': {
       const kinds = new Set(type.types.map((member) => attributeKind(member, aliases, seen)));
       const [kind] = kinds;
+
       return kinds.size === 1 && kind !== undefined ? kind : null;
     }
+
     case 'TypeReference': {
       const name = type.name.name;
       const alias = aliases.get(name);
+
       if (alias && !seen.has(name)) return attributeKind(alias, aliases, seen.add(name));
+
       return name === 'string' || name === 'number' || name === 'bool' ? name : null;
     }
+
     default:
       return null;
   }

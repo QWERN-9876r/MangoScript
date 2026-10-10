@@ -20,7 +20,9 @@ beforeAll(async () => {
   const wasm = readFileSync(
     createRequire(import.meta.url).resolve('vscode-oniguruma/release/onig.wasm'),
   );
+
   await oniguruma.loadWASM(wasm.buffer);
+
   const registry = new textmate.Registry({
     onigLib: Promise.resolve({
       createOnigScanner: (patterns) => new oniguruma.OnigScanner(patterns),
@@ -28,12 +30,14 @@ beforeAll(async () => {
     }),
     loadGrammar: (scopeName) => {
       const path = grammarPaths[scopeName];
+
       return Promise.resolve(
         path ? textmate.parseRawGrammar(readFileSync(path, 'utf8'), path) : null,
       );
     },
   });
   const loaded = await registry.loadGrammar('source.mango');
+
   if (!loaded) throw new Error('the grammar did not load');
   grammar = loaded;
 });
@@ -47,13 +51,17 @@ interface Token {
 function tokenize(source: string): { tokens: Token[]; stack: textmate.StateStack } {
   const tokens: Token[] = [];
   let stack = textmate.INITIAL;
+
   for (const line of source.split('\n')) {
     const result = grammar.tokenizeLine(line, stack);
+
     for (const token of result.tokens) {
       tokens.push({ text: line.slice(token.startIndex, token.endIndex), scopes: token.scopes });
     }
+
     stack = result.ruleStack;
   }
+
   return { tokens, stack };
 }
 
@@ -66,13 +74,16 @@ function scopesOf(source: string, text: string): string[] {
 
 function scopeOf(source: string, text: string): string {
   const [scope] = scopesOf(source, text);
+
   if (scope === undefined) throw new Error(`no token "${text}" in ${source}`);
+
   return scope;
 }
 
 describe('VS Code grammar', () => {
   it('colours declarations, keywords and types', () => {
     const source = 'func divide(a, b number) (number, error) {\n    return 0, error("x")\n}';
+
     expect(scopeOf(source, 'func')).toBe('storage.type.function');
     expect(scopeOf(source, 'divide')).toBe('entity.name.function');
     expect(scopesOf(source, 'number')).toEqual([
@@ -88,7 +99,9 @@ describe('VS Code grammar', () => {
     expect(scopeOf('comp Counter(initialValue number) {', 'Counter')).toBe(
       'entity.name.type.component',
     );
+
     const header = 'class Admin extends User implements Shape {';
+
     expect(scopesOf(header, 'class')).toEqual(['storage.type.class']);
     expect(scopeOf(header, 'Admin')).toBe('entity.name.type.class');
     expect(scopeOf(header, 'User')).toBe('entity.other.inherited-class');
@@ -102,11 +115,14 @@ describe('VS Code grammar', () => {
 
   it('colours generic declarations and grouped types', () => {
     const header = 'class Stack[T] extends Base implements Source[T] {';
+
     expect(scopeOf(header, 'Stack')).toBe('entity.name.type.class');
     expect(scopesOf(header, 'T')).toEqual(['entity.name.type', 'entity.name.type']);
     expect(scopeOf(header, 'Base')).toBe('entity.other.inherited-class');
     expect(scopeOf(header, 'implements')).toBe('storage.modifier');
+
     const func = 'func first[T any](xs []T) ?T {';
+
     expect(scopeOf(func, 'first')).toBe('entity.name.function');
     expect(scopeOf(func, 'any')).toBe('support.type.primitive');
     expect(scopeOf('let x ?(A | B) = null', '?')).toBe('keyword.operator.type.nullable');
@@ -115,6 +131,7 @@ describe('VS Code grammar', () => {
 
   it('tells object keys from the ternary operator', () => {
     const source = 'const f = { id: "all", label: ok ? a : b }';
+
     expect(scopesOf(source, 'id')).toEqual(['meta.object-literal.key']);
     expect(scopesOf(source, ':')).toEqual([
       'punctuation.separator.key-value',
@@ -128,9 +145,30 @@ describe('VS Code grammar', () => {
 
   it('colours @html-tag', () => {
     const source = '@html-tag("app-card") comp Card() {';
+
     expect(scopeOf(source, '@')).toBe('punctuation.decorator');
     expect(scopeOf(source, 'html-tag')).toBe('entity.name.function.decorator');
     expect(scopeOf(source, '"')).toBe('punctuation.definition.string.begin');
+  });
+
+  it('colours decorators and their members', () => {
+    const declaration = 'dec visible(margin string = "0px") {';
+
+    expect(scopeOf(declaration, 'dec')).toBe('storage.type.decorator');
+    expect(scopeOf(declaration, 'visible')).toBe('entity.name.function.decorator');
+    expect(scopeOf('const dec = 1', 'dec')).toBe('variable.other.readwrite');
+    expect(scopeOf('dec cartBadge() needs cart, auth {', 'needs')).toBe('storage.modifier.needs');
+    expect(scopeOf('dec cartBadge() needs cart, auth {', 'auth')).toBe(
+      'entity.name.function.decorator',
+    );
+    expect(scopeOf('const needs = 1', 'needs')).toBe('variable.other.readwrite');
+    expect(scopeOf('    public state shown = false', 'public')).toBe('storage.modifier');
+    expect(scopeOf('    public state shown = false', 'state')).toBe('storage.type.state');
+    expect(scopeOf('    public func show() {', 'func')).toBe('storage.type.function');
+    expect(scopeOf('@visible("300px")', 'visible')).toBe('entity.name.function.decorator');
+    expect(scopeOf('    @visible.show()', 'visible')).toBe('entity.name.function.decorator');
+    expect(scopeOf('    if get(@visible.shown) {', 'get')).toBe('support.function');
+    expect(scopeOf('    params.get("q")', 'get')).not.toBe('support.function');
   });
 
   it('treats mount() as a keyword only at the start of a statement', () => {
@@ -152,6 +190,7 @@ describe('VS Code grammar', () => {
 
   it('colours strings and template literals with expressions', () => {
     const source = 'const s = `Осталось: ${left} · ${f({ a: 1 })}`';
+
     expect(scopeOf(source, 'left')).toBe('variable.other.readwrite');
     expect(scopeOf(source, 'Осталось: ')).toBe('string.template');
     expect(scopeOf(source, 'f')).toBe('entity.name.function');
@@ -161,6 +200,7 @@ describe('VS Code grammar', () => {
 
   it('colours markup: tags, components, attributes and expressions', () => {
     const source = 'return <button class="big" onClick={count++}>Нажато {count} раз</button>';
+
     expect(scopesOf(source, 'button')).toEqual(['entity.name.tag', 'entity.name.tag']);
     expect(scopeOf(source, 'class')).toBe('entity.other.attribute-name');
     expect(scopeOf(source, 'onClick')).toBe('entity.other.attribute-name');
@@ -172,6 +212,7 @@ describe('VS Code grammar', () => {
     expect(scopeOf(source, 'Нажато ')).toBe('meta.jsx.children');
 
     const item = '<TodoItem todo={todo} onToggle={todos.toggle(todo.id)} />';
+
     expect(scopeOf(item, 'TodoItem')).toBe('support.class.component');
     expect(scopeOf('<input bind:value={title} />', 'bind')).toBe(
       'entity.other.attribute-name.namespace',
@@ -197,6 +238,7 @@ describe('VS Code grammar', () => {
         <>Пусто</>
     }
 }}</div>`;
+
     expect(scopeOf(source, 'for')).toBe('keyword.control.loop');
     expect(scopeOf(source, 'if')).toBe('keyword.control.conditional');
     expect(scopeOf(source, 'Product')).toBe('support.class.component');
@@ -212,9 +254,11 @@ describe('VS Code grammar', () => {
       ...readdirSync(join(root, 'site/src')).map((name) => join(root, 'site/src', name)),
       join(root, 'site/server.mango'),
     ].filter((path) => path.endsWith('.mango'));
+
     expect(files.length).toBeGreaterThan(3);
     for (const path of files) {
       const { stack } = tokenize(readFileSync(path, 'utf8'));
+
       expect([path, stack.depth]).toEqual([path, textmate.INITIAL.depth]);
     }
   });

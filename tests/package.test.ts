@@ -29,6 +29,7 @@ describe('package', () => {
         ),
     ];
     const missing = targets.filter((target) => !existsSync(root + sourceOf(target)));
+
     expect(missing).toEqual([]);
   });
 

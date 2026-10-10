@@ -27,5 +27,6 @@ export function compile(source: string): BrowserCompileResult {
     message: diagnostic.message,
     ...file.position(diagnostic.start),
   }));
+
   return { code: result.code, diagnostics };
 }

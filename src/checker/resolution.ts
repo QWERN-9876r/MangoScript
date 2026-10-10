@@ -25,22 +25,30 @@ export abstract class TypeResolver extends ClassChecker {
     switch (node.kind) {
       case 'TypeReference':
         return this.resolveTypeName(node.name, node.typeArgs);
+
       case 'ArrayType':
         return arrayOf(this.resolveType(node.element));
+
       case 'NullableType':
         return nullable(this.resolveType(node.type));
+
       case 'FuncType':
         return func(
           node.params.map((param) => this.resolveType(param)),
           node.results.map((result) => this.resolveType(result)),
         );
+
       case 'ObjectType': {
         const object: ObjectType = { kind: 'object', name: null, members: new Map(), call: null };
+
         this.fillMembers(object, node.members);
+
         return object;
       }
+
       case 'UnionType':
         return union(node.types.map((type) => this.resolveType(type)));
+
       case 'LiteralType':
         return literal(node.value.value);
     }
@@ -51,6 +59,7 @@ export abstract class TypeResolver extends ClassChecker {
     typeArgs: readonly ast.TypeNode[] = [],
   ): Type {
     const entry = this.lookupType(name.name);
+
     if (entry === undefined) {
       this.error(
         this.lookupValue(name.name)
@@ -58,8 +67,10 @@ export abstract class TypeResolver extends ClassChecker {
           : `unknown type "${name.name}"`,
         name,
       );
+
       return UNKNOWN;
     }
+
     const args = typeArgs.map((arg) => this.resolveType(arg));
     const type = entry.kind === 'alias' ? this.resolveAlias(entry) : entry;
     const params =
@@ -70,15 +81,20 @@ export abstract class TypeResolver extends ClassChecker {
           : type.kind === 'class'
             ? type.info.typeParams
             : [];
+
     if (params.length === 0) {
       if (args.length > 0) this.error(`"${name.name}" is not generic`, typeArgs[0]!);
+
       return type;
     }
+
     // Parameters with defaults (from a `.d.ts`) may be left out: `Buffer` is `Buffer[ArrayBufferLike]`.
     const required = params.filter((param) => !param.default).length;
+
     if (args.length >= required && args.length < params.length) {
       args.push(...params.slice(args.length).map((param) => param.default!));
     }
+
     if (args.length !== params.length) {
       this.error(
         args.length === 0
@@ -86,8 +102,10 @@ export abstract class TypeResolver extends ClassChecker {
           : `"${name.name}" takes ${params.length} type argument${params.length === 1 ? '' : 's'}, got ${args.length}`,
         name,
       );
+
       return UNKNOWN;
     }
+
     params.forEach((param, i) => {
       if (param.constraint && !isAssignable(args[i]!, param.constraint)) {
         this.error(
@@ -98,17 +116,23 @@ export abstract class TypeResolver extends ClassChecker {
     });
     if (type.kind === 'class') return classInstance(type.info, args);
     if (type.kind === 'object' && type.typeParams) return instantiate(type, args);
+
     return substitute(type, bindParams(params, args));
   }
 
   protected override resolveAlias(entry: AliasEntry): Type {
     if (entry.resolved) return entry.resolved;
+
     const { node } = entry;
+
     if (entry.resolving) {
       this.error(`type "${node.name.name}" refers to itself`, node.name);
+
       return UNKNOWN;
     }
+
     const saved = this.scope;
+
     this.scope = entry.scope;
     try {
       return this.withTypeParams(entry.params, node.typeParams, () => this.resolveAliasType(entry));
@@ -120,6 +144,7 @@ export abstract class TypeResolver extends ClassChecker {
 
   protected resolveAliasType(entry: AliasEntry): Type {
     const { node } = entry;
+
     if (node.type.kind === 'ObjectType') {
       // Registered before its members, so that they can refer to the type itself.
       const object: ObjectType = {
@@ -128,15 +153,21 @@ export abstract class TypeResolver extends ClassChecker {
         members: new Map(),
         call: null,
       };
+
       if (entry.params.length > 0) object.typeParams = entry.params;
       entry.resolved = object;
       this.fillMembers(object, node.type.members);
+
       return object;
     }
+
     entry.resolving = true;
+
     const resolved = this.resolveType(node.type);
+
     // A union keeps the alias name for messages: `cannot use "activ" as Filter`.
     entry.resolved = resolved.kind === 'union' ? { ...resolved, name: node.name.name } : resolved;
+
     return entry.resolved;
   }
 
@@ -144,15 +175,19 @@ export abstract class TypeResolver extends ClassChecker {
   protected override inferredType(type: Type, node: ast.Expression): Type {
     if (type.kind === 'null') {
       this.error('cannot infer a type from null: declare it, e.g. "let x ?User = null"', node);
+
       return UNKNOWN;
     }
+
     if (type.kind === 'array' && type.element.kind === 'never') {
       this.error(
         'cannot infer the type of an empty array: declare it, e.g. "let xs []number"',
         node,
       );
+
       return UNKNOWN;
     }
+
     return type;
   }
 }

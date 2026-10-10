@@ -92,6 +92,7 @@ describe('functions', () => {
       'func divide(a, b number) (number, error) {\n  return a / b, null\n}',
       'FuncDeclaration',
     );
+
     expect(node.name.name).toBe('divide');
     expect(node.params.map(param)).toEqual(['a number', 'b number']);
     expect(node.params[0]!.type).toBe(node.params[1]!.type);
@@ -188,6 +189,7 @@ describe('interfaces', () => {
       'interface Shape {\n  name string\n  x, y number\n  label ?string\n  area() number\n  move(dx, dy number)\n}',
       'InterfaceDeclaration',
     );
+
     expect(node.members.map(member)).toEqual([
       'name string',
       'x number',
@@ -202,15 +204,18 @@ describe('interfaces', () => {
 describe('classes', () => {
   const describeMember = (node: ast.ClassMember): string => {
     const words: (string | false)[] = [node.kind, node.visibility];
+
     switch (node.kind) {
       case 'FieldDeclaration':
         words.push(node.isStatic && 'static', node.name.name);
         if (node.type) words.push(ty(node.type));
         if (node.value) words.push(`= ${sx(node.value)}`);
         break;
+
       case 'ConstructorDeclaration':
         words.push(`(${node.params.map(param).join(', ')})`);
         break;
+
       case 'MethodDeclaration':
         words.push(
           node.isStatic && 'static',
@@ -218,6 +223,7 @@ describe('classes', () => {
         );
         break;
     }
+
     return words.filter(Boolean).join(' ');
   };
 
@@ -240,6 +246,7 @@ describe('classes', () => {
 }`,
       'ClassDeclaration',
     );
+
     expect(sx(node.superClass!)).toBe('User');
     expect(node.implements.map((type) => type.name.name)).toEqual(['Shape', 'Named']);
     expect(node.members.map(describeMember)).toEqual([
@@ -266,6 +273,7 @@ describe('classes', () => {
 
   it('keeps parsing members after an error', () => {
     const { program, diagnostics } = parse('class A {\n  x number = )\n  y number\n}');
+
     expect(diagnostics.map((d) => d.message)).toEqual(['expected expression, found ")"']);
     expect((program.body[0] as ast.ClassDeclaration).members.map(describeMember)).toEqual([
       'FieldDeclaration public y number',

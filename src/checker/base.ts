@@ -1,12 +1,13 @@
 import type * as ast from '../ast.ts';
 import type { Diagnostic } from '../diagnostics.ts';
-import { assignedNames } from '../walk.ts';
+import { assignedNames } from '../names.ts';
 import { arrayMember } from './builtins.ts';
 import {
   type CheckOptions,
   type BindingKind,
   type Binding,
   type ComponentInfo,
+  type DecoratorInfo,
   type AliasEntry,
   Scope,
   type FunctionContext,
@@ -32,8 +33,9 @@ import {
 } from './types.ts';
 
 // The type checker is a chain of layers, one per area, like the code generator: base → declarations
-// → classes → resolution → initializers → statements → control flow → functions → expressions →
-// operators → markup → components → members → calls → Checker (checker.ts). The checking of
+// → classes → resolution → initializers → assignments → statements → control flow → functions →
+// expressions → operators → markup → components → decorator wrappers → decorator exports →
+// decorators → decorator members → members → calls → Checker (checker.ts). The checking of
 // statements, expressions and markup calls itself recursively, so methods of later layers that
 // earlier ones call are declared here as abstract.
 //
@@ -85,6 +87,8 @@ export abstract class CheckerBase {
       isComponent?: boolean;
       closure?: boolean;
       paramKind?: BindingKind;
+      /** Sees the scope of the body once it is checked. */
+      inspect?: (scope: Scope) => void;
     },
   ): Type[];
 
@@ -108,6 +112,22 @@ export abstract class CheckerBase {
   protected abstract checkElement(node: ast.ElementExpression): Type;
 
   protected abstract checkComponentBody(info: ComponentInfo): void;
+
+  protected abstract checkDecoratorBody(info: DecoratorInfo): void;
+
+  protected abstract resolveDecoratorParams(info: DecoratorInfo): void;
+
+  protected abstract checkDecoratorUses(info: ComponentInfo): void;
+
+  protected abstract orderByNeeds(decorators: readonly DecoratorInfo[]): DecoratorInfo[];
+
+  protected abstract wrappedType(info: ComponentInfo, own: Type, seen: Set<ComponentInfo>): Type;
+
+  protected abstract checkDecoratorMember(node: ast.DecoratorMember): Type;
+
+  protected abstract checkDecoratorGet(node: ast.DecoratorGet): Type;
+
+  protected abstract checkDecoratorWrite(target: ast.Expression): boolean;
 
   protected abstract checkComponentUse(node: ast.ElementExpression, tag: ast.Identifier): Type;
 
@@ -177,6 +197,14 @@ export abstract class CheckerBase {
   /** The component whose body is being checked, if any. */
   protected component: ComponentInfo | null = null;
 
+  /** The decorator whose body is being checked, if any. */
+  protected decorator: DecoratorInfo | null = null;
+
+  /** Decorators of the module by name; they are not values, so they have a namespace of their own. */
+  protected readonly decorators = new Map<string, DecoratorInfo>();
+  /** Decorators imported from other modules: their code uses the names of those. */
+  protected readonly importedDecorators = new Set<DecoratorInfo>();
+
   protected readonly globals: Scope;
 
   protected domTypes: { node: Type; element: Type; fragment: Type } | null = null;
@@ -197,18 +225,22 @@ export abstract class CheckerBase {
 
   protected expectAssignable(source: Type, target: Type, node: ast.NodeBase, context = ''): void {
     if (isAssignable(source, target)) return;
+
     let message = `cannot use ${typeToString(source)} as ${typeToString(target)}${context}`;
     const reason = explainMismatch(nonNull(source), nonNull(target));
+
     if (source.kind === 'nullable' && isAssignable(nonNull(source), target)) {
       message += ': it may be null, check it first';
     } else if (reason !== null) {
       message += `: ${reason}`;
     }
+
     this.error(message, node);
   }
 
   protected nullError(node: ast.Expression): void {
     const name = node.kind === 'Identifier' ? node.name : null;
+
     this.error(
       name !== null
         ? `"${name}" may be null: check it with "if ${name} != null" or use "?."`
@@ -219,6 +251,7 @@ export abstract class CheckerBase {
 
   protected withScope<T>(check: () => T): T {
     const saved = this.scope;
+
     this.scope = new Scope(saved);
     try {
       return check();
@@ -229,6 +262,7 @@ export abstract class CheckerBase {
 
   protected withClass<T>(context: ClassContext | null, check: () => T): T {
     const saved = this.cls;
+
     this.cls = context;
     try {
       return check();
@@ -240,22 +274,32 @@ export abstract class CheckerBase {
   protected lookupValue(name: string): Binding | undefined {
     for (let scope: Scope | null = this.scope; scope; scope = scope.parent) {
       const binding = scope.values.get(name);
+
       if (binding) return binding;
     }
+
     const type = this.options.library?.value(name);
+
     if (type === undefined) return undefined;
+
     const binding: Binding = { name, kind: 'builtin', type };
+
     this.globals.values.set(name, binding);
+
     return binding;
   }
 
   protected lookupType(name: string): Type | AliasEntry | undefined {
     for (let scope: Scope | null = this.scope; scope; scope = scope.parent) {
       const entry = scope.types.get(name);
+
       if (entry) return entry;
     }
+
     const type = this.options.library?.type(name);
+
     if (type !== undefined) this.globals.types.set(name, type);
+
     return type;
   }
 
@@ -266,12 +310,14 @@ export abstract class CheckerBase {
   protected get dom(): { node: Type; element: Type; fragment: Type } {
     if (!this.domTypes) {
       const { library } = this.options;
+
       this.domTypes = {
         node: library?.type('Node') ?? NODE,
         element: library?.type('HTMLElement') ?? HTML_ELEMENT,
         fragment: library?.type('DocumentFragment') ?? DOCUMENT_FRAGMENT,
       };
     }
+
     return this.domTypes;
   }
 
@@ -283,36 +329,48 @@ export abstract class CheckerBase {
   /** The `event` of an `on*` attribute: its `currentTarget` is the element. */
   protected eventOf(attribute: string, element: Type): Type {
     const { library } = this.options;
+
     if (!library) return eventType(element);
+
     const event = library.event(attribute.slice(2).toLowerCase()) ?? library.type('Event');
+
     if (event?.kind !== 'object') return eventType(element);
+
     const members = new LazyMap<Member>(
       () => memberNames(event.members),
       (name) => (name === 'currentTarget' ? property(element) : event.members.get(name)),
     );
+
     return { ...event, members };
   }
 
   /** A member of a string, number or bool that the built-in types do not list. */
   protected primitiveMember(kind: 'string' | 'number' | 'bool', name: string): Member | undefined {
     const type = this.options.library?.primitive(kind);
+
     return type?.kind === 'object' ? type.members.get(name) : undefined;
   }
 
   protected arrayMemberOf(element: Type, name: string): Member | undefined {
     const builtin = arrayMember(element, name);
+
     if (builtin) return builtin;
+
     const type = this.options.library?.array(element);
+
     return type?.kind === 'object' ? type.members.get(name) : undefined;
   }
 
   protected declareValue(id: ast.Identifier, kind: BindingKind, type: Type | null): Binding {
     const binding: Binding = { name: id.name, kind, type };
+
     if (id.name === '_') return binding;
     if (this.scope.values.has(id.name)) {
       this.error(`"${id.name}" is already declared in this scope`, id);
     }
+
     this.scope.values.set(id.name, binding);
+
     return binding;
   }
 

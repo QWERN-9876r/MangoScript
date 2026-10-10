@@ -9,13 +9,17 @@ import { mountWithDom, runWithDom } from './fake-dom.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
 function js(source: string): string {
   const { code, diagnostics } = compile(source);
+
   expect(diagnostics).toEqual([]);
+
   return code.trimEnd();
 }
 
@@ -31,8 +35,11 @@ const card = `comp Card(title string, kind string = "info", children Content) {
 describe('parser', () => {
   it('parses components with default values', () => {
     const { program, diagnostics } = parse(card);
+
     expect(diagnostics).toEqual([]);
+
     const node = program.body[0] as ast.ComponentDeclaration;
+
     expect(node.kind).toBe('ComponentDeclaration');
     expect(node.params.map((p) => [p.name.name, p.defaultValue?.kind ?? null])).toEqual([
       ['title', null],
@@ -120,7 +127,6 @@ describe('types', () => {
       'a component returns its markup: "return <markup>"',
     ],
     [`comp A() {\n    return 1\n}`, 'a component returns markup, not number'],
-    [`export comp A() {\n    return <p />\n}`, 'exporting components is not supported yet'],
     [
       `comp A(onCount number) {\n    return <p>{onCount}</p>\n}\nlet x = 0\nconst a = <A onCount={x++} />`,
       '"onCount" of <A> is not a function, so it needs a value',
@@ -227,103 +233,6 @@ console.log(clicks)`),
   });
 });
 
-describe('recursive components', () => {
-  const tree = `interface Item {
-    name string
-    children []Item
-}
-
-comp Tree(item Item, depth number = 0) {
-    state open = depth == 0
-    return <li>
-        <button onClick={open = !open}>{open ? "−" : "+"}</button>
-        {item.name}
-        {if open && item.children.length > 0 {
-            <ul>{for child in item.children { <Tree item={child} depth={depth + 1} /> }}</ul>
-        }}
-    </li>
-}
-`;
-
-  it('accepts recursion under a condition, directly or through other components', () => {
-    expect(errors(tree)).toEqual([]);
-    expect(
-      errors(`comp A(n number) {
-    return <p>{n > 0 ? <B n={n - 1} /> : null}</p>
-}
-comp B(n number) {
-    return <A n={n} />
-}`),
-    ).toEqual([]);
-  });
-
-  it('does not check names hidden where a recursive component is used: it is not inlined', () => {
-    expect(
-      errors(`const label = "узел"
-comp Node(n number) {
-    return <p>{label}{if n > 0 { <Node n={n - 1} /> }}</p>
-}
-func f() {
-    const label = 1
-    const node = <Node n={2} />
-}`),
-    ).toEqual([]);
-  });
-
-  it.each([
-    [
-      `comp A() {\n    return <div><A /></div>\n}`,
-      'endless recursion: A → A always creates itself again; put the use inside if or for',
-    ],
-    [
-      `comp A() {\n    const b = <B />\n    return <p>{b}</p>\n}\ncomp B() {\n    return <A />\n}`,
-      'endless recursion: A → B → A always creates itself again; put the use inside if or for',
-    ],
-  ])('rejects %j', (source, message) => {
-    expect(errors(source)).toEqual([message]);
-  });
-
-  it('compiles a recursive component to a function that returns the node and a setter', () => {
-    const code = js(`comp Countdown(n number) {
-    return <span>{n}{if n > 0 { <Countdown n={n - 1} /> }}</span>
-}
-document.body.append(<Countdown n={2} />)`);
-    expect(code).toContain('function $$Countdown(n) {');
-    expect(code).toContain(`  return [$$countdown2, ($$n) => {
-    n = $$n;`);
-    expect(code).toContain('const [$$countdown7, $$setCountdown7] = $$Countdown($$0);');
-    expect(code.split('\n').at(-2)).toBe('const [$$countdown8] = $$Countdown(2);');
-    expect(code).not.toContain('// <Countdown>');
-  });
-
-  it('renders a tree whose nodes keep their own state', () => {
-    const { body } = mountWithDom(`${tree}
-comp Files() {
-    state root Item = {
-        name: "src",
-        children: [
-            { name: "lexer", children: [{ name: "lexer.ts", children: [] }] },
-            { name: "index.ts", children: [] },
-        ],
-    }
-    return <div>
-        <button onClick={root.children.push({ name: "new.ts", children: [] })}>add</button>
-        <ul><Tree item={root} /></ul>
-    </div>
-}
-document.body.append(<Files />)`);
-    const text = () =>
-      String(body.find('ul'))
-        .replace(/<button>([^<]*)<\/button>/g, '$1')
-        .replace(/<\/?(ul|li)>/g, (tag) => (tag.startsWith('</') ? ')' : '('));
-    expect(text()).toBe('((−src((+lexer)(+index.ts))))');
-    body.find('button', 2).click(); // opens "lexer"
-    expect(text()).toBe('((−src((−lexer((+lexer.ts)))(+index.ts))))');
-    body.find('button').click(); // adds a file to the root through the parent's state
-    expect(text()).toBe('((−src((−lexer((+lexer.ts)))(+index.ts)(+new.ts))))');
-  });
-});
-
 describe('early returns', () => {
   it('accepts them and gives the use the common type of the returned elements', () => {
     expect(
@@ -367,6 +276,7 @@ comp Cart(start number) {
 }
 document.body.append(<Cart start={0} />, <Cart start={5} />)`);
     const [empty, full] = body.findAll('p');
+
     expect(String(empty)).toBe('<p><button>+</button><i>товары: пусто</i></p>');
     expect(String(full)).toBe('<p><button>+</button><b>товары: 5</b></p>');
     empty!.find('i').click();
@@ -386,6 +296,7 @@ document.body.append(<Cart start={0} />, <Cart start={5} />)`);
     return <li>{name}{index}: {count}<button onClick={count++}>+</button><ul><Fruit name={name} index={index + 1} /></ul></li>
 }
 document.body.append(<ul><Fruit name="манго" /></ul>)`);
+
     expect(String(body)).toBe(
       '<body><ul><li>манго0: 0<button>+</button><ul><li>манго1: 0<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
     );

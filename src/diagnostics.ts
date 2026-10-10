@@ -21,6 +21,7 @@ export function formatDiagnostic(file: SourceFile, diagnostic: Diagnostic): stri
   const indent = text.slice(0, column - 1).replace(/[^\t]/g, ' ');
   const width = Math.max(1, Math.min(diagnostic.end - diagnostic.start, text.length - column + 1));
   const gutter = ' '.repeat(String(line).length);
+
   return [
     `${file.name}:${line}:${column}: error: ${diagnostic.message}`,
     `${line} | ${text}`,

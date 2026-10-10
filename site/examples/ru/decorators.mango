@@ -1,0 +1,38 @@
+// Декоратор добавляет компонентам логику: состояние, функции и mount(). Его код
+// встраивается в каждый компонент, к которому он применён, поэтому каждый тикает сам
+dec ticker(interval number = 1000) {
+    public state ticks = 0
+    public state running = true
+
+    public func toggle() {
+        running = !running
+    }
+
+    mount() {
+        const timer = setInterval(() => {
+            if running {
+                ticks++
+            }
+        }, interval)
+        return () => clearInterval(timer)
+    }
+}
+
+// Компонент читает публичное состояние через get(@...) и вызывает публичные функции через @
+@ticker
+comp Stopwatch(label string) {
+    return <p class="card">
+        {label}: {get(@ticker.ticks)} с{" "}
+        <button onClick={@ticker.toggle()}>{get(@ticker.running) ? "Пауза" : "Дальше"}</button>
+    </p>
+}
+
+// Та же логика в другом компоненте; аргумент заставляет его тикать быстрее
+const FRAMES = ["◐", "◓", "◑", "◒"]
+
+@ticker(150)
+comp Spinner() {
+    return <p class="card">{FRAMES[get(@ticker.ticks) % FRAMES.length]}</p>
+}
+
+document.body.append(<Stopwatch label="Чай" />, <Stopwatch label="Яйца" />, <Spinner />)

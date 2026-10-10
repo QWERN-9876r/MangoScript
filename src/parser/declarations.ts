@@ -7,6 +7,7 @@ import { describe, FUNCTION_BODY } from './syntax.ts';
 export abstract class DeclarationParser extends ControlFlowParser {
   protected override parseImport(): ast.ImportDeclaration {
     const start = this.next().start;
+
     if (!this.context.topLevel) {
       this.error(
         'imports are only allowed at the top level of a module',
@@ -14,12 +15,14 @@ export abstract class DeclarationParser extends ControlFlowParser {
         this.span(start).end,
       );
     }
+
     let defaultImport: ast.Identifier | null = null;
     let namespaceImport: ast.Identifier | null = null;
     let namedImports: ast.ImportSpecifier[] = [];
 
     if (!this.check('String')) {
       const hasDefault = this.check('Identifier');
+
       if (hasDefault) defaultImport = this.parseIdentifier('import name');
       if (!hasDefault || this.accept(',')) {
         if (this.accept('*')) {
@@ -30,6 +33,7 @@ export abstract class DeclarationParser extends ControlFlowParser {
           namedImports = this.parseList('}', () => this.parseImportSpecifier());
         }
       }
+
       this.expectWord('from');
     }
 
@@ -42,7 +46,9 @@ export abstract class DeclarationParser extends ControlFlowParser {
       source,
       ...this.span(start),
     };
+
     this.endStatement();
+
     return declaration;
   }
 
@@ -50,16 +56,19 @@ export abstract class DeclarationParser extends ControlFlowParser {
     const token = this.peek();
     const imported = this.parsePropertyName('import name');
     let local = imported;
+
     if (this.acceptWord('as')) {
       local = this.parseIdentifier('import name');
     } else if (token.kind !== 'Identifier') {
       this.error(`"${token.text}" is a keyword: rename it with "as"`, token.start, token.end);
     }
+
     return { kind: 'ImportSpecifier', imported, local, ...this.span(token.start) };
   }
 
   protected override parseExport(): ast.Statement {
     const start = this.next().start;
+
     if (!this.context.topLevel) {
       this.error(
         '"export" is only allowed at the top level of a module',
@@ -67,6 +76,7 @@ export abstract class DeclarationParser extends ControlFlowParser {
         this.span(start).end,
       );
     }
+
     return (
       this.parseDeclaration(start, true) ??
       this.fail(`expected a declaration after "export", found ${describe(this.peek())}`)
@@ -75,14 +85,17 @@ export abstract class DeclarationParser extends ControlFlowParser {
 
   protected override parseFuncDeclaration(start: number, exported: boolean): ast.FuncDeclaration {
     this.expect('func');
+
     const name = this.parseIdentifier('function name');
     const typeParams = this.parseTypeParams();
     const params = this.parseParams(false);
     const results = this.parseResults();
     const body = this.parseFunctionBody();
+
     return {
       kind: 'FuncDeclaration',
       exported,
+      isPublic: false,
       name,
       typeParams,
       params,
@@ -99,6 +112,7 @@ export abstract class DeclarationParser extends ControlFlowParser {
   protected parseTypeParams(): ast.TypeParameter[] {
     if (!this.check('[') || this.peek(1).kind !== 'Identifier') return [];
     this.next();
+
     const params: ast.TypeParameter[] = [];
     let pending: ast.Identifier[] = [];
     const finish = (constraint: ast.TypeNode | null) => {
@@ -111,14 +125,18 @@ export abstract class DeclarationParser extends ControlFlowParser {
           end: constraint?.end ?? name.end,
         });
       }
+
       pending = [];
     };
+
     do {
       pending.push(this.parseIdentifier('type parameter name'));
       if (!this.check(',') && !this.check(']')) finish(this.parseType());
     } while (this.accept(','));
+
     finish(null);
     this.expect(']', '"]" after the type parameters');
+
     return params;
   }
 
@@ -128,12 +146,15 @@ export abstract class DeclarationParser extends ControlFlowParser {
    */
   protected parseParams(typesOptional: boolean, allowDefaults = false): ast.Parameter[] {
     this.expect('(');
+
     const params: ast.Parameter[] = [];
     let untyped = 0;
+
     while (!this.check(')')) {
       const name = this.parseIdentifier('parameter name');
       const type = this.canStartType() ? this.parseType() : null;
       const defaultValue = allowDefaults && this.accept('=') ? this.parseExpression() : null;
+
       params.push({ kind: 'Parameter', name, type, defaultValue, ...this.span(name.start) });
       if (type === null) {
         untyped++;
@@ -141,13 +162,17 @@ export abstract class DeclarationParser extends ControlFlowParser {
         for (const param of params.slice(params.length - 1 - untyped)) param.type = type;
         untyped = 0;
       }
+
       if (!this.accept(',')) break;
     }
+
     this.expect(')');
     if (untyped > 0 && !typesOptional) {
       const param = params[params.length - untyped]!;
+
       this.error(`missing type for parameter "${param.name.name}"`, param.start, param.end);
     }
+
     return params;
   }
 
@@ -156,16 +181,19 @@ export abstract class DeclarationParser extends ControlFlowParser {
     if (this.accept('(')) return this.parseList(')', () => this.parseType());
     // `{` after the parameters starts the body, so an object result type needs parentheses.
     if (this.canStartType() && !this.check('{')) return [this.parseType()];
+
     return [];
   }
 
-  /** `comp Name(properties) { ...; return <markup> }`, maybe after `@html-tag`. */
+  /** `comp Name(properties) { ...; return <markup> }`, maybe after decorators. */
   protected override parseComponent(
     start: number,
     exported: boolean,
     htmlTag: ast.HtmlTag | null = null,
+    decorators: ast.DecoratorUse[] = [],
   ): ast.ComponentDeclaration {
     const keyword = this.expect('comp');
+
     if (!this.context.topLevel) {
       this.error(
         'components can only be declared at the top level of a module',
@@ -173,7 +201,9 @@ export abstract class DeclarationParser extends ControlFlowParser {
         keyword.end,
       );
     }
+
     const name = this.parseIdentifier('component name');
+
     // A web component is used by its tag, so its name may start with a lowercase letter.
     if (!htmlTag && !/^[A-Z]/.test(name.name)) {
       this.error(
@@ -182,10 +212,12 @@ export abstract class DeclarationParser extends ControlFlowParser {
         name.end,
       );
     }
+
     const params = this.parseParams(false, true);
     const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () =>
       this.parseComponentBody(),
     );
+
     return {
       kind: 'ComponentDeclaration',
       exported,
@@ -193,60 +225,41 @@ export abstract class DeclarationParser extends ControlFlowParser {
       params,
       body,
       htmlTag,
+      decorators,
       ...this.span(start),
     };
-  }
-
-  /** `@html-tag` or `@html-tag("app-page")`: the only decorator so far. */
-  protected override parseHtmlTag(): ast.HtmlTag {
-    const at = this.expect('@');
-    const first = this.peek();
-    const isHtmlTag =
-      first.kind === 'Identifier' &&
-      first.text === 'html' &&
-      this.peek(1).kind === '-' &&
-      this.peek(2).kind === 'Identifier' &&
-      this.peek(2).text === 'tag';
-    if (!isHtmlTag) {
-      const name = first.kind === 'Identifier' ? first.text : '';
-      this.fail(`unknown decorator "@${name}": the only one is @html-tag`);
-    }
-    this.next();
-    this.next();
-    this.next();
-    let name: ast.StringLiteral | null = null;
-    if (this.accept('(')) {
-      name = this.parseStringLiteral('tag name');
-      this.expect(')');
-    }
-    const node: ast.HtmlTag = { kind: 'HtmlTag', name, ...this.span(at.start) };
-    // A line break after the decorator inserted a semicolon.
-    if (this.isImplicitSemicolon()) this.next();
-    return node;
   }
 
   /** Like a function body, but its own statements may also declare `state` and `mount()`. */
   protected parseComponentBody(): ast.BlockStatement {
     const start = this.expect('{').start;
     const body: ast.Statement[] = [];
+
     this.parseSeparated(
       () => this.check('}'),
-      () => {
-        if (this.isMountDeclaration()) {
-          body.push(this.parseMount());
-          this.endStatement();
-          return;
-        }
-        if (!this.isStateDeclaration()) {
-          body.push(this.parseStatement());
-          return;
-        }
-        const declaration = this.parseVariableDeclaration(this.peek().start, false);
-        this.endStatement();
-        body.push(declaration);
-      },
+      () => body.push(this.parseComponentStatement()),
     );
     this.expect('}');
+
     return { kind: 'BlockStatement', body, ...this.span(start) };
+  }
+
+  /** A statement at the top level of a component or a decorator. */
+  protected parseComponentStatement(): ast.Statement {
+    if (this.isMountDeclaration()) {
+      const mount = this.parseMount();
+
+      this.endStatement();
+
+      return mount;
+    }
+
+    if (!this.isStateDeclaration()) return this.parseStatement();
+
+    const declaration = this.parseVariableDeclaration(this.peek().start, false);
+
+    this.endStatement();
+
+    return declaration;
   }
 }

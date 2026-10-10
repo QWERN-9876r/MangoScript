@@ -25,6 +25,7 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
 
   protected webComponentClass(component: ast.ComponentDeclaration): void {
     this.helpers.add('owner');
+
     const name = component.name.name;
     const className = `$$${name}Element`;
     const props = component.params.filter((param) => param.name.name !== 'children');
@@ -41,12 +42,14 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
     const slot = component.params.findIndex((param) => param.name.name === 'children');
     let prepare: string | null = null;
     const args: string[] = props.length > 0 ? ['...this.#args()'] : [];
+
     if (slot === props.length) {
       args.push('document.createElement("slot")');
     } else if (slot >= 0) {
       prepare = `args.splice(${slot}, 0, document.createElement("slot"));`;
       args[0] = '...args';
     }
+
     const names = props.map((param) => JSON.stringify(param.name.name)).join(', ');
 
     const body = this.capture(() => {
@@ -67,6 +70,7 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
         this.line('    this[name] = value;');
         this.line('  }');
       }
+
       this.line('}');
       this.lines.push('');
       this.line('connectedCallback() {');
@@ -75,6 +79,7 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
         this.line('  const args = this.#args();');
         this.line(`  ${prepare}`);
       }
+
       this.line(`  const [[node, update], remove] = $$owned(() => $$${name}(${args.join(', ')}));`);
       this.line('  this.#update = update ?? null;');
       this.line('  this.#remove = remove;');
@@ -95,13 +100,16 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
         this.line('  switch (name) {');
         props.forEach((param, i) => {
           const kind = kinds[i];
+
           if (!kind) return;
+
           const converted =
             kind === 'string'
               ? 'value ?? undefined'
               : kind === 'number'
                 ? 'value === null ? undefined : Number(value)'
                 : 'value === null ? undefined : true';
+
           this.line(`    case ${JSON.stringify(attributeName(param.name.name))}:`);
           this.line(`      this.${param.name.name} = ${converted};`);
           this.line('      break;');
@@ -109,8 +117,10 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
         this.line('  }');
         this.line('}');
       }
+
       for (const param of props) {
         const prop = param.name.name;
+
         this.lines.push('');
         this.line(`get ${prop}() {`);
         this.line(`  return this.#values.${prop};`);
@@ -121,6 +131,7 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
         this.line('  this.#update?.(...this.#args());');
         this.line('}');
       }
+
       if (props.length > 0) {
         this.lines.push('');
         this.line('#args() {');
@@ -131,12 +142,15 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
         this.line('}');
       }
     });
+
     this.blankLine();
     this.line(`class ${className} extends HTMLElement {`);
     this.lines.push(...body);
     this.line('}');
     this.lines.push('');
+
     const tag = JSON.stringify(htmlTagName(component));
+
     this.line(`customElements.define(${tag}, ${className});`);
   }
 }

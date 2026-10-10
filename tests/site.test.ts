@@ -15,6 +15,7 @@ describe('documentation site', () => {
   it('compiles without errors', () => {
     const outDir = mkdtempSync(join(tmpdir(), 'mango-site-'));
     const result = build([site('src'), site('server.mango')], { outDir });
+
     expect(result.errors.flatMap((error) => error.diagnostics)).toEqual([]);
     expect(result.outputs.map((output) => output.output.slice(outDir.length + 1)).sort()).toEqual([
       'server.js',
@@ -49,6 +50,7 @@ describe('documentation site', () => {
 
   it.each(all)('compiles the example %s in the browser compiler', (path) => {
     const result = compile(readFileSync(site(path), 'utf8'));
+
     expect(result.diagnostics).toEqual([]);
     expect(result.code).not.toBe('');
   });
@@ -59,13 +61,16 @@ describe('documentation site', () => {
       .map((name) => readFileSync(site(`${language.guide}/${name}`), 'utf8'))
       .join('\n');
     const used = [...guide.matchAll(/example\("([^"]+)"\)/g)].map((match) => `${match[1]}.mango`);
+
     expect(used.sort()).toEqual(examplesOf(language.examples).sort());
   });
 
   it('has every example and section in both languages', () => {
     expect(examplesOf('examples/ru').sort()).toEqual(examplesOf('examples').sort());
+
     const sections = (path: string) =>
       [...readFileSync(site(path), 'utf8').matchAll(/\{ id: "([^"]+)"/g)].map((match) => match[1]);
+
     expect(sections('src/ru/guide.mango')).toEqual(sections('src/en/guide.mango'));
   });
 

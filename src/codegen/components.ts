@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { isDecoratorArgument } from '../decorators.ts';
 import { EarlyReturnEmitter } from './early-returns.ts';
 import type { Reactive } from './reactive.ts';
 import { type Live, type Source } from './reactive.ts';
@@ -19,13 +20,38 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
   /** An early `return` in a component: its markup, then the exit from the body. */
   protected override statement(node: ast.Statement): void {
     const early = this.earlyReturns;
+
     if (early && node.kind === 'ReturnStatement' && this.fn === early.fn) {
       const [value] = node.values;
+
       if (value) this.withHoisting(true, () => this.returnedMarkup(value, early));
       this.line(early.exit);
+
       return;
     }
+
     super.statement(node);
+    if (isDecoratorArgument(node)) this.decoratorArgument(node);
+  }
+
+  /**
+   * An argument of a decorator that reads properties of the component: when they change, it is
+   * computed again, and what reads it is updated.
+   */
+  private decoratorArgument(node: ast.VariableDeclaration): void {
+    const { reactive } = this;
+    const [value] = node.values;
+    const source = reactive?.sources.get(node.names[0]!.name);
+
+    if (!reactive || !value || !source) return;
+
+    const props = new Set([...reactive.dependencies(value)].filter((s) => s.kind === 'prop'));
+
+    if (props.size === 0) return;
+
+    const assignment = `${this.name(source.name)} = ${this.expression(value, ARROW)};`;
+
+    reactive.depend(props, `${assignment}\n${this.indent()}${this.write(source)};`);
   }
 
   /**
@@ -37,6 +63,7 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
     this.inHandler++;
     try {
       const [, body] = this.withRendering(0, () => this.func([], node.body));
+
       this.line(`$$mount(() => ${this.mountNode ?? 'null'}, () => ${body});`);
     } finally {
       this.inHandler--;
@@ -56,38 +83,53 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
   ): string {
     const name = component.name.name;
     const isFunction = this.functionComponents.has(component);
+
     if (!isFunction) this.line(`// <${name}>`);
+
     const values = new Map<string, string>();
     const reactiveProps = new Map<string, [string, Set<Source>]>();
+
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxSpreadAttribute') {
         this.spreadProps(attribute.argument, component, live, values, reactiveProps);
         continue;
       }
+
       const prop = attribute.name.name;
+
       values.set(prop, this.prop(attribute, component));
       reactiveProps.delete(prop);
+
       const { value } = attribute;
+
       if (live && value && value.kind !== 'EventHandler') {
         const sources = live.dependencies(value);
+
         if (sources.size > 0) reactiveProps.set(prop, [this.liveExpression(value), sources]);
       }
     }
+
     if (component.params.some((param) => param.name.name === 'children')) {
       const fragment = `$$children${this.nextId()}`;
+
       this.line(`const ${fragment} = document.createDocumentFragment();`);
       this.children(fragment, node.children, live);
       values.set('children', fragment);
     }
+
     if (isFunction) return this.callComponent(component, values, reactiveProps, live);
 
     const result = `$$${lowerFirst(name)}${this.nextId()}`;
     const label = hasEarlyReturn(component) ? `$$body${this.nextId()}` : null;
     const mountNode = hasMount(component) ? `$$mountNode${this.nextId()}` : null;
+
     this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
+
     const setters = new Map<string, string>();
+
     for (const [prop, [text, sources]] of reactiveProps) {
       const setter = `$$set${upperFirst(prop)}${this.nextId()}`;
+
       this.line(`let ${setter};`);
       live?.depend(sources, `${setter}(${text});`);
       setters.set(prop, setter);
@@ -103,14 +145,19 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
               values.get(param.name.name) ??
               (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
             const keyword = setters.has(param.name.name) ? 'let' : 'const';
+
             this.line(`${keyword} ${this.name(param.name.name)} = ${value};`);
           }
+
           this.body(component, result, reactive, { kind: 'inline', setters }, label);
         }),
       ),
     );
-    const code = this.placeSetters(resolveMarkers(block, reactive), result);
+    // The setters may change arguments of decorators, so their markers are resolved too.
+    const code = resolveMarkers(this.placeSetters(block, result), reactive);
+
     this.line(label ? `${label}: ${code}` : code);
+
     return result;
   }
 
@@ -120,6 +167,7 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
    */
   protected override componentFunction(component: ast.ComponentDeclaration): void {
     const props = component.params.filter((param) => param.name.name !== 'children');
+
     this.withFunction('none', component.params, () => {
       const reactive = this.reactiveOf(
         component,
@@ -134,7 +182,13 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
           this.body(component, result, reactive, { kind: 'function', props }, null);
         }),
       );
-      this.line(`function $$${component.name.name}(${params}) ${resolveMarkers(body, reactive)}`);
+
+      // Other modules import an exported component under the name of its function.
+      const exported = component.exported ? 'export ' : '';
+
+      this.line(
+        `${exported}function $$${component.name.name}(${params}) ${resolveMarkers(body, reactive)}`,
+      );
     });
   }
 
@@ -153,13 +207,18 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
       ? this.prepareEarlyReturns(result, reactive, ending, label, component)
       : null;
     const saved = this.earlyReturns;
+
     this.earlyReturns = early;
     try {
       this.blockStatements(setup, () => {
         if (last?.kind !== 'ReturnStatement' || !last.values[0]) return;
+
         const previous = setup.at(-1);
+
         if (previous && this.blankLineBetween(previous, last)) this.blankLine();
+
         const value = last.values[0];
+
         this.withHoisting(true, () => {
           if (early) this.lastReturn(value, ending, early);
           else this.markup(value, result, reactive, ending);

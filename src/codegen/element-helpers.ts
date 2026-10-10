@@ -27,16 +27,20 @@ export function contentKind(
       ? 'value'
       : 'unknown';
   }
+
   switch (type.kind) {
     case 'string':
     case 'number':
     case 'object':
     case 'class':
       return 'value';
+
     case 'array':
       return isPlainContent(type.element) ? 'list' : 'unknown';
+
     case 'nullable':
       return isPlainContent(type.type) ? 'nullable' : 'unknown';
+
     default:
       return 'unknown';
   }
@@ -60,6 +64,8 @@ export function mentions(node: ast.Node, name: string): boolean {
     else if (child.kind === 'MemberExpression') visit(child.object);
     else forEachChild(child, visit);
   };
+
   visit(node);
+
   return found;
 }

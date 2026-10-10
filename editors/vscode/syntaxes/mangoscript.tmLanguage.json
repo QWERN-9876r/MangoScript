@@ -91,7 +91,7 @@
     },
 
     "decorators": {
-      "comment": "@html-tag before a component",
+      "comment": "@html-tag and @visible(...) before a component, @visible.show() in it",
       "match": "(@)([A-Za-z][\\w-]*)",
       "captures": {
         "1": { "name": "punctuation.decorator.mango" },
@@ -107,6 +107,24 @@
             "1": { "name": "storage.type.function.mango" },
             "2": { "name": "entity.name.function.mango" }
           }
+        },
+        {
+          "comment": "`dec` is a keyword only in a declaration: `dec visible(`.",
+          "match": "(?<![\\w$])(?<![^.]\\.)(dec)\\s+([A-Za-z_$][\\w$]*)(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "storage.type.decorator.mango" },
+            "2": { "name": "entity.name.function.decorator.mango" }
+          }
+        },
+        {
+          "comment": "`needs` is a keyword only after the parameters of a decorator: `dec cartBadge() needs cart, auth {`.",
+          "begin": "(?<=\\))\\s*(needs)(?=\\s+[A-Za-z_$])",
+          "beginCaptures": { "1": { "name": "storage.modifier.needs.mango" } },
+          "end": "(?=\\{)",
+          "patterns": [
+            { "name": "entity.name.function.decorator.mango", "match": "[A-Za-z_$][\\w$]*" },
+            { "name": "punctuation.separator.comma.mango", "match": "," }
+          ]
         },
         {
           "match": "(?<![\\w$])(?<![^.]\\.)(comp)\\s+([A-Za-z_$][\\w$]*)",
@@ -149,9 +167,12 @@
           }
         },
         {
-          "comment": "`state` is a keyword only at the start of a statement, followed by a name.",
-          "match": "^\\s*(state)(?=\\s+[A-Za-z_$])",
-          "captures": { "1": { "name": "storage.type.state.mango" } }
+          "comment": "`state` is a keyword only at the start of a statement, followed by a name; a decorator's may be `public state`.",
+          "match": "^\\s*(?:(public)\\s+)?(state)(?=\\s+[A-Za-z_$])",
+          "captures": {
+            "1": { "name": "storage.modifier.mango" },
+            "2": { "name": "storage.type.state.mango" }
+          }
         },
         {
           "comment": "Modifiers of class members.",
@@ -256,6 +277,11 @@
         {
           "name": "support.function.mango",
           "match": "(?<![\\w$])(?<![^.]\\.)error(?=\\s*\\()"
+        },
+        {
+          "comment": "`get` is special only before a member of a decorator: `get(@visible.shown)`.",
+          "name": "support.function.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)get(?=\\s*\\(\\s*@)"
         },
         {
           "name": "support.type.primitive.mango",

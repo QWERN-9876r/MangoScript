@@ -48,6 +48,12 @@ export func components() Node {
             component is created.
         </p>
         {example("tree")}
+        <p>
+            A component exported with <code>export comp</code> is imported by its name, as in
+            {" "}<code>{'import { Card } from "./card.mango"'}</code>, and used as a tag. Its module
+            compiles it to a function too, which the other modules call: its code stays in its own
+            module.
+        </p>
     </>
 }
 
@@ -177,6 +183,75 @@ export func webComponents() Node {
                 The playground on this page defines the elements again on every run, so their tags
                 get a number: <code>{"<fruit-badge-3>"}</code>.
             </li>
+        </ul>
+    </>
+}
+
+export func decorators() Node {
+    return <>
+        <p>
+            A decorator adds logic to components: state, functions and <code>mount()</code>. It is
+            declared with <code>dec</code> and applied with <code>@name(arguments)</code> before
+            {" "}<code>comp</code>. Like a component, it exists only at compile time: its code is
+            inlined into every component it is applied to, and each of them gets its own state.
+        </p>
+        {example("decorators")}
+        <ul>
+            <li>
+                The component sees only what is <b>public</b>: it reads <code>public state</code>
+                {" "}and <code>public const</code> with <code>get(@ticker.ticks)</code> and calls a
+                {" "}<code>public func</code> as <code>@ticker.toggle()</code>. In markup,
+                {" "}<code>get</code> updates like the component's own state. Other names of the
+                decorator are its own and cannot clash with the component's.
+            </li>
+            <li>
+                Outside the decorator its members are <b>read-only</b>:
+                {" "}<code>get(@ticker.ticks) = 0</code> is an error, changes go through its public
+                functions. There is no <code>public let</code>.
+            </li>
+            <li>
+                The arguments are positional, as in a call, and the parameters may have default
+                values: <code>@ticker</code> ticks every second. The arguments see the properties
+                of the component, <code>@ticker(label.length * 100)</code>, and are computed again
+                when they change.
+            </li>
+            <li>
+                With several decorators, <code>@a @b comp X</code>, their bodies run from top to
+                bottom before the component's, and <code>mount()</code> runs from the inside out:
+                the component, <code>b</code>, <code>a</code>. <code>@html-tag</code> goes first.
+            </li>
+        </ul>
+        <p>
+            A decorator can also <b>wrap</b> what the component returns: its body ends with
+            {" "}<code>{"return (content Element) => ..."}</code>, which gets the component's markup
+            and gives other markup instead. A decorator that <code>needs</code> another one sees its
+            public members.
+        </p>
+        {example("decorator-wrappers")}
+        <ul>
+            <li>
+                The type of the wrapper's parameter is written: it limits where the decorator can
+                be applied, so <code>{"(form HTMLFormElement) => ..."}</code> fits only components
+                that return a form. <code>{"<Product />"}</code> has the type of what the outermost
+                wrapper returns.
+            </li>
+            <li>
+                The wrapper runs once, when the component is created. Its markup reads the
+                decorator's state and updates like the component's own. The wrappers apply from
+                the bottom decorator up.
+            </li>
+            <li>
+                <code>dec quantityBadge() needs quantity</code> may use
+                {" "}<code>get(@quantity.count)</code> even in its body, so <code>@quantity</code>
+                {" "}must be applied above it.
+            </li>
+            <li>
+                <code>export dec</code> exports a decorator, and another module imports it by its
+                name: <code>{'import { quantity } from "./quantity.mango"'}</code>. Its code is
+                inlined there, so it cannot assign the variables of its own module, and the
+                decorators it needs are exported too.
+            </li>
+            <li>Not yet: combining decorators.</li>
         </ul>
     </>
 }

@@ -25,30 +25,40 @@ export abstract class UpdateEmitter extends StatementEmitter {
   /** After a statement that changes state, the update of what depends on it. */
   protected override statement(node: ast.Statement): void {
     const { reactive } = this;
+
     if (reactive && this.fn === reactive.setup && reactive.declaresRenderFunction(node)) {
       this.withRendering(this.rendering + 1, () => super.statement(node));
+
       return;
     }
+
     const written = this.changedBy(node);
+
     if (written.length === 0) {
       super.statement(node);
+
       return;
     }
+
     switch (node.kind) {
       case 'ReturnStatement':
       case 'ThrowStatement': {
         // The update goes between computing the value and leaving the function.
         const values = node.kind === 'ThrowStatement' ? [node.argument] : node.values;
         const temp = this.temp();
+
         this.withHoisting(true, () => {
           const rendered = values.map((value) => this.expression(value, ARROW));
           const value = rendered.length === 1 ? rendered[0]! : `[${rendered.join(', ')}]`;
+
           this.line(`const ${temp} = ${value};`);
         });
         this.updates(written);
         this.line(`${node.kind === 'ThrowStatement' ? 'throw' : 'return'} ${temp};`);
+
         return;
       }
+
       case 'IfStatement':
       case 'ForStatement':
       case 'ForInStatement':
@@ -57,7 +67,9 @@ export abstract class UpdateEmitter extends StatementEmitter {
         // it can leave the function, and after the statement.
         super.statement(withFirst(node, (position) => this.markers(written, position)));
         this.updates(written);
+
         return;
+
       default:
         super.statement(node);
         this.updates(written);
@@ -70,6 +82,7 @@ export abstract class UpdateEmitter extends StatementEmitter {
 
   protected withRendering<T>(rendering: number, emit: () => T): T {
     const saved = this.rendering;
+
     this.rendering = rendering;
     try {
       return emit();
@@ -81,19 +94,23 @@ export abstract class UpdateEmitter extends StatementEmitter {
   /** Records a place that changes a source and returns its marker; see resolveMarkers. */
   protected write(source: Source, skip: number | null = null): string {
     source.writes.push({ early: this.inHandler === 0, skip });
+
     return `\uE000${source.id}${skip === null ? '' : `:${skip}`}\uE001`;
   }
 
   /** The type from the checker; literal types count as their base types here (`"all"` → string). */
   protected typeOf(node: ast.Expression): Type | undefined {
     const type = this.options.types?.get(node);
+
     return type && widenLiterals(type);
   }
 
   /** State that a statement changes, when it runs after the component's markup is created. */
   private changedBy(node: ast.Node): Source[] {
     const { reactive } = this;
+
     if (!reactive || this.fn === reactive.setup || this.rendering > 0) return [];
+
     return [...reactive.writtenBy(node, (expression) => this.typeOf(expression))];
   }
 
@@ -110,6 +127,7 @@ export abstract class UpdateEmitter extends StatementEmitter {
         start: position,
         end: position,
       };
+
       return { kind: 'ExpressionStatement', expression, start: position, end: position };
     });
   }
@@ -121,15 +139,22 @@ export abstract class UpdateEmitter extends StatementEmitter {
  */
 export function resolveMarkers(block: string, reactive: Reactive): string {
   const sources = new Map<number, Source>();
+
   for (const source of reactive.sources.values()) sources.set(source.id, source);
+
   return block.replace(
     /^([ \t]*)\uE000(\d+)(?::(\d+))?\uE001;\n/gm,
     (line, indent: string, id: string, skip: string | undefined) => {
       const source = sources.get(Number(id));
+
       if (!source) return line;
+
       const dependents = needed(source, { early: false, skip: skip ? Number(skip) : null });
+
       if (dependents.length === 0) return '';
+
       const text = inlinesUpdate(source) ? dependents[0]! : `${source.update}();`;
+
       return `${indent}${text}\n`;
     },
   );
@@ -143,8 +168,11 @@ export function needed(source: Source, write: Write): string[] {
 /** One place changes the source, after the markup exists, and needs one update statement. */
 export function inlinesUpdate(source: Source): boolean {
   const [write] = source.writes;
+
   if (source.writes.length !== 1 || write!.early) return false;
+
   const dependents = needed(source, write!);
+
   return dependents.length === 1 && !dependents[0]!.includes('\n');
 }
 
@@ -164,9 +192,11 @@ function withFirst(
     ...node,
     body: prepend(node.body, node.end - 1),
   });
+
   switch (node.kind) {
     case 'IfStatement': {
       const { alternate } = node;
+
       return {
         ...node,
         consequent: block(node.consequent),
@@ -178,9 +208,11 @@ function withFirst(
               : block(alternate),
       };
     }
+
     case 'ForStatement':
     case 'ForInStatement':
       return { ...node, body: block(node.body) };
+
     case 'SwitchStatement':
       return {
         ...node,

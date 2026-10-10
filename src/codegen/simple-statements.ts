@@ -44,15 +44,19 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
 
   protected statements(list: readonly ast.Statement[]): void {
     let previous: ast.Statement | undefined;
+
     for (const statement of list) {
-      // Types and inlined components exist only at compile time.
+      // Types, decorators and inlined components exist only at compile time.
       if (
         statement.kind === 'InterfaceDeclaration' ||
         statement.kind === 'TypeAliasDeclaration' ||
-        (statement.kind === 'ComponentDeclaration' && !this.functionComponents.has(statement))
+        statement.kind === 'DecoratorDeclaration' ||
+        (statement.kind === 'ComponentDeclaration' &&
+          !this.functionComponents.has(this.applied(statement)))
       ) {
         continue;
       }
+
       if (previous && this.blankLineBetween(previous, statement)) this.blankLine();
       this.statement(statement);
       previous = statement;
@@ -80,86 +84,114 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       case 'ImportDeclaration':
         this.importDeclaration(node);
         break;
+
       case 'FuncDeclaration': {
         const [params, body] = this.func(node.params, node.body);
         const exported = node.exported ? 'export ' : '';
+
         this.line(`${exported}function ${this.name(node.name.name)}(${params}) ${body}`);
         break;
       }
+
       case 'VariableDeclaration': {
         const [name] = node.names;
         const [value] = node.values;
+
         if (node.names.length === 1 && value?.kind === 'ElementExpression' && name?.name !== '_') {
           const exported = node.exported ? 'export ' : '';
           const keyword = node.keyword === 'state' ? 'let' : node.keyword;
+
           this.elementDeclaration(`${exported}${keyword} ${this.name(name!.name)}`, value);
           break;
         }
+
         if (node.names.every((name) => name.name === '_') && !node.exported) {
           // `const _ = f()` only evaluates the values.
           for (const value of node.values) this.line(`${this.expressionStatement(value)};`);
         } else {
           this.line(`${node.exported ? 'export ' : ''}${this.variableDeclaration(node)};`);
         }
+
         break;
       }
+
       case 'ClassDeclaration':
         this.classDeclaration(node);
         break;
+
       case 'InterfaceDeclaration':
       case 'TypeAliasDeclaration':
+      case 'DecoratorDeclaration':
         break;
+
       case 'ComponentDeclaration':
-        this.componentFunction(node);
+        this.componentFunction(this.applied(node));
         break;
+
       case 'BlockStatement':
         this.line(this.blockStatement(node));
         break;
+
       case 'ExpressionStatement':
         this.line(`${this.expressionStatement(node.expression)};`);
         break;
+
       case 'JsxElementStatement':
         this.elementStatement(node);
         break;
+
       case 'AssignmentStatement':
         this.line(`${this.assignment(node)};`);
         break;
+
       case 'IncDecStatement':
         this.line(`${this.expression(node.target, POSTFIX)}${node.operator};`);
         break;
+
       case 'ReturnStatement':
         this.line(this.returnStatement(node));
         break;
+
       case 'IfStatement':
         this.line(this.ifStatement(node));
         break;
+
       case 'ForStatement':
         this.forStatement(node);
         break;
+
       case 'ForInStatement':
         this.forInStatement(node);
         break;
+
       case 'SwitchStatement':
         if (node.discriminant === null) this.taglessSwitch(node);
         else this.switchStatement(node, node.discriminant);
         break;
+
       case 'BreakStatement': {
         const label = this.fn.breakTargets.at(-1);
+
         this.line(label ? `break ${label};` : 'break;');
         break;
       }
+
       case 'ContinueStatement':
         this.line('continue;');
         break;
+
       case 'ThrowStatement':
         this.line(`throw ${this.expression(node.argument, 0)};`);
         break;
+
       case 'TryStatement':
         this.line(this.tryStatement(node));
         break;
+
       case 'DeferStatement':
         this.deferStatement(node);
         break;
+
       case 'MountStatement':
         this.mountStatement(node);
         break;
@@ -170,19 +202,26 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
   protected variableDeclaration(node: ast.VariableDeclaration): string {
     // A state variable is an ordinary variable; updates are added where it changes.
     const keyword = node.keyword === 'state' ? 'let' : node.keyword;
+
     if (node.values.length === 0) {
       const zero = node.type ? this.zeroValue(node.type) : null;
       const names = node.names.map((name) => this.name(name.name));
+
       return `${keyword} ${names.map((name) => (zero === null ? name : `${name} = ${zero}`)).join(', ')}`;
     }
+
     const values = node.values.map((value) => this.expression(value, ARROW));
     const skips = node.names.some((name) => name.name === '_');
+
     if (values.length === node.names.length && !skips) {
       const pairs = node.names.map((name, i) => `${this.name(name.name)} = ${values[i]}`);
+
       return `${keyword} ${pairs.join(', ')}`;
     }
+
     const pattern = node.names.map((name) => (name.name === '_' ? '' : this.name(name.name)));
     const value = values.length === 1 ? values[0]! : `[${values.join(', ')}]`;
+
     return `${keyword} ${arrayPattern(pattern)} = ${value}`;
   }
 
@@ -191,27 +230,35 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
     switch (type.kind) {
       case 'NullableType':
         return 'null';
+
       case 'ArrayType':
         return '[]';
+
       case 'FuncType':
       case 'ObjectType':
       case 'UnionType':
       case 'LiteralType':
         return null;
+
       case 'TypeReference': {
         const name = type.name.name;
         const alias = this.typeAliases.get(name);
+
         if (alias && !seen.has(name)) return this.zeroValue(alias, seen.add(name));
         switch (name) {
           case 'number':
             return '0';
+
           case 'string':
             return '""';
+
           case 'bool':
             return 'false';
+
           case 'any':
           case 'error':
             return 'null';
+
           default:
             return null;
         }
@@ -222,19 +269,25 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
   /** `a = b`, `a, b = b, a` → `[a, b] = [b, a]`, `q, err = f()` → `[q, err] = f()`. */
   protected assignment(node: ast.AssignmentStatement): string {
     const isBlank = (target: ast.Expression) => target.kind === 'Identifier' && target.name === '_';
+
     if (node.targets.every(isBlank)) {
       // `_ = f()` only evaluates the values.
       if (node.values.length === 1) return this.expressionStatement(node.values[0]!);
+
       return `[${node.values.map((value) => this.expression(value, ARROW)).join(', ')}]`;
     }
+
     const values = node.values.map((value) => this.expression(value, ARROW));
+
     if (node.targets.length === 1) {
       return `${this.expression(node.targets[0]!, POSTFIX)} ${node.operator} ${values[0]}`;
     }
+
     const pattern = node.targets.map((target) =>
       isBlank(target) ? '' : this.expression(target, POSTFIX),
     );
     const value = values.length === 1 ? values[0]! : `[${values.join(', ')}]`;
+
     return `${arrayPattern(pattern)} = ${value}`;
   }
 
@@ -242,6 +295,7 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
   protected returnStatement(node: ast.ReturnStatement): string {
     if (node.values.length === 0) return 'return;';
     if (node.values.length === 1) return `return ${this.expression(node.values[0]!, 0)};`;
+
     return `return [${node.values.map((value) => this.expression(value, ARROW)).join(', ')}];`;
   }
 }

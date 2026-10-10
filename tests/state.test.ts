@@ -8,7 +8,9 @@ import { parse } from '../src/parser/parser.ts';
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
@@ -21,9 +23,12 @@ const counter = `comp Counter(initialValue number) {
 describe('syntax', () => {
   it('parses state declarations at the top level of a component', () => {
     const { program, diagnostics } = parse(`${counter}`);
+
     expect(diagnostics).toEqual([]);
+
     const component = program.body[0] as ast.ComponentDeclaration;
     const declaration = component.body.body[0] as ast.VariableDeclaration;
+
     expect(declaration.keyword).toBe('state');
     expect(declaration.names.map((name) => name.name)).toEqual(['count']);
   });

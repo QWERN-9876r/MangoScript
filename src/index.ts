@@ -24,6 +24,7 @@ export interface CompileOptions {
 
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
   const { filename } = options;
+
   return compileModule(source, {
     rewriteImports: options.rewriteImports ?? true,
     typeCheck: options.typeCheck ?? true,

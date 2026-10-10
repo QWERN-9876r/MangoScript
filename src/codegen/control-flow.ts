@@ -27,6 +27,7 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
     const name = `$$${kind}${id}`;
     const update = `$$update${upperFirst(kind)}${id}`;
     let call: string;
+
     switch (statement.kind) {
       case 'IfStatement':
       case 'SwitchStatement': {
@@ -34,24 +35,31 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
           statement.kind === 'IfStatement'
             ? this.ifBranches(statement, live)
             : this.switchBranches(statement, live);
+
         this.helpers.add('branches');
         call = `$$branches(${choose}, [${blocks.join(', ')}])`;
         break;
       }
+
       case 'ForInStatement': {
         this.helpers.add('list');
+
         const items = this.liveFunction(statement.iterable);
+
         call = `$$list(${items}, ${this.blockCreator(statement.body.body, live, statement)})`;
         break;
       }
+
       case 'ForStatement':
         // Without items to find the blocks by, the loop runs again and creates new content.
         this.helpers.add('content');
         call = `$$content(${this.loopContent(statement)})`;
         break;
     }
+
     this.line(`const [${name}, ${update}] = ${call};`);
     live.depend(sources, `${update}();`);
+
     return name;
   }
 
@@ -60,14 +68,19 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
     const conditions: string[] = [];
     const blocks: string[] = [];
     let current: ast.IfStatement | ast.BlockStatement | null = node;
+
     while (current?.kind === 'IfStatement') {
       conditions.push(this.liveExpression(current.condition, CONDITIONAL + 1));
       blocks.push(this.blockCreator(current.consequent.body, live));
       current = current.alternate;
     }
+
     if (current) blocks.push(this.blockCreator(current.body, live));
+
     let choose = current ? String(conditions.length) : '-1';
+
     for (let i = conditions.length - 1; i >= 0; i--) choose = `${conditions[i]} ? ${i} : ${choose}`;
+
     return [`() => ${choose}`, blocks];
   }
 
@@ -90,6 +103,7 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
         }),
       ),
     );
+
     return [`() => ${body}`, blocks];
   }
 
@@ -105,6 +119,7 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
   ): string {
     const block = new Block(parent);
     const params = loop ? [loop.value, ...(loop.key ? [loop.key] : [])].map(parameter) : [];
+
     return this.withFunction('none', params, () =>
       this.withRendering(this.rendering + 1, () => {
         const paramList = this.params(params);
@@ -113,19 +128,25 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
           this.withScope(declarationsOf(statements), () => {
             this.line(`const ${fragment} = document.createDocumentFragment();`);
             this.children(fragment, statements, block);
+
             // The block of an item that stays gets the item's new position.
             const key = loop?.key && loop.key.name !== '_' ? this.name(loop.key.name) : null;
             const updates = [...(key ? [`${key} = $$index;`] : []), ...block.statements];
+
             if (updates.length === 0) {
               this.line(`return [${fragment}];`);
+
               return;
             }
+
             const update = this.block(() => {
               for (const statement of updates) this.line(indentMore(statement));
             });
+
             this.line(`return [${fragment}, (${key ? '$$index' : ''}) => ${update}];`);
           }),
         );
+
         return `(${paramList}) => ${body}`;
       }),
     );
@@ -141,6 +162,7 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
           this.withContentTarget(fragment, () => this.statement(statement));
           this.line(`return ${fragment};`);
         });
+
         return `() => ${body}`;
       }),
     );
@@ -156,6 +178,7 @@ function returnNumber(value: number, at: ast.NodeBase): ast.ReturnStatement {
     start: at.start,
     end: at.start,
   };
+
   return { kind: 'ReturnStatement', values: [number], start: at.start, end: at.start };
 }
 

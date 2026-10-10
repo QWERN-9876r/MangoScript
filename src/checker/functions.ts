@@ -1,7 +1,8 @@
 import type * as ast from '../ast.ts';
 import { type BindingKind, type Binding, Scope, type Flow } from './context.ts';
 import { ControlFlowChecker } from './control-flow.ts';
-import { isUntyped, callSignature, isTerminating } from './helpers.ts';
+import { isTerminating } from './flow.ts';
+import { isUntyped, callSignature } from './helpers.ts';
 import {
   commonType,
   containsTypeParam,
@@ -29,9 +30,11 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       isComponent?: boolean;
       closure?: boolean;
       paramKind?: BindingKind;
+      inspect?: (scope: Scope) => void;
     } = {},
   ): Type[] {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
+
     this.scope = new Scope(this.scope);
     // A closure keeps the narrowing of variables that cannot change before it runs.
     this.flow = options.closure ? this.stableFlow() : new Map<Binding, Type>();
@@ -49,14 +52,17 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       );
       if (body.kind === 'BlockStatement') {
         this.checkStatementList(body.body, false);
+        options.inspect?.(this.scope);
         if (results && results.length > 0 && !isTerminating(body)) {
           this.error('missing return at the end of the function', {
             start: body.end - 1,
             end: body.end,
           });
         }
+
         return results ?? this.inferResults(this.fn.returns, body);
       }
+
       return this.checkExpressionBody(body, results);
     } finally {
       this.scope = saved.scope;
@@ -69,41 +75,57 @@ export abstract class FunctionChecker extends ControlFlowChecker {
   protected checkExpressionBody(body: ast.Expression, results: Type[] | null): Type[] {
     if (results === null || results.length === 0) {
       const type = this.checkExpression(body, null);
+
       if (results !== null) return [];
+
       return type.kind === 'tuple' ? type.types : type.kind === 'void' ? [] : [type];
     }
+
     if (results.length === 1) {
       const type = this.checkValue(body, results[0] ?? null);
+
       this.expectAssignable(type, results[0]!, body, ' in return');
+
       return results;
     }
+
     const types = this.unpack(body, results.length, null, 'return');
+
     types.forEach((type, i) => this.expectAssignable(type, results[i]!, body, ' in return'));
+
     return results;
   }
 
   protected inferResults(returns: Type[][], body: ast.BlockStatement): Type[] {
     const first = returns[0];
+
     if (first === undefined) return [];
+
     const results = [...first];
+
     for (const types of returns.slice(1)) {
       if (types.length !== results.length) {
         this.error('return statements return different numbers of values', body);
+
         return results;
       }
+
       types.forEach((type, i) => {
         // Different types of returns make a union, as in TypeScript.
         results[i] = commonType(results[i]!, type);
       });
     }
+
     return results;
   }
 
   protected stableFlow(): Flow {
     const flow: Flow = new Map();
+
     for (const [binding, type] of this.flow) {
       if (binding.kind === 'const' || !this.assigned.has(binding.name)) flow.set(binding, type);
     }
+
     return flow;
   }
 
@@ -113,10 +135,13 @@ export abstract class FunctionChecker extends ControlFlowChecker {
     const untypedContext = expected !== null && isUntyped(nonNull(expected));
     const params = node.params.map((param, i) => {
       if (param.type) return this.resolveType(param.type);
+
       const fromContext = context ? (context.params[i] ?? context.rest) : null;
+
       if (fromContext && !containsTypeParam(fromContext, this.inferring)) return fromContext;
       if (untypedContext) return nonNull(expected);
       this.error(`cannot infer the type of parameter "${param.name.name}": add a type`, param);
+
       return UNKNOWN;
     });
     // Known result types from the context are checked; otherwise they are inferred.
@@ -129,6 +154,7 @@ export abstract class FunctionChecker extends ControlFlowChecker {
     const type = func(params, []);
     const checkBody = () => {
       const inferring = this.inferring;
+
       this.inferring = new Set();
       try {
         return this.checkFunction(node.params, type, contextResults, node.body, {
@@ -143,11 +169,15 @@ export abstract class FunctionChecker extends ControlFlowChecker {
     // result is not used.
     const knownResults =
       contextResults ?? (untypedContext || context?.results.length === 0 ? [] : null);
+
     if (knownResults && !params.includes(UNKNOWN) && this.deferBody(node.body, checkBody)) {
       type.results = knownResults;
+
       return type;
     }
+
     type.results = checkBody();
+
     return type;
   }
 
@@ -155,7 +185,9 @@ export abstract class FunctionChecker extends ControlFlowChecker {
     const type = this.signature(node.params, node.results);
     const checkBody = () =>
       this.checkFunction(node.params, type, type.results, node.body, { closure: true });
+
     if (!this.deferBody(node.body, checkBody)) checkBody();
+
     return type;
   }
 }

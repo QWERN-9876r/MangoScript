@@ -44,6 +44,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
     .filter((path) => statSync(path).isDirectory());
   const queue = entries.flatMap((entry) => {
     const path = resolve(entry);
+
     return directories.includes(path) ? findMangoFiles(path) : [path];
   });
   const seen = new Set(queue);
@@ -56,6 +57,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
     const source = queue[i]!;
     const text = readFileSync(source, 'utf8');
     const result = compile(text, { filename: source, typeCheck, declarations });
+
     if (result.diagnostics.length > 0) {
       errors.push({
         file: new SourceFile(displayPath(source), text),
@@ -64,9 +66,11 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
     } else {
       compiled.push({ source, code: result.code, declarations: result.declarations });
     }
+
     for (const specifier of result.dependencies) {
       // A missing module is reported by the type checker.
       const dependency = resolve(dirname(source), specifier);
+
       if (!seen.has(dependency) && existsSync(dependency)) {
         seen.add(dependency);
         queue.push(dependency);
@@ -75,11 +79,13 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   }
 
   if (errors.length > 0) return { outputs: [], errors };
+
   // The output keeps the folder structure below the given directories and all the files.
   const root = commonDirectory(queue, directories);
   const outputs = compiled.map(({ source, code, declarations: types }): BuildOutput => {
     const target = options.outDir ? join(resolve(options.outDir), relative(root, source)) : source;
     const base = target.replace(/\.mango$/, '');
+
     return {
       source,
       output: `${base}.js`,
@@ -87,6 +93,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
       ...(types === undefined ? {} : { declarations: { output: `${base}.d.ts`, code: types } }),
     };
   });
+
   return { outputs, errors };
 }
 
@@ -96,8 +103,10 @@ function findMangoFiles(directory: string): string[] {
   const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
     a.name.localeCompare(b.name),
   );
+
   for (const entry of entries) {
     const path = join(directory, entry.name);
+
     if (entry.isDirectory()) {
       if (entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
         files.push(...findMangoFiles(path));
@@ -106,6 +115,7 @@ function findMangoFiles(directory: string): string[] {
       files.push(path);
     }
   }
+
   return files;
 }
 
@@ -113,19 +123,23 @@ function findMangoFiles(directory: string): string[] {
 function commonDirectory(files: readonly string[], directories: readonly string[]): string {
   const inside = (path: string, directory: string) => path.startsWith(directory + sep);
   let directory = directories[0] ?? dirname(files[0] ?? process.cwd());
+
   while (
     !files.every((file) => inside(file, directory)) ||
     !directories.every((other) => other === directory || inside(other, directory))
   ) {
     const parent = dirname(directory);
+
     if (parent === directory) break;
     directory = parent;
   }
+
   return directory;
 }
 
 /** A path for messages: relative to the current directory when it is inside it. */
 export function displayPath(path: string): string {
   const fromCwd = relative(process.cwd(), path);
+
   return fromCwd.startsWith('..') ? path : fromCwd;
 }

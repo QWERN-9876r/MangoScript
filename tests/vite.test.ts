@@ -12,6 +12,7 @@ const root = new URL('..', import.meta.url).pathname;
 describe('Vite plugin', () => {
   it('compiles .mango modules and the modules they import', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
+
     writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.mango"></script>');
     writeFileSync(
       join(dir, 'geom.mango'),
@@ -28,9 +29,11 @@ describe('Vite plugin', () => {
       plugins: [mango()],
       build: { outDir: join(dir, 'dist'), minify: false },
     });
+
     const assets = join(dir, 'dist', 'assets');
     const [bundle] = readdirSync(assets).filter((name) => name.endsWith('.js'));
     const code = readFileSync(join(assets, bundle!), 'utf8');
+
     expect(code).toContain('x * 2');
     // Both modules are in the bundle: no import of a .mango file is left.
     expect(code).not.toMatch(/from\s*"[^"]*\.mango"/);
@@ -38,6 +41,7 @@ describe('Vite plugin', () => {
 
   it('stops the build on type errors', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
+
     writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.mango"></script>');
     writeFileSync(join(dir, 'main.mango'), 'const n number = "one"\n');
     await expect(
@@ -55,11 +59,13 @@ describe('Vite plugin', () => {
 describe('documentation site', () => {
   it('is built by Vite: a page for each language, with its examples in its bundle', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'mango-site-'));
+
     await build({
       configFile: join(root, 'vite.config.ts'),
       logLevel: 'silent',
       build: { outDir, emptyOutDir: true },
     });
+
     const pages = [
       { html: 'index.html', prefix: './', examples: 'site/examples', other: 'site/examples/ru' },
       {
@@ -69,17 +75,21 @@ describe('documentation site', () => {
         other: 'site/examples',
       },
     ];
+
     for (const page of pages) {
       const html = readFileSync(join(outDir, page.html), 'utf8');
       // Relative, so that the site works from any folder, as on GitHub Pages.
       const script = new RegExp(
         `src="${page.prefix.replace(/\./g, '\\.')}(assets/[^"]+\\.js)"`,
       ).exec(html)?.[1];
+
       expect(script, page.html).toBeDefined();
+
       const code = readFileSync(join(outDir, script!), 'utf8');
       // Examples are part of the bundle, not loaded after the page is drawn.
       const hello = (dir: string) =>
         JSON.stringify(readFileSync(join(root, dir, 'hello.mango'), 'utf8').trimEnd()).slice(1, 40);
+
       expect(code).toContain(hello(page.examples));
       expect(code).not.toContain(hello(page.other));
     }

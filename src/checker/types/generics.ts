@@ -31,14 +31,20 @@ export const instances = new WeakMap<ObjectType, { args: Type[]; instance: Objec
  */
 export function instantiate(template: ObjectType, args: readonly Type[]): ObjectType {
   const params = template.typeParams ?? [];
+
   if (params.every((param, i) => args[i] === param)) return template;
+
   let cached = instances.get(template);
+
   if (!cached) {
     cached = [];
     instances.set(template, cached);
   }
+
   const found = cached.find((entry) => entry.args.every((arg, i) => typesEqual(arg, args[i]!)));
+
   if (found) return found.instance;
+
   const bindings = bindParams(params, args);
   // Members are substituted when they are used: a template from a `.d.ts` may still be filling
   // its own members, and large interfaces are mostly not used whole.
@@ -49,16 +55,20 @@ export function instantiate(template: ObjectType, args: readonly Type[]): Object
       () => memberNames(template.members),
       (name) => {
         const member = template.members.get(name);
+
         return member && { ...member, type: substitute(member.type, bindings) };
       },
     ),
     call: template.call && (substitute(template.call, bindings) as FunctionType),
     instanceOf: { template, args: [...args] },
   };
+
   if (template.construct) {
     instance.construct = substitute(template.construct, bindings) as FunctionType;
   }
+
   cached.push({ args: [...args], instance });
+
   return instance;
 }
 
@@ -73,12 +83,16 @@ export function classInstance(info: ClassInfo, args: readonly Type[]): ClassType
  */
 export function memberTypeOf(object: Type, member: Member): Type {
   if (object.kind !== 'class' || !member.owner) return member.type;
+
   let info = object.info;
   let bindings = bindParams(info.typeParams, object.args ?? info.typeParams);
+
   while (info !== member.owner && info.superClass) {
     const args = (info.superArgs ?? []).map((arg) => substitute(arg, bindings));
+
     info = info.superClass;
     bindings = bindParams(info.typeParams, args.length > 0 ? args : info.typeParams);
   }
+
   return substitute(member.type, bindings);
 }

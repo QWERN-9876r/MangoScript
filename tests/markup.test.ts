@@ -12,7 +12,9 @@ import { parse } from '../src/parser/parser.ts';
 
 function tokens(source: string): string[] {
   const { tokens, diagnostics } = tokenize(source);
+
   expect(diagnostics).toEqual([]);
+
   return tokens
     .filter((t) => t.kind !== 'EOF')
     .map((t) =>
@@ -27,8 +29,11 @@ function tokens(source: string): string[] {
 /** The element in `x = <...>`. */
 function element(source: string): ast.ElementExpression {
   const { program, diagnostics } = parse(`x = ${source}`);
+
   expect(diagnostics).toEqual([]);
+
   const statement = program.body[0] as ast.AssignmentStatement;
+
   return statement.values[0] as ast.ElementExpression;
 }
 
@@ -36,34 +41,43 @@ function element(source: string): ast.ElementExpression {
 function markup(node: ast.ElementExpression): string {
   const attributes = node.attributes.map((attribute) => {
     if (attribute.kind === 'JsxSpreadAttribute') return '{...}';
+
     const { value } = attribute;
     const name = attribute.name.name;
+
     if (value === null) return name;
     if (value.kind === 'StringLiteral') return `${name}=${JSON.stringify(value.value)}`;
     if (value.kind === 'EventHandler') {
       return `${name}={${value.body.map((statement) => statement.kind).join('; ')}}`;
     }
+
     return `${name}={${value.kind}}`;
   });
   const children = node.children.map((child) => {
     if (child.kind === 'JsxText') return JSON.stringify(child.value);
     if (child.kind === 'JsxExpressionContainer') return `{${child.expression.kind}}`;
     if (child.kind === 'JsxStatementContainer') return `{${child.statement.kind}}`;
+
     return markup(child);
   });
   const tag = node.tag?.name ?? '';
+
   return `<${[tag, ...attributes].join(' ')}>${children.join('')}</${tag}>`;
 }
 
 function errors(source: string): string[] {
   const { program, diagnostics } = parse(source);
+
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
+
   return check(program).diagnostics.map((d) => d.message);
 }
 
 function js(source: string): string {
   const { code, diagnostics } = compile(source);
+
   expect(diagnostics).toEqual([]);
+
   return code.trimEnd();
 }
 
@@ -107,11 +121,13 @@ describe('lexer', () => {
   it('decodes entities but keeps text as written', () => {
     const { tokens: list } = tokenize('x = <p title="a &amp; b">1 &lt; 2 &#169;</p>');
     const values = list.filter((t) => 'value' in t).map((t) => (t as { value: string }).value);
+
     expect(values).toEqual(['a & b', '1 < 2 ©']);
   });
 
   it('handles braces and templates inside expressions', () => {
     const list = tokens('x = <p>{f({ a: `${<b>{1}</b>}` })}</p>');
+
     expect(list.filter((t) => t.startsWith('CloseTagOpen'))).toHaveLength(2);
     expect(list.at(-1)).toBe('⏎');
   });
@@ -185,6 +201,7 @@ describe('parser', () => {
     const { diagnostics } = parse(
       'func f() HTMLElement {\n    return <div>\n        <p>a</p>\n    </div>\n}',
     );
+
     expect(diagnostics).toEqual([]);
   });
 });

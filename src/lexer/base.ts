@@ -25,8 +25,10 @@ export abstract class LexerBase {
   protected skipTrivia(): boolean {
     const t = this.text;
     let sawNewline = false;
+
     while (this.pos < t.length) {
       const c = t[this.pos];
+
       if (c === '\n') {
         sawNewline = true;
         this.pos++;
@@ -34,15 +36,18 @@ export abstract class LexerBase {
         this.pos++;
       } else if (t.startsWith('//', this.pos)) {
         const end = t.indexOf('\n', this.pos);
+
         this.pos = end === -1 ? t.length : end;
       } else if (t.startsWith('/*', this.pos)) {
         const end = t.indexOf('*/', this.pos + 2);
+
         if (end === -1) {
           this.error('unterminated block comment', this.pos, this.pos + 2);
           this.pos = t.length;
         } else {
           // A comment spanning several lines counts as a line break.
           const newline = t.indexOf('\n', this.pos);
+
           if (newline !== -1 && newline < end) sawNewline = true;
           this.pos = end + 2;
         }
@@ -50,11 +55,13 @@ export abstract class LexerBase {
         break;
       }
     }
+
     return sawNewline;
   }
 
   protected lastEndsStatement(): boolean {
     const last = this.tokens.at(-1);
+
     return last !== undefined && ENDS_STATEMENT.has(last.kind);
   }
 
@@ -66,13 +73,16 @@ export abstract class LexerBase {
     const t = this.text;
     const c = t[this.pos];
     const next = t[this.pos + 1];
+
     if (c === ')' || c === ']' || c === '}') return true;
     if (c === '.') return next !== '.' && !isDigit(next);
+
     return c === '?' && next === '.' && !isDigit(t[this.pos + 2]);
   }
 
   protected insertSemicolon(): void {
     const end = this.tokens.at(-1)?.end ?? 0;
+
     this.tokens.push({ kind: ';', text: '', start: end, end });
   }
 
@@ -82,6 +92,7 @@ export abstract class LexerBase {
 
   protected braces(): number {
     const top = this.top();
+
     return top?.kind === 'template' || top?.kind === 'expression' ? top.braces : 0;
   }
 

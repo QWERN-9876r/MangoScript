@@ -9,13 +9,16 @@ import { ARROW, BINARY, POSTFIX } from './syntax.ts';
 export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
   protected override ifStatement(node: ast.IfStatement): string {
     let text = `if (${this.expression(node.condition, 0)}) ${this.blockStatement(node.consequent)}`;
+
     if (node.alternate?.kind === 'IfStatement') {
       // The condition of `else if` is evaluated only when the first one is false.
       const alternate = node.alternate;
+
       text += ` else ${this.withHoisting(false, () => this.ifStatement(alternate))}`;
     } else if (node.alternate) {
       text += ` else ${this.blockStatement(node.alternate)}`;
     }
+
     return text;
   }
 
@@ -28,6 +31,7 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
       node.init?.kind === 'VariableDeclaration'
         ? node.init.names.map((name): [string, BindingKind] => [name.name, 'let'])
         : [];
+
     this.withScope(bindings, () => {
       const init = node.init ? this.simpleStatement(node.init) : '';
       // The condition and the update run on every iteration.
@@ -35,10 +39,13 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
         node.condition ? this.expression(node.condition, 0) : '',
         node.update ? this.simpleStatement(node.update) : '',
       ]);
+
       if (node.init === null && node.update === null) {
         this.line(`while (${condition || 'true'}) ${this.loopBody(node.body)}`);
+
         return;
       }
+
       this.line(`for (${init}; ${condition}; ${update}) ${this.loopBody(node.body)}`);
     });
   }
@@ -48,10 +55,13 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
     switch (node.kind) {
       case 'VariableDeclaration':
         return this.variableDeclaration(node);
+
       case 'AssignmentStatement':
         return this.assignment(node);
+
       case 'IncDecStatement':
         return `${this.expression(node.target, POSTFIX)}${node.operator}`;
+
       case 'ExpressionStatement':
         return this.expression(node.expression, 0);
     }
@@ -60,17 +70,21 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
   /** `for x in xs` → `for (const x of xs)`; `for i, x in xs` iterates `xs.entries()`. */
   protected override forInStatement(node: ast.ForInStatement): void {
     const bindings: [string, BindingKind][] = [[node.value.name, 'loop']];
+
     if (node.key) bindings.push([node.key.name, 'loop']);
     this.withScope(bindings, () => {
       const value = this.name(node.value.name);
       let head: string;
+
       if (node.key === null) {
         head = `const ${value} of ${this.expression(node.iterable, ARROW)}`;
       } else {
         const key = node.key.name === '_' ? '' : this.name(node.key.name);
         const pair = node.value.name === '_' ? `[${key}]` : `[${key}, ${value}]`;
+
         head = `const ${pair} of ${this.expression(node.iterable, POSTFIX)}.entries()`;
       }
+
       this.line(`for (${head}) ${this.loopBody(node.body)}`);
     });
   }
@@ -91,6 +105,7 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
               : this.withHoisting(false, () =>
                   switchCase.tests.map((test) => `case ${this.expression(test, 0)}:`),
                 );
+
           for (const label of labels.slice(0, -1)) this.line(label);
 
           const isLast = i === node.cases.length - 1;
@@ -110,6 +125,7 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
         });
       }),
     );
+
     this.line(`${head} ${body}`);
   }
 
@@ -133,9 +149,12 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
             ? this.expression(switchCase.tests[0]!, 0)
             : switchCase.tests.map((test) => this.expression(test, BINARY['||'] + 1)).join(' || '),
         );
+
         return `if (${condition}) ${caseBlock(switchCase.body)}`;
       });
+
       if (fallback) branches.push(caseBlock(fallback.body));
+
       return branches.join(' else ');
     });
 
@@ -146,15 +165,20 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
   protected override tryStatement(node: ast.TryStatement): string {
     let text = `try ${this.blockStatement(node.block)}`;
     const { handler } = node;
+
     if (handler) {
       const param = handler.param;
       const bindings: [string, BindingKind][] = param ? [[param.name, 'catch']] : [];
+
       text += this.withScope(bindings, () => {
         const head = param ? ` catch (${this.name(param.name)})` : ' catch';
+
         return `${head} ${this.blockStatement(handler.body)}`;
       });
     }
+
     if (node.finalizer) text += ` finally ${this.blockStatement(node.finalizer)}`;
+
     return text;
   }
 }

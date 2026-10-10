@@ -31,7 +31,9 @@ export const SETTERS = String.fromCharCode(0xe002);
 /** `f(a, undefined, undefined)` → `f(a)`: missing arguments are undefined anyway. */
 export function withoutTrailingUndefined(args: string[]): string[] {
   let end = args.length;
+
   while (end > 0 && args[end - 1] === 'undefined') end--;
+
   return args.slice(0, end);
 }
 

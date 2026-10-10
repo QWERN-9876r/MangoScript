@@ -10,11 +10,14 @@ import { BOOL, func, STRING, typeToString, type Type } from './types.ts';
 export abstract class MarkupChecker extends OperatorChecker {
   protected override checkElement(node: ast.ElementExpression): Type {
     if (node.tag && /^[A-Z]/.test(node.tag.name)) return this.checkComponentUse(node, node.tag);
+
     const tag = node.tag?.name ?? null;
     const type = tag === null ? this.dom.fragment : this.elementOf(tag);
+
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxSpreadAttribute') {
         const spread = this.checkValue(attribute.argument);
+
         if (!isUntyped(spread) && spread.kind !== 'object') {
           this.error(`cannot spread ${typeToString(spread)} into attributes`, attribute.argument);
         }
@@ -24,12 +27,15 @@ export abstract class MarkupChecker extends OperatorChecker {
         this.checkAttribute(attribute, tag, type);
       }
     }
+
     for (const attribute of node.attributes) {
       if (attribute.kind !== 'JsxAttribute' || !attribute.name.name.startsWith('bind:')) continue;
+
       const property = attribute.name.name.slice('bind:'.length);
       const plain = node.attributes.some(
         (other) => other.kind === 'JsxAttribute' && other.name.name === property,
       );
+
       if (plain) {
         this.error(
           `"${property}" and "bind:${property}" set the same property: keep one of them`,
@@ -37,7 +43,9 @@ export abstract class MarkupChecker extends OperatorChecker {
         );
       }
     }
+
     this.checkChildren(node.children);
+
     return type;
   }
 
@@ -49,11 +57,14 @@ export abstract class MarkupChecker extends OperatorChecker {
         this.checkStatement(child.statement);
         continue;
       }
+
       if (child.kind === 'ElementExpression') {
         this.checkExpression(child, null);
         continue;
       }
+
       const content = this.checkValue(child.expression);
+
       if (!isContent(content, this.dom.node)) {
         this.error(
           `cannot use ${typeToString(content)} as element content` +
@@ -69,15 +80,21 @@ export abstract class MarkupChecker extends OperatorChecker {
     const { value } = attribute;
     // `<app-card count={3} />`: a property of a web component of this module.
     const webProperty = this.webComponentProperty(tag, name);
+
     if (webProperty) {
       this.checkProp(attribute, webProperty, tag);
+
       return;
     }
+
     if (/^on[A-Z]/.test(name)) {
       this.checkEventAttribute(attribute, this.eventOf(name, element));
+
       return;
     }
+
     if (value?.kind === 'EventHandler') return;
+
     const valueType =
       value === null ? BOOL : value.kind === 'StringLiteral' ? STRING : this.checkValue(value);
 
@@ -88,11 +105,15 @@ export abstract class MarkupChecker extends OperatorChecker {
           attribute,
         );
       }
+
       return;
     }
+
     // `<a download>` without a value sets an empty attribute, whatever the property type is.
     if (value === null) return;
+
     const property = domProperty(tag, name);
+
     if (property) {
       this.expectAssignable(valueType, property.type, value, ` for attribute "${name}"`);
     } else if (!isAttributeValue(valueType)) {
@@ -115,11 +136,15 @@ export abstract class MarkupChecker extends OperatorChecker {
     const name = attribute.name.name;
     const property = name.slice('bind:'.length);
     const { value } = attribute;
+
     if (property !== 'value' && property !== 'checked') {
       this.error(`unknown binding "${name}": use bind:value or bind:checked`, attribute.name);
+
       return;
     }
+
     const tags = property === 'value' ? ['input', 'textarea', 'select'] : ['input'];
+
     if (!tags.includes(tag)) {
       this.error(
         property === 'value'
@@ -128,19 +153,26 @@ export abstract class MarkupChecker extends OperatorChecker {
         attribute.name,
       );
     }
+
     if (value === null || value.kind === 'StringLiteral' || value.kind === 'EventHandler') {
       this.error(`"${name}" needs a variable in braces, e.g. ${name}={title}`, attribute);
+
       return;
     }
+
     const bindable =
       (value.kind === 'Identifier' && value.name !== '_') ||
       ((value.kind === 'MemberExpression' || value.kind === 'IndexExpression') && !value.optional);
+
     if (!bindable) {
       this.checkValue(value);
       this.error(`"${name}" needs a variable or a field to write to`, value);
+
       return;
     }
+
     const type = this.checkTarget(value);
+
     this.checkedTypes.set(value, type);
     if (isUntyped(type)) return;
     if (property === 'checked' && type.kind !== 'bool') {
@@ -152,6 +184,7 @@ export abstract class MarkupChecker extends OperatorChecker {
           other.kind === 'JsxAttribute' && other.name.name === 'type',
       )?.value;
       const inputType = typeAttribute?.kind === 'StringLiteral' ? typeAttribute.value : null;
+
       if (inputType !== 'number' && inputType !== 'range') {
         this.error(
           'a number can be bound to <input type="number"> or <input type="range">',
@@ -164,6 +197,7 @@ export abstract class MarkupChecker extends OperatorChecker {
       !(type.kind === 'number' && tag === 'input')
     ) {
       const allowed = tag === 'input' ? 'a string or a number' : 'a string';
+
       this.error(`bind:value needs ${allowed}, not ${typeToString(type)}`, value);
     }
   }
@@ -172,6 +206,7 @@ export abstract class MarkupChecker extends OperatorChecker {
   protected checkEventAttribute(attribute: ast.JsxAttribute, event: Type): void {
     const name = attribute.name.name;
     const { value } = attribute;
+
     if (value === null || value.kind === 'StringLiteral') {
       this.error(`"${name}" needs code or a function in braces, e.g. ${name}={save()}`, attribute);
     } else if (value.kind === 'EventHandler') {
@@ -179,6 +214,7 @@ export abstract class MarkupChecker extends OperatorChecker {
     } else {
       const handler = func([event], []);
       const type = this.checkValue(value, handler);
+
       this.expectAssignable(type, handler, value, ` as the "${name}" handler`);
     }
   }
@@ -190,11 +226,13 @@ export abstract class MarkupChecker extends OperatorChecker {
    */
   protected checkEventHandler(handler: ast.EventHandler, event: Type | null): void {
     const checkBody = () => this.checkHandlerBody(handler, event);
+
     if (!this.deferBody(handler, checkBody)) checkBody();
   }
 
   private checkHandlerBody(handler: ast.EventHandler, event: Type | null): void {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
+
     this.scope = new Scope(this.scope);
     this.flow = this.stableFlow();
     this.fn = { results: [], returns: [], isConstructor: false };
@@ -205,6 +243,7 @@ export abstract class MarkupChecker extends OperatorChecker {
         start: handler.start,
         end: handler.start,
       };
+
       if (event) this.declareValue(name, 'param', event);
       for (const statement of handler.body) this.checkStatement(statement);
     } finally {

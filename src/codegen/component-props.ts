@@ -1,6 +1,7 @@
 import type * as ast from '../ast.ts';
 import { spreadFields } from '../checker/types.ts';
-import { isConstant, isSimple, namesDeclaredIn, rootName } from './analysis.ts';
+import { declaredNames } from '../names.ts';
+import { isConstant, isSimple, rootName } from './analysis.ts';
 import { ControlFlowEmitter } from './control-flow.ts';
 import { Reactive, type Live, type Source } from './reactive.ts';
 import { ARROW, indentMore, lowerFirst, POSTFIX, upperFirst } from './syntax.ts';
@@ -39,29 +40,41 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     const argument = (param: ast.Parameter) =>
       values.get(param.name.name) ?? (param.defaultValue ? 'undefined' : 'null');
     const args = withoutTrailingUndefined(component.params.map(argument));
-    const call = `$$${name}(${args.join(', ')})`;
+    const fn = this.functionNames.get(component) ?? `$$${name}`;
+    const call = `${fn}(${args.join(', ')})`;
+
     if (!live || reactiveProps.size === 0) {
       this.line(`const [${result}] = ${call};`);
+
       return result;
     }
+
     const setter = `$$set${name}${id}`;
+
     this.line(`const [${result}, ${setter}] = ${call};`);
+
     const sources = new Set<Source>();
+
     for (const [, propSources] of reactiveProps.values()) {
       for (const source of propSources) sources.add(source);
     }
+
     const settable = component.params.filter((param) => param.name.name !== 'children');
     const setterArgs = withoutTrailingUndefined(
       settable.map((param) => reactiveProps.get(param.name.name)?.[0] ?? argument(param)),
     );
+
     live.depend(sources, `${setter}(${setterArgs.join(', ')});`);
+
     return result;
   }
 
   protected reactiveOf(component: ast.ComponentDeclaration, props: Iterable<string>): Reactive {
     return new Reactive(component, this.fn, props, (sourceName, kind) => {
       const id = this.nextId();
-      const update = `$$update${upperFirst(sourceName)}${id}`;
+      // `$$card$price`, an argument of a decorator, is updated by `$$updateCard$price3`.
+      const update = `$$update${upperFirst(sourceName.replace(/^\$\$/, ''))}${id}`;
+
       return { id, name: sourceName, kind, update, dependents: [], writes: [] };
     });
   }
@@ -71,6 +84,7 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     return params
       .map((param) => {
         const name = `${prefix}${prefix ? param.name.name : this.name(param.name.name)}`;
+
         return param.defaultValue
           ? `${name} = ${this.expression(param.defaultValue, ARROW)}`
           : name;
@@ -81,10 +95,12 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
   /** `{ title = $$title; ...updates of what reads it... }` */
   protected setterBody(props: readonly string[], reactive: Reactive): string {
     const dependents = new Set<string>();
+
     for (const prop of props) {
       for (const dependent of reactive.sources.get(prop)?.dependents ?? [])
         dependents.add(dependent);
     }
+
     return this.block(() => {
       for (const prop of props) this.line(`${this.name(prop)} = $$${prop};`);
       for (const dependent of dependents) this.line(indentMore(dependent));
@@ -99,18 +115,23 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
   ): void {
     if (props.length === 0) {
       this.line(`return [${result}];`);
+
       return;
     }
+
     const dependents = new Set<string>();
+
     for (const param of props) {
       for (const dependent of reactive.sources.get(param.name.name)?.dependents ?? []) {
         dependents.add(dependent);
       }
     }
+
     const setter = this.block(() => {
       for (const param of props) this.line(`${this.name(param.name.name)} = $$${param.name.name};`);
       for (const dependent of dependents) this.line(indentMore(dependent));
     });
+
     this.line(`return [${result}, (${this.parameters(props, '$$')}) => ${setter}];`);
   }
 
@@ -120,12 +141,16 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
    */
   protected prop(attribute: ast.JsxAttribute, component: ast.ComponentDeclaration): string {
     const { value } = attribute;
+
     if (value === null) return 'true';
     if (value.kind === 'EventHandler') {
       const temp = this.temp();
+
       this.line(`const ${temp} = ${this.handler(value)};`);
+
       return temp;
     }
+
     return this.propValue(value, component);
   }
 
@@ -134,21 +159,27 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     let declared = this.functionComponents.has(component)
       ? new Set<string>()
       : this.componentNames.get(component);
+
     if (!declared) {
-      declared = namesDeclaredIn(component);
+      declared = declaredNames(component);
       this.componentNames.set(component, declared);
     }
+
     const root = rootName(value);
+
     if (isConstant(value) || (isSimple(value) && root !== null && !declared.has(root))) {
       return this.expression(value, ARROW);
     }
+
     // A function given to the component runs later, not while the markup is being created.
     const text =
       value.kind === 'ArrowFunction' || value.kind === 'FuncExpression'
         ? this.withRendering(0, () => this.expression(value, ARROW))
         : this.expression(value, ARROW);
     const temp = this.temp();
+
     this.line(`const ${temp} = ${text};`);
+
     return temp;
   }
 
@@ -170,13 +201,17 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     const params = component.params.filter(
       (param) => param.name.name !== 'children' && (fields === null || fields.has(param.name.name)),
     );
+
     if (params.length === 0) return;
+
     const object = this.propValue(argument, component);
     const sources = live?.dependencies(argument);
     const liveObject = sources && sources.size > 0 ? this.liveExpression(argument, POSTFIX) : null;
+
     for (const param of params) {
       const { name } = param.name;
       const read = `${object}.${name}`;
+
       values.set(
         name,
         fields === null && param.defaultValue

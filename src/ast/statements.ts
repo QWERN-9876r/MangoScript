@@ -1,6 +1,7 @@
 import type {
   ClassDeclaration,
   ComponentDeclaration,
+  DecoratorDeclaration,
   FuncDeclaration,
   ImportDeclaration,
   InterfaceDeclaration,
@@ -17,6 +18,7 @@ export type Statement =
   | ImportDeclaration
   | FuncDeclaration
   | ComponentDeclaration
+  | DecoratorDeclaration
   | VariableDeclaration
   | ClassDeclaration
   | InterfaceDeclaration

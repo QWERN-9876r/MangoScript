@@ -60,7 +60,9 @@ export const JS_UNDECLARABLE: ReadonlySet<string> = new Set(['eval', 'arguments'
 /** `[a, , c]`; skipped (empty) elements at the end are dropped: `[q, ]` → `[q]`. */
 export function arrayPattern(elements: readonly string[]): string {
   let end = elements.length;
+
   while (end > 0 && elements[end - 1] === '') end--;
+
   return `[${elements.slice(0, end).join(', ')}]`;
 }
 

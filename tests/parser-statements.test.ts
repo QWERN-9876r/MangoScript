@@ -16,6 +16,7 @@ describe('modules', () => {
       node.namespaceImport && `* as ${node.namespaceImport.name}`,
       names.length > 0 && `{ ${names.join(', ')} }`,
     ].filter(Boolean);
+
     return [clauses.join(', '), clauses.length > 0 && 'from', node.source.raw]
       .filter(Boolean)
       .join(' ');
@@ -37,6 +38,7 @@ describe('modules', () => {
     const body = statements(
       'export func f() {}\nexport const x = 1\nexport class A {}\nexport interface I {}\nexport type T string\nfunc g() {}',
     );
+
     expect(body.map((node) => 'exported' in node && node.exported)).toEqual([
       true,
       true,
@@ -102,6 +104,7 @@ describe('if', () => {
       'if x > 0 {\n  a()\n} else if x < 0 {\n  b()\n} else {\n  c()\n}',
       'IfStatement',
     );
+
     expect(sx(node.condition)).toBe('(> x 0)');
     expect(node.alternate).toMatchObject({
       kind: 'IfStatement',
@@ -138,6 +141,7 @@ describe('for', () => {
     expect(sx(first('for running {}', 'ForStatement').condition!)).toBe('running');
 
     const classic = first('for let i = 0; i < n; i++ {}', 'ForStatement');
+
     expect(classic.init?.kind).toBe('VariableDeclaration');
     expect(sx(classic.condition!)).toBe('(< i n)');
     expect(classic.update?.kind).toBe('IncDecStatement');
@@ -166,6 +170,7 @@ describe('switch', () => {
       'switch cmd {\ncase "start", "run":\n  start()\ncase "stop":\n  stop()\n  break\ndefault:\n  help()\n}',
       'SwitchStatement',
     );
+
     expect(sx(node.discriminant!)).toBe('cmd');
     expect(node.cases.map((c) => c.tests.map(sx))).toEqual([['"start"', '"run"'], ['"stop"'], []]);
     expect(node.cases.map((c) => c.body.length)).toEqual([1, 2, 1]);
@@ -173,6 +178,7 @@ describe('switch', () => {
 
   it('parses switch without a discriminant', () => {
     const node = first('switch {\ncase x > 0:\n  a()\n}', 'SwitchStatement');
+
     expect(node.discriminant).toBeNull();
     expect(sx(node.cases[0]!.tests[0]!)).toBe('(> x 0)');
   });
@@ -243,6 +249,7 @@ describe('statements inside functions', () => {
 describe('error recovery', () => {
   it('reports errors in several statements and keeps parsing', () => {
     const { program, diagnostics } = parse('let = 1\nlet y = 2\nconst z = )\nfunc ok() {}');
+
     expect(diagnostics.map((d) => d.message)).toEqual([
       'expected variable name, found "="',
       'expected expression, found ")"',
@@ -254,12 +261,14 @@ describe('error recovery', () => {
     const { program, diagnostics } = parse(
       'func f() {\n  let x = (1 +\n  return 2\n}\nfunc g() {}',
     );
+
     expect(diagnostics.map((d) => d.message)).toEqual(['expected expression, found "return"']);
     expect(program.body.map((s) => s.kind)).toEqual(['FuncDeclaration', 'FuncDeclaration']);
   });
 
   it('skips a stray closing brace', () => {
     const { program, diagnostics } = parse('}\nf()');
+
     expect(diagnostics.map((d) => d.message)).toEqual(['expected expression, found "}"']);
     expect(program.body.map((s) => s.kind)).toEqual(['ExpressionStatement']);
   });
@@ -272,6 +281,7 @@ describe('error recovery', () => {
 it('parses examples/hello.mango', () => {
   const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
   const { program, diagnostics } = parse(source);
+
   expect(diagnostics).toEqual([]);
   expect(program.body.map((s) => s.kind)).toEqual([
     'InterfaceDeclaration',
