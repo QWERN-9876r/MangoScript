@@ -14,7 +14,7 @@ export interface LexResult {
 class Lexer extends MarkupLexer {
   run(): LexResult {
     if (this.text.startsWith('﻿')) this.pos = 1;
-    for (;;) {
+    while (true) {
       const mode = this.modes.at(-1);
 
       if (isMarkup(mode)) {

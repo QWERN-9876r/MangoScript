@@ -143,7 +143,7 @@ export abstract class ExpressionEmitter extends Emitter {
     let node = callee;
     let needsParens = false;
 
-    for (;;) {
+    while (true) {
       if (node.kind === 'CallExpression') {
         needsParens = true;
         break;

@@ -156,7 +156,7 @@ export abstract class LiteralParser extends ExpressionParser {
     const expressions: ast.Expression[] = [];
 
     if (first.kind === 'TemplateHead') {
-      for (;;) {
+      while (true) {
         expressions.push(this.nested(() => this.parseExpression()));
 
         const part = this.peek();

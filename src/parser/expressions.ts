@@ -36,7 +36,7 @@ export abstract class ExpressionParser extends TypeParser {
   protected parseBinary(minPrecedence: number): ast.Expression {
     let left = this.parseUnary();
 
-    for (;;) {
+    while (true) {
       const operator = this.peek().kind;
 
       if (!isBinaryOperator(operator)) return left;
@@ -108,7 +108,7 @@ export abstract class ExpressionParser extends TypeParser {
 
   /** Member access, indexing and calls: `a.b`, `a?.b`, `a[i]`, `a?.[i]`, `f(x)`, `f?.(x)`. */
   protected override parsePostfix(expression: ast.Expression): ast.Expression {
-    for (;;) {
+    while (true) {
       const start = expression.start;
 
       if (this.accept('.')) {

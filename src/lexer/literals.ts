@@ -78,7 +78,7 @@ export abstract class LiteralLexer extends LexerBase {
   protected scanDigits(pos: number, isValid: CharTest): number {
     const t = this.text;
 
-    for (;;) {
+    while (true) {
       if (isValid(t[pos])) {
         pos++;
       } else if (t[pos] === '_') {
@@ -99,7 +99,7 @@ export abstract class LiteralLexer extends LexerBase {
     let pos = start + 1;
     let value = '';
 
-    for (;;) {
+    while (true) {
       const c = t[pos];
 
       if (c === undefined || c === '\n' || c === '\r') {
@@ -137,7 +137,7 @@ export abstract class LiteralLexer extends LexerBase {
     let value = '';
     let kind: StringKind;
 
-    for (;;) {
+    while (true) {
       const c = t[pos];
 
       if (c === undefined) {

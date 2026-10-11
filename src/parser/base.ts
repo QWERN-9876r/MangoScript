@@ -247,7 +247,7 @@ export abstract class ParserBase {
     const explicitSemicolonEnds = this.peek().kind !== 'for';
     const open: TokenKind[] = [];
 
-    for (;;) {
+    while (true) {
       const token = this.next();
       const kind = token.kind;
 
