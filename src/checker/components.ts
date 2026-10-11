@@ -108,8 +108,18 @@ export abstract class ComponentChecker extends MarkupChecker {
       return UNKNOWN;
     }
 
-    // The code of a function component is not inlined here.
+    // The code of a function component is not inlined here, but that of another module may be.
     if (!info.isFunction) this.checkHygiene(info, tag);
+    for (const name of info.inline?.globals ?? []) {
+      const binding = this.lookupValue(name);
+
+      if (!binding || binding.kind === 'builtin') continue;
+      this.error(
+        `<${tag.name}> uses the global "${name}", but here it is another declaration: rename it`,
+        tag,
+      );
+      break;
+    }
 
     const given = new Set<string>();
     const spread = new Set<string>();

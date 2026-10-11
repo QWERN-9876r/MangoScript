@@ -1,6 +1,7 @@
 import type * as ast from '../ast.ts';
 import type { Wrapper } from '../decorators.ts';
 import type { Diagnostic } from '../diagnostics.ts';
+import type { InlinePackage } from '../inline-packages.ts';
 import { GLOBAL_TYPES, GLOBAL_VALUES, LIBRARY_TYPES } from './builtins.ts';
 import { type ClassInfo, type Type, type TypeParam } from './types.ts';
 
@@ -103,6 +104,12 @@ export interface ComponentInfo {
    * are names there.
    */
   result: Type | null;
+  /**
+   * For an exported component: what another module needs to inline it instead of calling it, and
+   * the types of the expressions of this module, for the code generator there.
+   */
+  inline: InlinePackage | null;
+  expressionTypes: WeakMap<ast.Expression, Type> | null;
 }
 
 export interface DecoratorInfo {

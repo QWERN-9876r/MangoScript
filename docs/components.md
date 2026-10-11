@@ -320,10 +320,10 @@ Inlining has three advantages:
   child's code ends up in the same place. So the update of its nodes simply goes into the parent's
   `$$updateCount`, with no subscriptions between components.
 
-A component from another module (`export comp`) is called for now, not inlined: its module compiles it
-to a function, see "When a component becomes a function". Inlining small components across modules
-will come with the 100-line threshold, the same choice as for the module's own. A component is not
-meant to be called from JS: the function is a detail of compilation.
+A component from another module (`export comp`) is inlined the same way when it is small, and called
+otherwise: its module compiles it to a function too, see "When a component becomes a function". The
+choice is the 100-line threshold, as for the module's own components. A component is not meant to be
+called from JS: the function is a detail of compilation.
 
 ### How updates work
 
@@ -385,15 +385,26 @@ Inlining is not always possible. In three cases the compiler makes a function of
    This is implemented, see below.
 2. **Inlining adds more than 100 extra lines.** Extra lines are the total size of all the inlined
    copies minus the size of one function and its calls. A component used once is always inlined.
+   Implemented: the module is generated again with each candidate as a function and the sizes are
+   compared; the one that saves the most goes first, since that changes the sizes of the
+   components inside it. Copies are counted in the generated code, so a small component with
+   reactive properties used in many places can pass the threshold too.
 3. **The component is exported** (`export comp`). Implemented: its module exports the function,
-   `export function $$Card(...)`, and a module that imports `Card` imports it,
-   `import { $$Card } from "./card.js"`. The code of the component stays in its module, so it uses
-   the names and the components there; the module that uses it gets only the types of its
-   properties and of what it returns.
+   `export function $$Card(...)`, which it calls itself. A module that imports `Card` either
+   imports the function, `import { $$Card } from "./card.js"`, or inlines the component by the
+   same threshold. For that, the module of `Card` exports the names its code uses under hidden
+   names, `export { PREFIX as $$Card$PREFIX }`, and the module that inlines it renames them,
+   `import { $$Card$PREFIX as $$Box$PREFIX }` for `import { Card as Box }`. The components of the
+   other module that `Card` uses are inlined with it under tags of their own (`Box$Icon`), so the
+   names of this module do not get in their way, and its decorators get prefixes of their own
+   (`$$Box$visible$shown`). The components of the other module that are functions there are
+   called. The function of an inlined component is in the other module, and the threshold counts
+   it as one copy. A component that uses components or decorators that its module imports is
+   always called: their code would need the names of a third module.
 
 Such a function is a detail of compilation: its name is internal (`$$Tree`), and only an exported
-component's is among the module's exports. It gets the properties as arguments and returns the node and a function that
-sets the properties again:
+component's is among the module's exports. It gets the properties as arguments and returns the
+node and a function that sets the properties again:
 
 ```go
 comp Tree(item Item, depth number = 0) {
@@ -939,8 +950,8 @@ body of `for`: the code of one row of the list is written there once, and no ext
    are found by the item itself, without a key. Spread of properties into a component came along.
    The test site shows the filters, the tasks and the message with `{for}` and `{if}`.
 5. **`derived` and `effect`** (`mount()` is done).
-6. **Function components** (recursion and exported components are done; the 100-line threshold is
-   not yet) **and proxies** for state that goes into unknown code.
+6. ~~**Function components**~~ (recursion, exported components and the 100-line threshold are
+   done) **and proxies** for state that goes into unknown code.
 7. **State shared by several components.**
 8. **Decorators (`dec`):** ~~public members, `get`, `mount()`, wrappers and `needs`~~ (done);
    ~~exporting decorators~~ (done); later combining them.
@@ -986,9 +997,10 @@ body of `for`: the code of one row of the list is written there once, and no ext
     through `needs`, and the one it needs must be applied above it. A decorator applied twice is an
     error. Programs cannot declare higher-order decorators: only a built-in one will combine
     decorators.
-11. **A component of another module is called, not inlined,** for now: `export comp` makes it a
-    function in its module, `export function $$Card`. Then its code needs nothing from the module
-    that uses it. Inlining small ones will come with the 100-line threshold.
+11. **A component of another module is inlined or called by the same 100-line threshold:**
+    `export comp` makes it a function in its module, `export function $$Card`, which that module
+    calls itself. Another module inlines it with the components of its module it uses, and gets the
+    names of that module through hidden exports.
 
 ## Not decided yet
 
@@ -997,7 +1009,8 @@ body of `for`: the code of one row of the list is written there once, and no ext
    them: "`Card` became a function: 140 extra lines", "`options` is wrapped in a proxy: passed to
    `confetti`".
 2. **The 100-line threshold: a constant or a setting.** I propose a constant for now, and a setting
-   (`--inline-limit`) when a real need appears.
+   (`--inline-limit`) when a real need appears. For now it is the constant `INLINE_LIMIT` in
+   `src/codegen/js.ts`.
 3. **An explicit key for `for`.** Now the blocks of a list are found by the item itself. If the
    array is replaced with new objects with the same data (loaded again from a server, for example),
    all the blocks are created again. If that becomes a problem, a key can be added, for example

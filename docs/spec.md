@@ -890,14 +890,16 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
 - **Properties are read-only.** To change the parent's state, pass a function property.
 - **There is no component in JS:** its code is inlined as a block where it is used, and the values
   of the attributes are computed before that block. The exceptions are recursive and exported
-  components, see below.
+  components, see below, and large ones: a component whose copies would add more than 100 lines
+  compared to a function and its calls is compiled to a function.
 - **Recursive components** (a tree, nested comments) are not inlined but compiled to a function.
   Some use on the cycle must be under a condition (`if`, `for`, a branch of `?:`), or the recursion
   never ends: that is a compile error.
 - **Exported components** (`export comp Card`) are imported by name,
   `import { Card } from "./card.mango"`, and used as tags. Their module compiles them to functions,
-  `export function $$Card(...)`, which the module that uses them calls: the code of a component
-  stays in its module, with its names and components.
+  `export function $$Card(...)`. The module that uses one calls it, or inlines it by the same
+  100-line threshold, with the components of its module that it uses; the names of that module
+  come through hidden exports, `export { PREFIX as $$Card$PREFIX }`.
 - **Not supported yet:** `derived` and `effect`.
 
 **State.** `state` declares a variable that the markup depends on. It is declared like `let`, but

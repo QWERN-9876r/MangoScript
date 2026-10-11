@@ -1,6 +1,6 @@
 import type * as ast from './ast.ts';
-import { type CopyListener, declaredIn, renamer } from './decorator-copy.ts';
-import { freeNames, mentionsName } from './names.ts';
+import { type CopyListener, renamer } from './decorator-copy.ts';
+import { declaredIn, freeNames, mentionsName, topLevelNames } from './names.ts';
 import { containsReturn } from './recursion.ts';
 import { forEachChild } from './walk.ts';
 
@@ -93,14 +93,7 @@ export interface DecoratorSource {
  * through hidden exports: `export { log as $$visible$log }`.
  */
 export function moduleNamesOf(decorator: ast.DecoratorDeclaration, program: ast.Program): string[] {
-  const topLevel = new Set(declaredIn(program.body));
-
-  for (const statement of program.body) {
-    if (statement.kind !== 'ImportDeclaration') continue;
-    if (statement.defaultImport) topLevel.add(statement.defaultImport.name);
-    if (statement.namespaceImport) topLevel.add(statement.namespaceImport.name);
-    for (const specifier of statement.namedImports) topLevel.add(specifier.local.name);
-  }
+  const topLevel = topLevelNames(program);
 
   return [...freeNames(decorator)].filter((name) => topLevel.has(name)).sort();
 }
@@ -123,11 +116,15 @@ interface AppliedWrapper {
  * A wrapper is inlined at every `return` too: `return <section />` becomes
  * `const $$visible$content = <section />`, then the body of the wrapper, whose `return` is the
  * component's. The wrappers apply from the bottom decorator up.
+ *
+ * `prefixes` replace the names of decorators in the prefixes: a module that inlines a component of
+ * another one keeps the decorators of that module apart from its own, `$$Card$visible$shown`.
  */
 export function decorate(
   component: ast.ComponentDeclaration,
   decorators: ReadonlyMap<string, DecoratorSource>,
   copied?: CopyListener,
+  prefixes?: ReadonlyMap<string, string>,
 ): ast.ComponentDeclaration {
   if (component.decorators.length === 0) return component;
 
@@ -142,12 +139,14 @@ export function decorate(
     if (!source) continue;
 
     const decorator = source.node;
+    const prefix = prefixes?.get(decorator.name.name) ?? decorator.name.name;
     const names = [...decoratorNames(decorator), ...source.moduleNames];
-    const renames = membersOf(decorator, names);
-    const copy = renamer(renames, copied);
+    const renames = membersOf(prefix, names);
+    const copy = renamer(renames, copied, { decorators: prefixes });
 
     decorator.params.forEach((param, i) => {
-      const value = use.arguments[i] ?? param.defaultValue;
+      // A default value is the decorator's code, an argument the component's.
+      const value = use.arguments[i] ?? (param.defaultValue && copy(param.defaultValue, new Set()));
       const declaration: ast.VariableDeclaration = {
         kind: 'VariableDeclaration',
         exported: false,
@@ -178,7 +177,7 @@ export function decorate(
     }
 
     mounts.push(own);
-    if (wrapper) wrappers.push(applyWrapper(source, wrapper, copied));
+    if (wrapper) wrappers.push(applyWrapper(source, wrapper, copied, prefix, prefixes));
   }
 
   const inside = mounts.reverse().flat();
@@ -205,14 +204,11 @@ export function decoratorNames(decorator: ast.DecoratorDeclaration): Set<string>
   return new Set(names.filter((name) => name !== '_'));
 }
 
-function membersOf(
-  decorator: ast.DecoratorDeclaration,
-  names: Iterable<string>,
-): Map<string, string> {
+function membersOf(prefix: string, names: Iterable<string>): Map<string, string> {
   const renames = new Map<string, string>();
 
   for (const name of names) {
-    if (name !== '_') renames.set(name, decoratedName(decorator.name.name, name));
+    if (name !== '_') renames.set(name, decoratedName(prefix, name));
   }
 
   return renames;
@@ -226,10 +222,12 @@ function applyWrapper(
   source: DecoratorSource,
   wrapper: Wrapper,
   copied: CopyListener | undefined,
+  prefix: string,
+  prefixes: ReadonlyMap<string, string> | undefined,
 ): AppliedWrapper {
   const names = [...decoratorNames(source.node), ...source.moduleNames, ...wrapperNames(wrapper)];
-  const renames = membersOf(source.node, names);
-  const copy = renamer(renames, copied);
+  const renames = membersOf(prefix, names);
+  const copy = renamer(renames, copied, { decorators: prefixes });
   const { name } = wrapper.param;
 
   return {

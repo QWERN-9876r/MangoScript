@@ -1,5 +1,7 @@
 import type * as ast from '../ast.ts';
 import { decoratedName, moduleNamesOf } from '../decorators.ts';
+import { inlinePackages } from '../inline-packages.ts';
+import { packageExports } from './imported.ts';
 import { ControlStatementEmitter } from './control-statements.ts';
 import { ARROW, POSTFIX } from './syntax.ts';
 
@@ -7,6 +9,7 @@ import { ARROW, POSTFIX } from './syntax.ts';
  * Imports and classes; with the layers below, all statements and declarations. A decorator of
  * another module is not a value, but its code uses names of its module: the import brings them
  * under hidden names, `import { $$visible$log } from "./visible.js"`, which that module exports.
+ * So does an inlined component of another module; a called one brings its function, `$$Card`.
  */
 
 export abstract class StatementEmitter extends ControlStatementEmitter {
@@ -31,14 +34,17 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
         return specifier.imported.name === local ? local : `${specifier.imported.name} as ${local}`;
       });
 
+    const hidden = (exported: string, local: string) =>
+      named.push(exported === local ? exported : `${exported} as ${local}`);
+
     for (const specifier of node.namedImports) {
       const component = this.options.components?.get(specifier.local.name);
+      const inlined = this.inlinedImports.get(specifier.local.name);
 
-      if (component) {
-        const fn = `$$${component.name.name}`;
-        const local = this.functionNames.get(component)!;
-
-        named.push(fn === local ? fn : `${fn} as ${local}`);
+      if (inlined) {
+        for (const [exported, local] of inlined.imports) hidden(exported, local);
+      } else if (component) {
+        hidden(`$$${component.node.name.name}`, this.functionNames.get(component.node)!);
       }
 
       const decorator = this.options.decorators?.get(specifier.local.name);
@@ -63,19 +69,34 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
     );
   }
 
-  /** `export { log as $$visible$log }`: the names that an exported decorator uses. */
+  /**
+   * `export { log as $$visible$log }`: the names of the module that the code of exported
+   * decorators uses, and that of exported components when other modules inline them.
+   */
   protected hiddenExports(): void {
+    const exports = new Map<string, string>();
+
     for (const statement of this.program.body) {
       if (statement.kind !== 'DecoratorDeclaration' || !statement.exported) continue;
-
-      const names = moduleNamesOf(statement, this.program).map(
-        (name) => `${this.name(name)} as ${decoratedName(statement.name.name, name)}`,
-      );
-
-      if (names.length === 0) continue;
-      this.blankLine();
-      this.line(`export { ${names.join(', ')} };`);
+      for (const name of moduleNamesOf(statement, this.program)) {
+        exports.set(decoratedName(statement.name.name, name), this.name(name));
+      }
     }
+
+    for (const [exported, local] of packageExports(inlinePackages(this.program), (name) =>
+      this.name(name),
+    )) {
+      exports.set(exported, local);
+    }
+
+    if (exports.size === 0) return;
+
+    const names = [...exports].map(([exported, local]) =>
+      exported === local ? exported : `${local} as ${exported}`,
+    );
+
+    this.blankLine();
+    this.line(`export { ${names.join(', ')} };`);
   }
 
   protected importPath(source: ast.StringLiteral): string {

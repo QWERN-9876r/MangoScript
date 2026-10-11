@@ -36,7 +36,9 @@ export func components() Node {
         </p>
         <p>
             Components do not exist in JS: every use is replaced by the component's code. The
-            {" "}<b>JavaScript</b> tab shows only the elements being created.
+            {" "}<b>JavaScript</b> tab shows only the elements being created. When the copies of
+            a component would add more than 100 lines to a function and its calls, the component
+            becomes a function instead.
         </p>
         {example("components")}
         <p>
@@ -51,8 +53,8 @@ export func components() Node {
         <p>
             A component exported with <code>export comp</code> is imported by its name, as in
             {" "}<code>{'import { Card } from "./card.mango"'}</code>, and used as a tag. Its module
-            compiles it to a function too, which the other modules call: its code stays in its own
-            module.
+            compiles it to a function, which other modules call, or inline it when it is small,
+            by the same 100 lines.
         </p>
     </>
 }

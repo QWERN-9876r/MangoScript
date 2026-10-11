@@ -2,6 +2,7 @@ import type * as ast from './ast.ts';
 import { check, type ImportResult, type Library } from './checker/checker.ts';
 import type { Type } from './checker/types.ts';
 import type { ImportedDecorator } from './codegen/emitter.ts';
+import type { ImportedComponent } from './codegen/imported.ts';
 import { generateJs } from './codegen/js.ts';
 import { printDeclarations } from './declarations.ts';
 import type { Diagnostic } from './diagnostics.ts';
@@ -73,17 +74,17 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
 
 /**
  * What the module imports from other `.mango` modules for the generator: decorators, whose code is
- * inlined, and components, which those modules export as functions.
+ * inlined, and components, which are called or inlined.
  */
 function importedCode(
   program: ast.Program,
   importModule: CoreCompileOptions['importModule'],
 ): {
   decorators: Map<string, ImportedDecorator>;
-  components: Map<string, ast.ComponentDeclaration>;
+  components: Map<string, ImportedComponent>;
 } {
   const found = new Map<string, ImportedDecorator>();
-  const components = new Map<string, ast.ComponentDeclaration>();
+  const components = new Map<string, ImportedComponent>();
 
   for (const statement of program.body) {
     if (statement.kind !== 'ImportDeclaration' || !statement.source.value.endsWith('.mango')) {
@@ -97,7 +98,13 @@ function importedCode(
     for (const specifier of statement.namedImports) {
       const component = exports?.components?.get(specifier.imported.name);
 
-      if (component) components.set(specifier.local.name, component.node);
+      if (component) {
+        components.set(specifier.local.name, {
+          node: component.node,
+          inline: component.inline,
+          types: component.expressionTypes,
+        });
+      }
 
       const info = decorators?.get(specifier.imported.name);
 

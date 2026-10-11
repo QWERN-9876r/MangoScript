@@ -83,6 +83,7 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
   ): string {
     const name = component.name.name;
     const isFunction = this.functionComponents.has(component);
+    const start = this.lines.length;
 
     if (!isFunction) this.line(`// <${name}>`);
 
@@ -157,6 +158,13 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
     const code = resolveMarkers(this.placeSetters(block, result), reactive);
 
     this.line(label ? `${label}: ${code}` : code);
+
+    const copy = this.lines.slice(start).join('\n').split('\n').length;
+    // By the tag: a component of another module has one of its own here.
+    const tag = node.tag?.name ?? name;
+    const inlined = this.inlined.get(tag) ?? { copies: 0, lines: 0 };
+
+    this.inlined.set(tag, { copies: inlined.copies + 1, lines: inlined.lines + copy });
 
     return result;
   }

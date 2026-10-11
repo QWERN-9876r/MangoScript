@@ -101,6 +101,8 @@ export abstract class DeclarationChecker extends CheckerBase {
             decorators: [],
             expanded: statement,
             result: null,
+            inline: null,
+            expressionTypes: null,
           };
 
           this.declareValue(statement.name, 'component', UNKNOWN).component = info;

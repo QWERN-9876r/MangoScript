@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
 import { decorate, type DecoratorSource } from '../decorators.ts';
 import { htmlTagName } from '../html-tag.ts';
+import { type ImportedComponent, type LocalizedPackage, localize } from './imported.ts';
 import { assignedNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
 import { forEachChild } from '../walk.ts';
@@ -18,8 +19,10 @@ export interface JsOptions {
   types?: WeakMap<ast.Expression, Type> | undefined;
   /** Decorators imported from other modules, by name: their code is inlined here. */
   decorators?: ReadonlyMap<string, ImportedDecorator> | undefined;
-  /** Components imported from other modules, by name: their modules export them as functions. */
-  components?: ReadonlyMap<string, ast.ComponentDeclaration> | undefined;
+  /** Components imported from other modules, by name: called, or inlined when they are small. */
+  components?: ReadonlyMap<string, ImportedComponent> | undefined;
+  /** Components of the module that become functions, since inlining them adds too many lines. */
+  functions?: ReadonlySet<string> | undefined;
 }
 
 /** A decorator of another module, with the types of the expressions of that module. */
@@ -84,10 +87,16 @@ export abstract class Emitter {
   protected readonly webComponents = new Map<string, ast.ComponentDeclaration>();
   /** The JS functions of components of other modules: `$$Card`, imported from their modules. */
   protected readonly functionNames = new Map<ast.ComponentDeclaration, string>();
+  /** The inlined copies of each component and the lines they take, to choose functions (js.ts). */
+  readonly inlined = new Map<string, { copies: number; lines: number }>();
   /** The decorators that components of the module apply, by name. */
   protected readonly appliedDecorators = new Set<string>();
   /** Copies of the code of other modules: their positions are in the sources of those. */
   private readonly foreign = new WeakSet<ast.Node>();
+  /** Components of other modules inlined here, by name, with what their packages bring. */
+  protected readonly inlinedImports = new Map<string, LocalizedPackage>();
+  /** Components a package brings: they have no function here, so they are always inlined. */
+  readonly alwaysInlined = new Set<string>();
 
   constructor(program: ast.Program, options: JsOptions) {
     this.program = program;
@@ -110,18 +119,24 @@ export abstract class Emitter {
       forEachChild(node, collect);
     };
 
-    for (const each of imported) collect(each.node);
+    const sources = [...imported, ...(options.components?.values() ?? [])];
 
-    // Copies of the decorators' code keep the types of the originals, from their own modules.
+    for (const each of imported) collect(each.node);
+    for (const each of options.components?.values() ?? []) {
+      for (const node of each.inline?.components.values() ?? []) collect(node);
+      for (const source of each.inline?.decorators.values() ?? []) collect(source.node);
+    }
+
+    // Copies of other modules' code keep the types of the originals, from their own modules.
     const { types } = options;
     const keepType = (copy: ast.Node, original: ast.Node) => {
       const expression = original as ast.Expression;
       const type =
         types?.get(expression) ??
-        imported.map((each) => each.types?.get(expression)).find((each) => each !== undefined);
+        sources.map((each) => each.types?.get(expression)).find((each) => each !== undefined);
 
       if (type) types?.set(copy as ast.Expression, type);
-      if (originals.has(original)) this.foreign.add(copy);
+      if (originals.has(original) || this.foreign.has(original)) this.foreign.add(copy);
     };
 
     for (const statement of program.body) {
@@ -131,6 +146,35 @@ export abstract class Emitter {
         this.components.set(statement.name.name, decorate(statement, decorators, keepType));
       }
     }
+
+    // A small component of another module is inlined, unless generateJs chose to call it.
+    for (const [name, component] of options.components ?? []) {
+      if (!component.inline || options.functions?.has(name)) continue;
+
+      const localized = localize(name, component, keepType);
+
+      this.inlinedImports.set(name, localized);
+      for (const [tag, node] of localized.inline) {
+        this.components.set(tag, node);
+        if (tag !== name) this.alwaysInlined.add(tag);
+      }
+    }
+
+    // Nodes of other modules that were not copied, as names that are not renamed, keep their types.
+    const fill = (node: ast.Node): void => {
+      const expression = node as ast.Expression;
+
+      if (!types!.has(expression)) {
+        const type = sources.map((each) => each.types?.get(expression)).find(Boolean);
+
+        if (type) types!.set(expression, type);
+      }
+
+      forEachChild(node, fill);
+    };
+
+    if (types && sources.length > 0)
+      for (const component of this.components.values()) fill(component);
 
     this.assigned = assignedNames(program);
     for (const component of this.components.values()) assignedNames(component, this.assigned);
@@ -146,11 +190,24 @@ export abstract class Emitter {
       this.webComponents.set(htmlTagName(component), component);
     }
 
-    // A component of another module is called, never inlined: its code uses the names there.
-    for (const [name, component] of options.components ?? []) {
-      this.components.set(name, component);
-      this.functionNames.set(component, `$$${name}`);
-      functionComponents.add(component);
+    for (const name of options.functions ?? []) {
+      const component = this.components.get(name);
+
+      if (component) functionComponents.add(component);
+    }
+
+    // Other components of other modules are called: their functions are imported.
+    const called: [string, { node: ast.ComponentDeclaration; name: string }][] = [
+      ...(options.components ?? []),
+    ]
+      .filter(([name]) => !this.inlinedImports.has(name))
+      .map(([name, component]) => [name, { node: component.node, name: `$$${name}` }]);
+
+    for (const localized of this.inlinedImports.values()) called.push(...localized.functions);
+    for (const [tag, { node, name }] of called) {
+      this.components.set(tag, node);
+      this.functionNames.set(node, name);
+      functionComponents.add(node);
     }
 
     this.functionComponents = functionComponents;

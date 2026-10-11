@@ -12,6 +12,7 @@ import { mountJsWithDom } from './fake-dom.ts';
 // module, with its names and components.
 
 const card = `const PREFIX = "#"
+const MOUNTED = "mounted"
 
 comp Icon(name string) {
     return <input value={PREFIX + name} />
@@ -37,7 +38,7 @@ dec counter() {
     }
 
     mount() {
-        console.log("mounted")
+        console.log(MOUNTED)
     }
 }
 
@@ -55,9 +56,15 @@ export comp Tree(item Item) {
 
 const app = `import { Card as Box, Clicker, Tree } from "./card.mango"
 
+// A decorator of the same name as the one Clicker has in its module.
+dec counter() {
+    public state clicks = 100
+}
+
+@counter
 comp App() {
     state count = 1
-    return <div>
+    return <div title={\`\${get(@counter.clicks)}\`}>
         <button onClick={count++}>+</button>
         <Box title="a" count={count}><p>inside</p></Box>
         <Clicker />
@@ -105,6 +112,17 @@ describe('types', () => {
     ]);
   });
 
+  it('does not let the code here hide the global names the component may bring', () => {
+    // Clicker's decorator calls console.log, and the component may be inlined here.
+    expect(
+      errors(
+        'import { Clicker } from "./card.mango"\nfunc f() {\n    const console = 1\n    const c = <Clicker />\n}',
+      ),
+    ).toEqual([
+      '<Clicker> uses the global "console", but here it is another declaration: rename it',
+    ]);
+  });
+
   it('gives a use the type its module finds, whatever the names are here', () => {
     expect(
       errors(`import { Field } from "./card.mango"
@@ -117,20 +135,57 @@ const input HTMLInputElement = <Field name="a" />`),
 });
 
 describe('generated code', () => {
-  it('exports the function of the component and calls it where it is used', () => {
-    const dir = project({ 'card.mango': card, 'main.mango': app });
-    const exporter = compileIn(dir, 'card.mango');
-    const user = compileIn(dir, 'main.mango');
+  it('exports the function of the component and what inlining it needs', () => {
+    const exporter = compileIn(project({ 'card.mango': card }), 'card.mango');
 
     expect(exporter.diagnostics).toEqual([]);
     expect(exporter.code).toContain('export function $$Card(title, count = 0, children) {');
     // A component that is not exported is inlined into the function, in its module.
     expect(exporter.code).not.toContain('$$Icon');
+    expect(exporter.code).toContain(
+      'export { PREFIX as $$Card$PREFIX, PREFIX as $$Field$PREFIX, MOUNTED as $$counter$MOUNTED };',
+    );
+  });
+
+  it('inlines small components of other modules and calls the others', () => {
+    const user = compileIn(project({ 'card.mango': card, 'main.mango': app }), 'main.mango');
+
     expect(user.diagnostics).toEqual([]);
     expect(user.code).toMatch(
-      /^import \{ \$\$Card as \$\$Box, \$\$Clicker, \$\$Tree \} from "\.\/card\.js";$/m,
+      /^import \{ \$\$Card\$PREFIX as \$\$Box\$PREFIX, \$\$counter\$MOUNTED as \$\$Clicker\$counter\$MOUNTED, \$\$Tree \} from "\.\/card\.js";$/m,
     );
-    expect(user.code).toContain('= $$Box("a", count, $$children');
+    expect(user.code).toContain('  // <Card>\n');
+    expect(user.code).toContain('$$Box$PREFIX + name');
+    // Tree is recursive: its module has a function for it.
+    expect(user.code).toContain('= $$Tree(');
+  });
+
+  it('calls a component of another module when its copies would add too many lines', () => {
+    const uses = Array.from({ length: 8 }, (_, i) => `<Box title="${i}" count={count} />`);
+    const main = `import { Card as Box } from "./card.mango"
+comp App() {
+    state count = 1
+    return <div onClick={count++}>${uses.join('')}</div>
+}
+document.body.append(<App />)
+`;
+    const user = compileIn(project({ 'card.mango': card, 'main.mango': main }), 'main.mango');
+
+    expect(user.code).toMatch(/^import \{ \$\$Card as \$\$Box \} from "\.\/card\.js";$/m);
+    expect(user.code).not.toContain('// <Card>');
+  });
+
+  it('keeps the components of the other module apart from those here', () => {
+    const main = `import { Field } from "./card.mango"
+comp Icon() {
+    return <p />
+}
+document.body.append(<Field name="a" />, <Icon />)
+`;
+    const user = compileIn(project({ 'card.mango': card, 'main.mango': main }), 'main.mango');
+
+    expect(user.code).toContain('document.createElement("input")');
+    expect(user.code).toContain('document.createElement("p")');
   });
 });
 

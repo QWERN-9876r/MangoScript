@@ -6,9 +6,46 @@ import { HELPER_NEEDS, HELPERS, type Helper } from './helpers.ts';
 
 export type { JsOptions } from './emitter.ts';
 
-/** Generates a readable ES module from a program that has parsed without errors. */
+/** A component whose inlined copies add more lines than this to its module becomes a function. */
+export const INLINE_LIMIT = 100;
+
+/**
+ * Generates a readable ES module from a program that has parsed without errors. A component is
+ * inlined where it is used, unless that adds more than INLINE_LIMIT lines compared to a function
+ * and its calls. The module is generated again with each such candidate as a function, and the one
+ * that saves the most goes first: that changes the sizes of the components inside it. A component
+ * of another module is a candidate too; its function is in that module, and counts as one copy.
+ */
 export function generateJs(program: ast.Program, options: JsOptions): string {
-  return new JsGenerator(program, options).generate();
+  const functions = new Set<string>();
+  const generate = (names: ReadonlySet<string>) => {
+    const generator = new JsGenerator(program, { ...options, functions: names });
+    const code = generator.generate();
+    const lines = code.split('\n').filter((line) => line.trim() !== '').length;
+
+    return { code, lines, generator };
+  };
+  let current = generate(functions);
+
+  while (true) {
+    let best: (ReturnType<typeof generate> & { name: string; saved: number }) | null = null;
+    const { inlined, alwaysInlined } = current.generator;
+
+    for (const [name, { copies, lines }] of inlined) {
+      // A function and its calls are larger than one copy, and save no more than the copies take.
+      if (copies < 2 || lines <= INLINE_LIMIT || alwaysInlined.has(name)) continue;
+
+      const trial = generate(new Set([...functions, name]));
+      const own = options.components?.has(name) ? Math.ceil(lines / copies) : 0;
+      const saved = current.lines - trial.lines - own;
+
+      if (saved > INLINE_LIMIT && (!best || saved > best.saved)) best = { ...trial, name, saved };
+    }
+
+    if (!best) return current.code;
+    functions.add(best.name);
+    current = best;
+  }
 }
 
 /** The whole module: its statements, plus the helpers that its code needs. */

@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { inlinePackages, type InlinePackage } from '../inline-packages.ts';
 import type { ModuleExports } from './context.ts';
 import { DeclarationChecker } from './declarations.ts';
 import { isSuperCall, assignsField } from './helpers.ts';
@@ -223,6 +224,8 @@ export abstract class ClassChecker extends DeclarationChecker {
       if (exported) exports[kind].set(name, type);
     };
 
+    let packages: Map<string, InlinePackage> | undefined;
+
     for (const statement of this.program.body) {
       switch (statement.kind) {
         case 'FuncDeclaration':
@@ -250,6 +253,9 @@ export abstract class ClassChecker extends DeclarationChecker {
           const info = this.moduleScope.values.get(statement.name.name)?.component;
 
           if (statement.exported && info?.node === statement) {
+            info.inline =
+              (packages ??= inlinePackages(this.program)).get(info.node.name.name) ?? null;
+            info.expressionTypes = this.checkedTypes;
             exports.components!.set(statement.name.name, info);
           }
 

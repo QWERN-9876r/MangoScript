@@ -1,26 +1,11 @@
 import type * as ast from './ast.ts';
+import { declaredIn } from './names.ts';
 
-// Copies of a decorator's code for the components it is applied to, with its names renamed.
+// Copies of code that goes elsewhere, with its names renamed: of a decorator, for the components it
+// is applied to, and of a component of another module, for the module that inlines it.
 
 /** Called with each copy of a node, so that the generator keeps the types of the originals. */
 export type CopyListener = (copy: ast.Node, original: ast.Node) => void;
-
-/** Names declared directly in a list of statements: they hide outer names in the whole block. */
-export function declaredIn(statements: readonly ast.Statement[]): string[] {
-  return statements.flatMap((statement) => {
-    switch (statement.kind) {
-      case 'VariableDeclaration':
-        return statement.names.map((name) => name.name);
-
-      case 'FuncDeclaration':
-      case 'ClassDeclaration':
-        return [statement.name.name];
-
-      default:
-        return [];
-    }
-  });
-}
 
 const TYPE_NODES: ReadonlySet<string> = new Set([
   'TypeReference',
@@ -40,12 +25,22 @@ function isNode(value: unknown): value is ast.Node {
 }
 
 /**
- * Copies nodes of a decorator, renaming its names where a local declaration does not hide them.
- * Names of properties, attributes, tags and types are left as they are.
+ * Renames of the names that are not values: tags of components, `<Icon />`, and decorators,
+ * `get(@visible.shown)`. Code of another module refers to those of its own module.
+ */
+export interface OtherNames {
+  tags?: ReadonlyMap<string, string>;
+  decorators?: ReadonlyMap<string, string>;
+}
+
+/**
+ * Copies nodes, renaming names where a local declaration does not hide them. Names of properties,
+ * attributes and types are left as they are, and so are tags and decorators without `other`.
  */
 export function renamer(
   renames: ReadonlyMap<string, string>,
   copied: CopyListener | undefined,
+  other: OtherNames = {},
 ): <T extends ast.Node>(node: T, hidden: ReadonlySet<string>) => T {
   const done = <T extends ast.Node>(copy: T, original: ast.Node): T => {
     copied?.(copy, original);
@@ -81,8 +76,13 @@ export function renamer(
     if (TYPE_NODES.has(node.kind)) return original;
     switch (node.kind) {
       // The names of `@cart.count` are the other decorator's.
-      case 'DecoratorMember':
-        return original;
+      case 'DecoratorMember': {
+        const name = other.decorators?.get(node.decorator.name);
+
+        return name === undefined
+          ? original
+          : done({ ...node, decorator: { ...node.decorator, name } } as T, node);
+      }
 
       case 'Identifier': {
         const name = hidden.has(node.name) ? undefined : renames.get(node.name);
@@ -104,15 +104,19 @@ export function renamer(
       case 'JsxAttribute':
         return done({ ...node, value: node.value && copy(node.value, hidden) } as T, node);
 
-      case 'ElementExpression':
+      case 'ElementExpression': {
+        const name = node.tag && other.tags?.get(node.tag.name);
+
         return done(
           {
             ...node,
+            tag: name ? { ...node.tag!, name } : node.tag,
             attributes: node.attributes.map((attribute) => copy(attribute, hidden)),
             children: node.children.map((child) => copy(child, hidden)),
           } as T,
           node,
         );
+      }
 
       case 'MethodDeclaration': {
         const inner = scoped(paramNames(node.params), hidden);

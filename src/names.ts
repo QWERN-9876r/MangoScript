@@ -175,3 +175,34 @@ export function freeNames(component: {
 
   return new Set([...used].filter((name) => !declared.has(name)));
 }
+
+/** Names declared directly in a list of statements: they hide outer names in the whole block. */
+export function declaredIn(statements: readonly ast.Statement[]): string[] {
+  return statements.flatMap((statement) => {
+    switch (statement.kind) {
+      case 'VariableDeclaration':
+        return statement.names.map((name) => name.name);
+
+      case 'FuncDeclaration':
+      case 'ClassDeclaration':
+        return [statement.name.name];
+
+      default:
+        return [];
+    }
+  });
+}
+
+/** Names declared at the top level of a module, imports included: what its code can use. */
+export function topLevelNames(program: ast.Program): Set<string> {
+  const names = new Set(declaredIn(program.body));
+
+  for (const statement of program.body) {
+    if (statement.kind !== 'ImportDeclaration') continue;
+    if (statement.defaultImport) names.add(statement.defaultImport.name);
+    if (statement.namespaceImport) names.add(statement.namespaceImport.name);
+    for (const specifier of statement.namedImports) names.add(specifier.local.name);
+  }
+
+  return names;
+}
