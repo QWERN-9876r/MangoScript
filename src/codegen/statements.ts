@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { decoratedName, moduleNamesOf } from '../decorators.ts';
-import { inlinePackages } from '../inline-packages.ts';
+import { inlinePackages, type InlinePackage } from '../inline-packages.ts';
 import { packageExports } from './imported.ts';
 import { ControlStatementEmitter } from './control-statements.ts';
 import { ARROW, POSTFIX } from './syntax.ts';
@@ -53,6 +53,11 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
       for (const name of decorator.moduleNames) {
         named.push(decoratedName(decorator.node.name.name, name));
       }
+
+      for (const [exported, local] of this.decoratorImports.get(specifier.local.name)?.imports ??
+        []) {
+        hidden(exported, local);
+      }
     }
 
     if (named.length > 0) clauses.push(`{ ${named.join(', ')} }`);
@@ -83,10 +88,15 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
       }
     }
 
-    for (const [exported, local] of packageExports(inlinePackages(this.program), (name) =>
-      this.name(name),
-    )) {
-      exports.set(exported, local);
+    const packages = inlinePackages(this.program);
+    const decorators = [...packages.decorators].filter(
+      (entry): entry is [string, InlinePackage] => entry[1] !== null,
+    );
+
+    for (const found of [packages.components, new Map(decorators)]) {
+      for (const [exported, local] of packageExports(found, (name) => this.name(name))) {
+        exports.set(exported, local);
+      }
     }
 
     if (exports.size === 0) return;

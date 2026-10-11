@@ -123,7 +123,7 @@ export interface DecoratorInfo {
   /** Names from the module that the decorator's code uses, computed when first needed. */
   freeNames: Set<string> | null;
   /** `return (content Element) => ...`, with the type of what it gets from the component. */
-  wrapper: { node: Wrapper; param: Type } | null;
+  wrapper: { node: Wrapper; param: Type; result: Type | null } | null;
   /** The decorators after `needs` that exist; they are applied above it. */
   needed: DecoratorInfo[];
   /**
@@ -132,6 +132,8 @@ export interface DecoratorInfo {
    */
   moduleNames: string[];
   expressionTypes: WeakMap<ast.Expression, Type> | null;
+  /** For an exported decorator: the components of its module that its code uses. */
+  inline: InlinePackage | null;
 }
 
 export interface PublicMember {

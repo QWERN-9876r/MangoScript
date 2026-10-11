@@ -122,6 +122,7 @@ export abstract class DeclarationChecker extends CheckerBase {
             needed: [],
             moduleNames: [],
             expressionTypes: null,
+            inline: null,
           };
 
           if (this.decorators.has(name)) {

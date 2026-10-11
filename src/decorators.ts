@@ -86,6 +86,8 @@ export function wrapperNames(wrapper: Wrapper): string[] {
 export interface DecoratorSource {
   node: ast.DecoratorDeclaration;
   moduleNames: readonly string[];
+  /** For one of another module: the tags here of the components of that module its code uses. */
+  tags?: ReadonlyMap<string, string> | undefined;
 }
 
 /**
@@ -142,7 +144,7 @@ export function decorate(
     const prefix = prefixes?.get(decorator.name.name) ?? decorator.name.name;
     const names = [...decoratorNames(decorator), ...source.moduleNames];
     const renames = membersOf(prefix, names);
-    const copy = renamer(renames, copied, { decorators: prefixes });
+    const copy = renamer(renames, copied, { decorators: prefixes, tags: source.tags });
 
     decorator.params.forEach((param, i) => {
       // A default value is the decorator's code, an argument the component's.
@@ -227,7 +229,7 @@ function applyWrapper(
 ): AppliedWrapper {
   const names = [...decoratorNames(source.node), ...source.moduleNames, ...wrapperNames(wrapper)];
   const renames = membersOf(prefix, names);
-  const copy = renamer(renames, copied, { decorators: prefixes });
+  const copy = renamer(renames, copied, { decorators: prefixes, tags: source.tags });
   const { name } = wrapper.param;
 
   return {

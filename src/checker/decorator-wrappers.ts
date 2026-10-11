@@ -18,7 +18,7 @@ export abstract class DecoratorWrapperChecker extends ComponentChecker {
     const node = wrapperOf(info.node);
     const type = node?.param.type;
 
-    info.wrapper = node && { node, param: type ? this.resolveType(type) : UNKNOWN };
+    info.wrapper = node && { node, param: type ? this.resolveType(type) : UNKNOWN, result: null };
   }
 
   /** The `return` of a decorator's body, once the body is checked. */
@@ -123,6 +123,9 @@ export abstract class DecoratorWrapperChecker extends ComponentChecker {
 
   /** What a wrapper gives, found without checking it again, like the markup of a component. */
   protected wrapperResult(wrapper: WrapperInfo, seen: Set<ComponentInfo>): Type {
+    // That of an exported decorator was found in its module, where its tags are names.
+    if (wrapper.result) return wrapper.result;
+
     const end = wrapperBody(wrapper.node.fn).at(-1);
     const [value] = end?.kind === 'ReturnStatement' ? end.values : [];
 

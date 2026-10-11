@@ -1,10 +1,7 @@
-import type * as ast from '../ast.ts';
 import { moduleNamesOf } from '../decorators.ts';
 import { assignedNames } from '../names.ts';
-import { forEachChild } from '../walk.ts';
 import type { DecoratorInfo } from './context.ts';
 import { DecoratorWrapperChecker } from './decorator-wrappers.ts';
-import { lookupIn } from './helpers.ts';
 
 // Exported decorators, `export dec visible() { ... }`. Other modules inline their code, which uses
 // the names of this module through hidden exports, `export { log as $$visible$log }`; so the code
@@ -40,24 +37,16 @@ export abstract class DecoratorExportChecker extends DecoratorWrapperChecker {
       );
     }
 
-    this.checkExportedMarkup(name, node.body);
-  }
+    // Its code goes into components elsewhere with the components of this module that it uses.
+    info.inline = this.modulePackages().decorators.get(name) ?? null;
+    if (info.inline === null) {
+      this.error(
+        `@${name} is exported, so its code and the components it uses cannot use components or decorators that this module imports yet`,
+        node.name,
+      );
+    }
 
-  /** The tags in a decorator inlined elsewhere would be names of that module, not of this one. */
-  private checkExportedMarkup(decorator: string, body: ast.BlockStatement): void {
-    const visit = (node: ast.Node): void => {
-      const tag = node.kind === 'ElementExpression' ? node.tag : null;
-
-      if (tag && lookupIn(this.moduleScope, tag.name)?.component) {
-        this.error(
-          `@${decorator} is exported, so it cannot use the component ${tag.name}: components in decorators of other modules are not supported yet`,
-          tag,
-        );
-      }
-
-      forEachChild(node, visit);
-    };
-
-    visit(body);
+    // The type of what its wrapper gives: the tags of its markup are names of this module.
+    if (info.wrapper) info.wrapper.result = this.wrapperResult(info.wrapper, new Set());
   }
 }

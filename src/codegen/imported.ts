@@ -19,6 +19,8 @@ export interface ImportedComponent {
 
 /** An inlined component of another module, with the components it brings, by their tags here. */
 export interface LocalizedPackage {
+  /** The tags here of the components of the other module. */
+  tags: Map<string, string>;
   inline: Map<string, ast.ComponentDeclaration>;
   /** Components it calls, with the names of their functions here. */
   functions: Map<string, { node: ast.ComponentDeclaration; name: string }>;
@@ -26,14 +28,16 @@ export interface LocalizedPackage {
   imports: [string, string][];
 }
 
-/** The package of a component imported as `name`, ready to be inlined here. */
+/**
+ * The package of a component or a decorator `root` of another module, ready to be inlined here.
+ * `name` is the prefix of its names here: the name it is imported as.
+ */
 export function localize(
   name: string,
-  imported: ImportedComponent,
+  root: string,
+  found: InlinePackage,
   copied: CopyListener,
 ): LocalizedPackage {
-  const found = imported.inline!;
-  const root = imported.node.name.name;
   const tag = (other: string) => (other === root ? name : `${name}$${other}`);
   const tags = new Map(
     [...found.components.keys(), ...found.functions.keys()].map((other) => [other, tag(other)]),
@@ -75,7 +79,7 @@ export function localize(
     ]),
   ];
 
-  return { inline, functions, imports };
+  return { tags, inline, functions, imports };
 }
 
 /**

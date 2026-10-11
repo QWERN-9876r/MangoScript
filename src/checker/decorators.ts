@@ -3,7 +3,7 @@ import { freeNames } from '../names.ts';
 import { forEachChild } from '../walk.ts';
 import type { ComponentInfo, DecoratorInfo, PublicMember, Scope } from './context.ts';
 import { DecoratorExportChecker } from './decorator-exports.ts';
-import { ownStatements } from './helpers.ts';
+import { lookupIn, ownStatements } from './helpers.ts';
 import { func, UNKNOWN } from './types.ts';
 
 // Decorators: their parameters, needs and bodies, and the decorators applied to a component with
@@ -237,9 +237,31 @@ export abstract class DecoratorChecker extends DecoratorExportChecker {
     const params = new Set(info.node.params.map((param) => param.name.name));
 
     // Those of another module come through hidden exports, under names of their own.
-    const hidden = this.importedDecorators.has(decorator) ? decorator.moduleNames : [];
+    const imported = this.importedDecorators.has(decorator);
+    const hidden = imported ? decorator.moduleNames : [];
 
     decorator.freeNames ??= freeNames(decorator.node);
+
+    // The global names that the code of another module uses, its components' too, stay global.
+    const globals = imported
+      ? [...decorator.freeNames].filter((used) => !hidden.includes(used))
+      : [];
+
+    for (const used of [...globals, ...(decorator.inline?.globals ?? [])]) {
+      const binding = lookupIn(this.moduleScope, used);
+
+      if (!declared.has(used) && !params.has(used) && (!binding || binding.kind === 'builtin')) {
+        continue;
+      }
+
+      this.error(
+        `@${name} uses the global "${used}", but here it is another declaration: rename it`,
+        use,
+      );
+
+      return;
+    }
+
     for (const used of decorator.freeNames) {
       if (hidden.includes(used)) continue;
       if (declared.has(used) || params.has(used)) {

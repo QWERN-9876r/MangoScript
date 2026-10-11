@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import type { Type } from '../checker/types.ts';
 import { decorate, type DecoratorSource } from '../decorators.ts';
 import { htmlTagName } from '../html-tag.ts';
+import type { InlinePackage } from '../inline-packages.ts';
 import { type ImportedComponent, type LocalizedPackage, localize } from './imported.ts';
 import { assignedNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
@@ -28,6 +29,8 @@ export interface JsOptions {
 /** A decorator of another module, with the types of the expressions of that module. */
 export interface ImportedDecorator extends DecoratorSource {
   types: WeakMap<ast.Expression, Type> | null;
+  /** The components of that module its code uses, which go with it into the components here. */
+  inline: InlinePackage | null;
 }
 
 /** How a function implements its `defer` statements. */
@@ -95,6 +98,8 @@ export abstract class Emitter {
   private readonly foreign = new WeakSet<ast.Node>();
   /** Components of other modules inlined here, by name, with what their packages bring. */
   protected readonly inlinedImports = new Map<string, LocalizedPackage>();
+  /** The components that decorators of other modules bring, by the names of the decorators. */
+  protected readonly decoratorImports = new Map<string, LocalizedPackage>();
   /** Components a package brings: they have no function here, so they are always inlined. */
   readonly alwaysInlined = new Set<string>();
 
@@ -122,7 +127,7 @@ export abstract class Emitter {
     const sources = [...imported, ...(options.components?.values() ?? [])];
 
     for (const each of imported) collect(each.node);
-    for (const each of options.components?.values() ?? []) {
+    for (const each of sources) {
       for (const node of each.inline?.components.values() ?? []) collect(node);
       for (const source of each.inline?.decorators.values() ?? []) collect(source.node);
     }
@@ -139,6 +144,21 @@ export abstract class Emitter {
       if (originals.has(original) || this.foreign.has(original)) this.foreign.add(copy);
     };
 
+    // The components that a decorator of another module uses come with it, under tags of their own.
+    for (const [name, decorator] of options.decorators ?? []) {
+      if (!decorator.inline || !this.appliedDecorators.has(name)) continue;
+
+      // Its members cannot hide the names its components use: the checker of its module sees to it.
+      const localized = localize(name, name, decorator.inline, keepType);
+
+      this.decoratorImports.set(name, localized);
+      decorators.set(name, { ...decorator, tags: localized.tags });
+      for (const [tag, node] of localized.inline) {
+        this.components.set(tag, node);
+        this.alwaysInlined.add(tag);
+      }
+    }
+
     for (const statement of program.body) {
       if (statement.kind === 'TypeAliasDeclaration') {
         this.typeAliases.set(statement.name.name, statement.type);
@@ -151,7 +171,7 @@ export abstract class Emitter {
     for (const [name, component] of options.components ?? []) {
       if (!component.inline || options.functions?.has(name)) continue;
 
-      const localized = localize(name, component, keepType);
+      const localized = localize(name, component.node.name.name, component.inline, keepType);
 
       this.inlinedImports.set(name, localized);
       for (const [tag, node] of localized.inline) {
@@ -173,8 +193,9 @@ export abstract class Emitter {
       forEachChild(node, fill);
     };
 
-    if (types && sources.length > 0)
+    if (types && sources.length > 0) {
       for (const component of this.components.values()) fill(component);
+    }
 
     this.assigned = assignedNames(program);
     for (const component of this.components.values()) assignedNames(component, this.assigned);
@@ -203,7 +224,10 @@ export abstract class Emitter {
       .filter(([name]) => !this.inlinedImports.has(name))
       .map(([name, component]) => [name, { node: component.node, name: `$$${name}` }]);
 
-    for (const localized of this.inlinedImports.values()) called.push(...localized.functions);
+    for (const localized of [...this.inlinedImports.values(), ...this.decoratorImports.values()]) {
+      called.push(...localized.functions);
+    }
+
     for (const [tag, { node, name }] of called) {
       this.components.set(tag, node);
       this.functionNames.set(node, name);

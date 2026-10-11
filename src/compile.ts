@@ -113,6 +113,7 @@ function importedCode(
         node: info.node,
         moduleNames: info.moduleNames,
         types: info.expressionTypes,
+        inline: info.inline,
       });
     }
   }

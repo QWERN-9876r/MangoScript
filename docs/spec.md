@@ -1102,8 +1102,9 @@ comp Clicker(label string) {
   and the names of its own module that it uses come through hidden exports:
   `export { log as $$counter$log }` in its module, `import { $$counter$log } from "./counter.js"`
   where it is applied. So an exported decorator cannot assign the variables of its module (other
-  modules can only read them) and cannot use its components yet, and the decorators it needs are
-  exported too.
+  modules can only read them), and the decorators it needs are exported too. The components of
+  its module that its code uses go with it, like those of an inlined component of another module;
+  they cannot use components or decorators that their module imports yet.
 - Not yet: renaming a decorator on import, `return` inside the `if` or `for` of a wrapper, and
   combining decorators.
 

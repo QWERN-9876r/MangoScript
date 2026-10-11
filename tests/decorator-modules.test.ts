@@ -84,7 +84,7 @@ describe('types', () => {
       '@badge needs @counter above it: @counter @badge comp ...',
       'unknown decorator @counter',
     ]);
-    // Global names are not renamed, so the component must not hide them.
+    // Global names are not renamed, so the component and its module must not hide them.
     expect(
       errorsIn(
         {
@@ -93,9 +93,16 @@ describe('types', () => {
         },
         'main.mango',
       ),
-    ).toEqual([
-      '@greet uses "console" of the module, but A declares its own "console": rename one of them',
-    ]);
+    ).toEqual(['@greet uses the global "console", but here it is another declaration: rename it']);
+    expect(
+      errorsIn(
+        {
+          'greet.mango': 'export dec greet() {\n    console.log("hi")\n}\n',
+          'main.mango': `import { greet } from "./greet.mango"\nconst console = 1\n@greet\ncomp A() {\n    return <p />\n}`,
+        },
+        'main.mango',
+      ),
+    ).toEqual(['@greet uses the global "console", but here it is another declaration: rename it']);
     expect(
       errorsIn(
         { 'a.mango': 'dec hidden() {\n}\n', 'main.mango': 'import { hidden } from "./a.mango"' },
@@ -113,13 +120,101 @@ describe('types', () => {
     expect(errors('let total = 0\nexport dec a() {\n    total++\n}')).toEqual([
       '@a is exported, so it cannot change "total" of its module: other modules can only read it; change it in a function of the module',
     ]);
+    // Its components go with it, but not those of a third module.
     expect(
-      errors(
-        'comp Missing() {\n    return <p />\n}\nexport dec a() {\n    return (c Element) => <div>{c}<Missing /></div>\n}',
+      errorsIn(
+        {
+          'badge.mango': 'export comp Badge() {\n    return <b />\n}\n',
+          'a.mango':
+            'import { Badge } from "./badge.mango"\nexport dec a() {\n    return (c Element) => <div>{c}<Badge /></div>\n}\n',
+        },
+        'a.mango',
       ),
     ).toEqual([
-      '@a is exported, so it cannot use the component Missing: components in decorators of other modules are not supported yet',
+      '@a is exported, so its code and the components it uses cannot use components or decorators that this module imports yet',
     ]);
+  });
+});
+
+const marked = `const MARK = "*"
+
+comp Badge(text string) {
+    return <b>{MARK}{text}</b>
+}
+
+type Item { name string; children []Item }
+
+comp Tree(item Item) {
+    return <ul>{item.name}{for child in item.children { <Tree item={child} /> }}</ul>
+}
+
+export dec marked(label string) {
+    state open = true
+
+    public func toggle() {
+        open = !open
+    }
+
+    return (content Element) => <div>
+        <Badge text={label} />
+        {open ? content : null}
+        <Tree item={{ name: label, children: [] }} />
+    </div>
+}
+`;
+
+const page = `import { marked } from "./marked.mango"
+
+comp Badge() {
+    return <i>mine</i>
+}
+
+@marked("new")
+comp Page() {
+    return <p onClick={@marked.toggle()}>page</p>
+}
+
+document.body.append(<Page />, <Badge />)
+`;
+
+describe('components in decorators', () => {
+  it('brings the components of the decorator with its code', () => {
+    const dir = project({ 'marked.mango': marked, 'main.mango': page });
+    const exporter = compileIn(dir, 'marked.mango');
+    const user = compileIn(dir, 'main.mango');
+
+    expect(exporter.diagnostics).toEqual([]);
+    expect(exporter.code).toContain('export { MARK as $$marked$MARK, $$Tree };');
+    expect(user.diagnostics).toEqual([]);
+    expect(user.code).toMatch(
+      /^import \{ \$\$marked\$MARK, \$\$Tree as \$\$marked\$Tree \} from "\.\/marked\.js";$/m,
+    );
+  });
+
+  it('works when Vite bundles the modules', async () => {
+    const dir = project({
+      'index.html': '<script type="module" src="./main.mango"></script>',
+      'marked.mango': marked,
+      'main.mango': page,
+    });
+
+    await build({
+      configFile: false,
+      root: dir,
+      logLevel: 'silent',
+      plugins: [mango()],
+      build: { outDir: join(dir, 'dist'), minify: false, modulePreload: { polyfill: false } },
+    });
+
+    const assets = join(dir, 'dist', 'assets');
+    const [bundle] = readdirSync(assets).filter((name) => name.endsWith('.js'));
+    const { body } = mountJsWithDom(readFileSync(join(assets, bundle!), 'utf8'));
+
+    expect(String(body)).toBe(
+      '<body><div><b>*new</b><p>page</p><ul>new</ul></div><i>mine</i></body>',
+    );
+    body.find('p').click();
+    expect(String(body)).toBe('<body><div><b>*new</b><ul>new</ul></div><i>mine</i></body>');
   });
 });
 

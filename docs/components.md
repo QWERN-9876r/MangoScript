@@ -810,8 +810,10 @@ decorator's state include the component's markup that reads it. The wrapper's ma
 around the result of the component. There are no decorator objects and no runtime. A decorator of
 another module uses the names of its module through hidden exports, `export { log as $$visible$log }`
 there and `import { $$visible$log }` where it is applied; so it cannot assign the variables of its
-module. Components in its code are not supported yet: their tags would be names of the module that
-applies it.
+module. The components of its module that its code uses go with it, as with an inlined component
+of another module: those that are functions there are called, the others are inlined under tags of
+their own, `<visible$Spinner />`. They cannot use components or decorators that their module
+imports yet.
 
 **Later:** a built-in higher-order decorator will combine several decorators into one. A program
 cannot declare higher-order decorators of its own.
