@@ -37,8 +37,17 @@ comp DocsPage(sections []Section) {
         location.assign(t.otherHref + location.hash)
     }
 
-    window.addEventListener("scroll", updateActive, { passive: true })
-    window.addEventListener("load", updateActive)
+    // The listeners of the window live while the page is in the document. Images and fonts can
+    // move the sections after the first check, so it is done again on load.
+    mount() {
+        updateActive()
+        window.addEventListener("scroll", updateActive, { passive: true })
+        window.addEventListener("load", updateActive)
+        return () => {
+            window.removeEventListener("scroll", updateActive)
+            window.removeEventListener("load", updateActive)
+        }
+    }
 
     return <>
         <header class="topbar">
