@@ -3,9 +3,9 @@
 **English** · [Русский](components.ru.md)
 
 > Status: implemented are elements, components, `state`, `bind:`, `if` / `for` / `switch` in markup
-> (stages 1–4), recursive components, early returns, `mount()`, web components (`@html-tag`) and
-> decorators (`dec`); `derived` and `effect` are not yet. The decisions
-> made are collected at the end of the document, together with what is not decided yet.
+> (stages 1–4), recursive components, early returns, `mount()`, web components (`@html-tag`),
+> decorators (`dec`), `derived` and `effect`. The decisions made are collected at the end of the
+> document, together with what is not decided yet.
 
 ## Goals
 
@@ -951,7 +951,9 @@ body of `for`: the code of one row of the list is written there once, and no ext
    `@if` / `@for ... key`, ordinary `if` / `for` / `switch` inside `{...}`, and the blocks of a list
    are found by the item itself, without a key. Spread of properties into a component came along.
    The test site shows the filters, the tasks and the message with `{for}` and `{if}`.
-5. **`derived` and `effect`** (`mount()` is done).
+5. ~~**`derived` and `effect`**~~ (done, with `mount()`). An effect runs once the markup is created
+   and again after the updates of what it reads while it runs; one after an early `return` does
+   not run again, like the markup there.
 6. ~~**Function components**~~ (recursion, exported components and the 100-line threshold are
    done) **and proxies** for state that goes into unknown code.
 7. **State shared by several components.**

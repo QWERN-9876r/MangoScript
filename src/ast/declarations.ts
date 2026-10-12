@@ -114,7 +114,7 @@ export interface DecoratorUse extends NodeBase {
 export interface VariableDeclaration extends NodeBase {
   kind: 'VariableDeclaration';
   exported: boolean;
-  keyword: 'let' | 'const' | 'state';
+  keyword: 'let' | 'const' | 'state' | 'derived';
   /** `public state` or `public const` in a decorator: the component reads it with `get(@name.x)`. */
   isPublic: boolean;
   /** `_` is an ordinary identifier here; the checker treats it as "skip this value". */

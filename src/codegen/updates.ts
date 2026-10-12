@@ -32,6 +32,18 @@ export abstract class UpdateEmitter extends StatementEmitter {
       return;
     }
 
+    // The body itself runs before the markup exists, but the derived values it changes stay right.
+    if (reactive && this.fn === reactive.setup && this.rendering === 0) {
+      const changed = reactive.writtenBy(node, (expression) => this.typeOf(expression));
+
+      super.statement(node);
+      for (const source of changed) {
+        for (const computation of source.computations) this.line(computation);
+      }
+
+      return;
+    }
+
     const written = this.changedBy(node);
 
     if (written.length === 0) {
@@ -160,9 +172,9 @@ export function resolveMarkers(block: string, reactive: Reactive): string {
   );
 }
 
-/** The update statements that a place changing the source needs. */
+/** The update statements that a place changing the source needs, the computations first. */
 export function needed(source: Source, write: Write): string[] {
-  return source.dependents.filter((_, i) => i !== write.skip);
+  return [...source.computations, ...source.dependents.filter((_, i) => i !== write.skip)];
 }
 
 /** One place changes the source, after the markup exists, and needs one update statement. */

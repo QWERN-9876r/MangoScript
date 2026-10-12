@@ -106,19 +106,19 @@ export abstract class StatementParser extends SimpleStatementParser {
       this.fail(`"${token.text}" is not a MangoScript keyword: ${hint}`);
     }
 
-    if (this.isStateDeclaration()) {
-      this.fail(
-        this.context.inComponent
-          ? 'state is declared at the top level of a component, not inside blocks or functions'
-          : 'state can only be declared inside a component',
-      );
-    }
+    const misplaced = this.isStateDeclaration()
+      ? this.peek().text
+      : this.isMountDeclaration()
+        ? 'mount()'
+        : this.isEffectDeclaration()
+          ? 'effect'
+          : null;
 
-    if (this.isMountDeclaration()) {
+    if (misplaced !== null) {
       this.fail(
         this.context.inComponent
-          ? 'mount() is declared at the top level of a component, not inside blocks or functions'
-          : 'mount() can only be declared inside a component',
+          ? `${misplaced} is declared at the top level of a component, not inside blocks or functions`
+          : `${misplaced} can only be declared inside a component`,
       );
     }
 
@@ -203,9 +203,19 @@ export abstract class StatementParser extends SimpleStatementParser {
     this.fail(`expected newline or ";" after statement, found ${describe(token)}`);
   }
 
-  /** `state count = 0`: `state` is a keyword only at the start of a statement in a component. */
+  /**
+   * `state count = 0` or `derived double = count * 2`: `state` and `derived` are keywords only at
+   * the start of a statement in a component.
+   */
   protected isStateDeclaration(): boolean {
-    return this.checkWord('state') && this.peek(1).kind === 'Identifier';
+    return (
+      (this.checkWord('state') || this.checkWord('derived')) && this.peek(1).kind === 'Identifier'
+    );
+  }
+
+  /** `effect {`: like `state`, a keyword only at the start of a statement in a component. */
+  protected isEffectDeclaration(): boolean {
+    return this.checkWord('effect') && this.peek(1).kind === '{';
   }
 
   /** `mount() {`: like `state`, a keyword only at the start of a statement in a component. */
@@ -228,6 +238,14 @@ export abstract class StatementParser extends SimpleStatementParser {
     const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () => this.parseBlock());
 
     return { kind: 'MountStatement', body, ...this.span(start) };
+  }
+
+  /** `effect { ... }`: its body runs again later, so `return` and `defer` are its own. */
+  protected parseEffect(): ast.EffectStatement {
+    const { start } = this.next();
+    const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () => this.parseBlock());
+
+    return { kind: 'EffectStatement', body, ...this.span(start) };
   }
 
   protected parseBlock(): ast.BlockStatement {

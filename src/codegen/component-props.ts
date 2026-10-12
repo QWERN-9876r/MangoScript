@@ -3,7 +3,7 @@ import { spreadFields } from '../checker/types.ts';
 import { declaredNames } from '../names.ts';
 import { isConstant, isSimple, rootName } from './analysis.ts';
 import { ControlFlowEmitter } from './control-flow.ts';
-import { Reactive, type Live, type Source } from './reactive.ts';
+import { Reactive, type Live, type Source, updatesOf } from './reactive.ts';
 import { ARROW, indentMore, lowerFirst, POSTFIX, upperFirst } from './syntax.ts';
 import { type EarlyReturns, withoutTrailingUndefined } from './component-helpers.ts';
 
@@ -75,7 +75,7 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
       // `$$card$price`, an argument of a decorator, is updated by `$$updateCard$price3`.
       const update = `$$update${upperFirst(sourceName.replace(/^\$\$/, ''))}${id}`;
 
-      return { id, name: sourceName, kind, update, dependents: [], writes: [] };
+      return { id, name: sourceName, kind, update, computations: [], dependents: [], writes: [] };
     });
   }
 
@@ -97,8 +97,9 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     const dependents = new Set<string>();
 
     for (const prop of props) {
-      for (const dependent of reactive.sources.get(prop)?.dependents ?? [])
-        dependents.add(dependent);
+      const source = reactive.sources.get(prop);
+
+      for (const dependent of source ? updatesOf(source) : []) dependents.add(dependent);
     }
 
     return this.block(() => {
@@ -122,9 +123,9 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     const dependents = new Set<string>();
 
     for (const param of props) {
-      for (const dependent of reactive.sources.get(param.name.name)?.dependents ?? []) {
-        dependents.add(dependent);
-      }
+      const source = reactive.sources.get(param.name.name);
+
+      for (const dependent of source ? updatesOf(source) : []) dependents.add(dependent);
     }
 
     const setter = this.block(() => {

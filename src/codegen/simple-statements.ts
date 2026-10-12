@@ -33,6 +33,9 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
   /** `mount() { ... }` of a component (see ComponentEmitter). */
   protected abstract mountStatement(node: ast.MountStatement): void;
 
+  /** `effect { ... }` of a component (see FunctionEmitter). */
+  protected abstract effectStatement(node: ast.EffectStatement): void;
+
   /** `const link = <a>...</a>`: creates the element right in the variable; see ElementEmitter. */
   protected abstract elementDeclaration(declaration: string, node: ast.ElementExpression): void;
 
@@ -99,7 +102,8 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
 
         if (node.names.length === 1 && value?.kind === 'ElementExpression' && name?.name !== '_') {
           const exported = node.exported ? 'export ' : '';
-          const keyword = node.keyword === 'state' ? 'let' : node.keyword;
+          const keyword =
+            node.keyword === 'state' || node.keyword === 'derived' ? 'let' : node.keyword;
 
           this.elementDeclaration(`${exported}${keyword} ${this.name(name!.name)}`, value);
           break;
@@ -195,13 +199,18 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       case 'MountStatement':
         this.mountStatement(node);
         break;
+
+      case 'EffectStatement':
+        this.effectStatement(node);
+        break;
     }
   }
 
   /** `let a, b = 1, 2` → `let a = 1, b = 2`; `const q, err = f()` → `const [q, err] = f()`. */
   protected variableDeclaration(node: ast.VariableDeclaration): string {
-    // A state variable is an ordinary variable; updates are added where it changes.
-    const keyword = node.keyword === 'state' ? 'let' : node.keyword;
+    // A state variable is an ordinary variable; updates are added where it changes. A derived one
+    // is computed again by them.
+    const keyword = node.keyword === 'state' || node.keyword === 'derived' ? 'let' : node.keyword;
 
     if (node.values.length === 0) {
       const zero = node.type ? this.zeroValue(node.type) : null;

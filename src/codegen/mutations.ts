@@ -65,9 +65,61 @@ export function readNames(node: ast.Node, names: Set<string>): void {
     // Both run later, when the markup exists.
     case 'EventHandler':
     case 'MountStatement':
+    case 'EffectStatement':
       return;
 
     default:
       forEachChild(node, (child) => readNames(child, names));
+  }
+}
+
+/**
+ * Names an effect reads while it runs: not in the functions it creates, which run later, nor in
+ * its `defer`, nor the variables it writes, or `count++` would run it again.
+ */
+export function effectReads(node: ast.Node, names: Set<string>): void {
+  switch (node.kind) {
+    case 'FuncDeclaration':
+    case 'FuncExpression':
+    case 'ArrowFunction':
+    case 'ClassDeclaration':
+    case 'DeferStatement':
+      return;
+
+    case 'AssignmentStatement':
+      for (const target of node.targets) {
+        if (target.kind !== 'Identifier') effectReads(target, names);
+      }
+
+      for (const value of node.values) effectReads(value, names);
+
+      return;
+
+    case 'IncDecStatement':
+      if (node.target.kind !== 'Identifier') effectReads(node.target, names);
+
+      return;
+
+    case 'Identifier':
+    case 'DecoratorMember':
+    case 'ElementExpression':
+    case 'JsxAttribute':
+    case 'EventHandler':
+      readNames(node, names);
+
+      return;
+
+    case 'MemberExpression':
+      effectReads(node.object, names);
+
+      return;
+
+    case 'Property':
+      effectReads(node.value, names);
+
+      return;
+
+    default:
+      forEachChild(node, (child) => effectReads(child, names));
   }
 }

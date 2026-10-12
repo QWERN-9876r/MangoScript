@@ -65,6 +65,7 @@ export type BindingKind =
   | 'let'
   | 'const'
   | 'state'
+  | 'derived'
   | 'param'
   | 'prop'
   | 'function'
@@ -188,6 +189,7 @@ export const NARROWABLE: ReadonlySet<BindingKind> = new Set([
   'let',
   'const',
   'state',
+  'derived',
   'param',
   'prop',
   'catch',

@@ -167,8 +167,15 @@
           }
         },
         {
-          "comment": "`state` is a keyword only at the start of a statement, followed by a name; a decorator's may be `public state`.",
-          "match": "^\\s*(?:(public)\\s+)?(state)(?=\\s+[A-Za-z_$])",
+          "comment": "`effect {` in a component, like `mount() {`.",
+          "match": "^\\s*(effect)(?=\\s*\\{)",
+          "captures": {
+            "1": { "name": "storage.type.effect.mango" }
+          }
+        },
+        {
+          "comment": "`state` and `derived` are keywords only at the start of a statement, followed by a name; a decorator's state may be `public state`.",
+          "match": "^\\s*(?:(public)\\s+)?(state|derived)(?=\\s+[A-Za-z_$])",
           "captures": {
             "1": { "name": "storage.modifier.mango" },
             "2": { "name": "storage.type.state.mango" }

@@ -162,6 +162,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
 
     case 'DeferStatement':
     case 'MountStatement':
+    case 'EffectStatement':
       visit(node.body);
       break;
 
@@ -346,6 +347,7 @@ export function containsBreak(statements: readonly ast.Statement[]): boolean {
       case 'ArrowFunction':
       case 'ClassDeclaration':
       case 'MountStatement':
+      case 'EffectStatement':
         return;
 
       default:

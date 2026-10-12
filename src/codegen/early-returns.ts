@@ -2,14 +2,30 @@ import type * as ast from '../ast.ts';
 import { isWrappedContent } from '../decorators.ts';
 import { ComponentPropsEmitter } from './component-props.ts';
 import type { Live, Reactive } from './reactive.ts';
-import { Block } from './reactive.ts';
+import { effectReads } from './mutations.ts';
+import { Block, updatesOf } from './reactive.ts';
 import { ARROW, indentMore } from './syntax.ts';
 import { inlinesUpdate, needed } from './updates.ts';
 import { type EarlyReturns, type Ending, SETTERS } from './component-helpers.ts';
 
 /** The markup a component returns, with early returns, update functions and setters of properties. */
 
+/** `effect { ... }` of the component being written: its function and the list of its cleanups. */
+interface Effect {
+  name: string;
+  node: ast.EffectStatement;
+  cleanups: string | null;
+}
+
 export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
+  /**
+   * The effects of the component being written. One after an early return may not be created, so
+   * it does not run again on changes, like the markup there.
+   */
+  private effects: (Effect & { live: boolean; registered: boolean })[] = [];
+  /** Whether an early return of the component has been written. */
+  protected returnedEarly = false;
+
   /**
    * The updates of the markup a component gives to the wrappers of its decorators, after an early
    * return: they go into the view of the `return` that follows, with the wrappers' markup.
@@ -25,6 +41,8 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
       earlyReturns: this.earlyReturns,
       mountNode: this.mountNode,
       wrapped: this.wrapped,
+      effects: this.effects,
+      returnedEarly: this.returnedEarly,
     };
 
     this.reactive = reactive.sources.size > 0 ? reactive : null;
@@ -33,6 +51,8 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
     this.earlyReturns = null;
     this.mountNode = mountNode;
     this.wrapped = null;
+    this.effects = [];
+    this.returnedEarly = false;
     try {
       return emit();
     } finally {
@@ -42,6 +62,27 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
       this.earlyReturns = saved.earlyReturns;
       this.mountNode = saved.mountNode;
       this.wrapped = saved.wrapped;
+      this.effects = saved.effects;
+      this.returnedEarly = saved.returnedEarly;
+    }
+  }
+
+  protected addEffect(effect: Effect): void {
+    this.effects.push({ ...effect, live: !this.returnedEarly, registered: false });
+  }
+
+  /**
+   * An effect runs again after the updates of what it reads, so it is added after the markup, when
+   * the update functions are not written yet.
+   */
+  protected registerEffects(): void {
+    const { reactive } = this;
+
+    if (!reactive) return;
+    for (const effect of this.effects) {
+      if (effect.registered || !effect.live) continue;
+      effect.registered = true;
+      reactive.depend(reactive.dependencies(effect.node.body, effectReads), `${effect.name}();`);
     }
   }
 
@@ -57,12 +98,23 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
   }
 
   /**
-   * After the markup of a component with `mount()` is created, before anything inserts it: its
-   * first node. A fragment is empty once inserted, so its first child is taken now.
+   * After the markup of a component is created, before anything inserts it: the first node for
+   * `mount()` (a fragment is empty once inserted, so its first child is taken now), and the first
+   * run of the effects, whose cleanups also run when the component is removed.
    */
-  protected captureMountNode(result: string): void {
-    if (!this.mountNode) return;
-    this.line(`${this.mountNode} = ${result}?.nodeType === 11 ? ${result}.firstChild : ${result};`);
+  protected markupCreated(result: string): void {
+    if (this.mountNode) {
+      this.line(
+        `${this.mountNode} = ${result}?.nodeType === 11 ? ${result}.firstChild : ${result};`,
+      );
+    }
+
+    for (const effect of this.effects) {
+      this.line(`${effect.name}();`);
+      if (effect.cleanups === null) continue;
+      this.helpers.add('owner');
+      this.line(`$$onRemove(() => $$runDeferred(${effect.cleanups}.splice(0)));`);
+    }
   }
 
   /** Declarations that every return needs, written before the statements of the body. */
@@ -101,7 +153,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
         this.line(`${result} = ${this.expression(value, ARROW)};`);
       }
 
-      this.captureMountNode(result);
+      this.markupCreated(result);
 
       return;
     }
@@ -116,6 +168,8 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
         ? this.create(value, block)
         : this.expression(value, ARROW);
 
+    this.registerEffects();
+
     if (block.statements.length > 0) {
       const body = this.block(() => {
         for (const statement of block.statements) this.line(indentMore(statement));
@@ -126,7 +180,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
     }
 
     this.line(`${result} = ${root};`);
-    this.captureMountNode(result);
+    this.markupCreated(result);
   }
 
   /** The last `return` of a component with early returns, then the updates and the setters. */
@@ -186,7 +240,9 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
       if (source.kind !== 'state' || !called || inlinesUpdate(source)) continue;
 
       const body = this.block(() => {
-        // A function of the body may change the state while the markup is being created.
+        // Derived values are computed again even before the markup exists, which a function of
+        // the body may change the state before.
+        for (const computation of source.computations) this.line(indentMore(computation));
         if (source.writes.some((write) => write.early)) this.line(`if (!${result}) return;`);
         for (const dependent of source.dependents) this.line(indentMore(dependent));
       });
@@ -213,7 +269,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
         this.line(`${result} = ${this.expression(value, ARROW)};`);
       }
 
-      this.captureMountNode(result);
+      this.markupCreated(result);
       if (ending.kind === 'function') this.line(`return [${result}];`);
 
       return;
@@ -224,6 +280,8 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
         ? this.create(value, reactive)
         : this.expression(value, ARROW);
 
+    this.registerEffects();
+
     let functions = 0;
     const setters = ending.kind === 'inline' ? ending.setters : new Map<string, string>();
 
@@ -232,7 +290,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
       const param = `$$${prop}`;
       const body = this.block(() => {
         this.line(`${this.name(prop)} = ${param};`);
-        for (const dependent of source.dependents) this.line(indentMore(dependent));
+        for (const dependent of updatesOf(source)) this.line(indentMore(dependent));
       });
 
       this.blankLine();
@@ -243,7 +301,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
     functions += this.updateFunctions(result, reactive);
     if (functions > 0) this.blankLine();
     this.line(`${result} = ${root};`);
-    this.captureMountNode(result);
+    this.markupCreated(result);
     if (ending.kind === 'function') this.functionResult(result, reactive, ending.props);
   }
 }

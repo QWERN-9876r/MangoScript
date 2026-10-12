@@ -40,20 +40,61 @@ export abstract class FunctionEmitter extends WebComponentEmitter {
     });
   }
 
-  /** A `defer` in 'stack' mode; in 'try' mode they are handled by statementsWithDefers. */
+  /**
+   * `effect { ... }` becomes a function, `$$effect5`, which runs once the markup is created and
+   * again after the updates of what it reads (see EarlyReturnEmitter). What it defers is run before
+   * it runs again, and when `{if}`, `{switch}` or `{for}` removes the component.
+   */
+  protected override effectStatement(node: ast.EffectStatement): void {
+    const id = this.nextId();
+    const name = `$$effect${id}`;
+    const cleanups = findDefers(node.body).length > 0 ? `$$cleanups${id}` : null;
+
+    this.inHandler++;
+    try {
+      const body = this.withRendering(0, () =>
+        cleanups === null ? this.func([], node.body)[1] : this.effectBody(node.body, cleanups),
+      );
+
+      if (cleanups !== null) this.line(`const ${cleanups} = [];`);
+      this.line(`const ${name} = () => ${body};`);
+    } finally {
+      this.inHandler--;
+    }
+
+    this.addEffect({ name, node, cleanups });
+  }
+
+  private effectBody(body: ast.BlockStatement, cleanups: string): string {
+    return this.withFunction('effect', [], () => {
+      this.fn.deferList = cleanups;
+      this.helpers.add('runDeferred');
+
+      return this.block(() =>
+        this.withScope(declarationsOf(body.body), () => {
+          this.line(`$$runDeferred(${cleanups}.splice(0));`);
+          this.statements(body.body);
+        }),
+      );
+    });
+  }
+
+  /** A `defer` in 'stack' and 'effect' modes; in 'try' mode statementsWithDefers handles them. */
   protected override deferStatement(node: ast.DeferStatement): void {
     const { body } = node;
 
     if (body.kind === 'BlockStatement') {
       const block = this.block(() => this.blockStatements(body.body));
 
-      this.line(`$$defer.push(() => ${block});`);
+      this.line(`${this.fn.deferList}.push(() => ${block});`);
 
       return;
     }
 
     // Temporaries for the arguments go into a block so that each loop iteration gets its own.
-    const lines = this.capture(() => this.line(`$$defer.push(() => ${this.deferredCall(body)});`));
+    const lines = this.capture(() =>
+      this.line(`${this.fn.deferList}.push(() => ${this.deferredCall(body)});`),
+    );
 
     if (lines.length === 1) this.line(lines[0]!.trimStart());
     else this.line(`{\n${lines.join('\n')}\n${this.indent()}}`);
@@ -155,6 +196,8 @@ export abstract class FunctionEmitter extends WebComponentEmitter {
       case 'Identifier': {
         const kind = this.lookup(node.name);
 
+        // A derived value is computed again by the updates, not by the code.
+        if (kind === 'derived') return false;
         if (kind === 'let' || kind === 'state' || kind === 'param' || kind === 'catch') {
           return !this.assigned.has(node.name);
         }

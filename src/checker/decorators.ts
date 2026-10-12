@@ -137,7 +137,7 @@ export abstract class DecoratorChecker extends DecoratorExportChecker {
       } else if (
         statement.kind === 'VariableDeclaration' &&
         statement.isPublic &&
-        statement.keyword !== 'let'
+        (statement.keyword === 'state' || statement.keyword === 'const')
       ) {
         for (const name of statement.names) add(name, statement.keyword);
       }
@@ -319,6 +319,7 @@ function bodyNames(body: ast.BlockStatement): Set<string> {
       case 'ArrowFunction':
       case 'EventHandler':
       case 'MountStatement':
+      case 'EffectStatement':
         return;
 
       case 'ForInStatement':

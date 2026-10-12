@@ -1,0 +1,19 @@
+// derived is a value computed from state: it is computed again when the state changes,
+// before the markup that reads it is updated
+comp Basket() {
+    state prices []number = [3, 2]
+    derived total = prices.reduce((sum, price) => sum + price, 0)
+    derived note = total > 10 ? "That is a lot of mangoes" : "There is room for more"
+
+    // effect runs once the markup is created, and again when what it reads changes
+    effect {
+        console.log("total:", total)
+    }
+
+    return <div>
+        <button onClick={prices.push(3)}>Add a mango</button>
+        <p>{prices.length} fruits for {total}. {note}</p>
+    </div>
+}
+
+document.body.append(<Basket />)

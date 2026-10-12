@@ -63,6 +63,7 @@ export function componentUses(component: ast.ComponentDeclaration): ComponentUse
       case 'ArrowFunction':
       case 'EventHandler':
       case 'MountStatement':
+      case 'EffectStatement':
       case 'ClassDeclaration':
       case 'Parameter':
         visitChildren(true);
@@ -104,6 +105,7 @@ export function containsReturn(statement: ast.Statement): boolean {
       case 'EventHandler':
       case 'ClassDeclaration':
       case 'MountStatement':
+      case 'EffectStatement':
         return;
 
       default:
@@ -221,6 +223,7 @@ export function returnedMarkup(component: ast.ComponentDeclaration): ast.Express
       case 'EventHandler':
       case 'ClassDeclaration':
       case 'MountStatement':
+      case 'EffectStatement':
         return;
 
       default:

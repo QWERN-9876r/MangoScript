@@ -75,8 +75,9 @@ null  true  false  typeof  instanceof
 
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
 too, in `import` and `export` so is `from`, at the start of a statement in a component's body
-`state` and `mount`, at the start of a top-level declaration `dec`, after its parameters `needs`,
-and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is special only in `get(@name.member)`. Reserved
+`state`, `derived`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
+parameters `needs`, and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is
+special only in `get(@name.member)`. Reserved
 for the future: `map`, `async`, `await`. Decorators are written before `comp`: `@html-tag` (see
 "Web components") and those declared with `dec` (see "Decorators").
 
@@ -900,7 +901,6 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
   `export function $$Card(...)`. The module that uses one calls it, or inlines it by the same
   100-line threshold, with the components of its module that it uses; the names of that module
   come through hidden exports, `export { PREFIX as $$Card$PREFIX }`.
-- **Not supported yet:** `derived` and `effect`.
 
 **State.** `state` declares a variable that the markup depends on. It is declared like `let`, but
 only at the top level of a component's body:
@@ -941,6 +941,57 @@ $$button3.append("Clicked ", $$text4, " times");
 Inside a component, `{if ...}`, `{for ...}` and `{switch ...}` that depend on state update too: a
 branch is created again only when the choice changes, and the blocks of a list are found by the
 array item itself and moved on changes, not created again.
+
+**Derived values.** `derived double = count * 2` at the top level of a component's body is a value
+computed from state and properties. It is read like a constant, and assigning it is an error. When
+what it reads changes, it is computed again, before the markup that reads it is updated:
+
+```go
+comp Counter(initialValue number) {
+    state count = initialValue
+    derived double = count * 2
+    return <button onClick={count++}>{count} × 2 = {double}</button>
+}
+```
+
+```js
+let count = initialValue;
+let double = count * 2;
+// ...creating the nodes...
+function $$updateCount2() {
+  double = count * 2;
+  $$text5.data = count;
+  $$text6.data = double;
+}
+```
+
+- It is one name and one expression; its type may be written: `derived left number = ...`. It is
+  declared only in a component (or a decorator), like `state`.
+- It is computed again also when the body of the component changes the state before the markup
+  exists, so it is right wherever it is read. One that reads no state and no properties that get
+  the parent's state is a constant.
+
+**Effects.** `effect { ... }` at the top level of a component's body runs once the markup is
+created, and again after the updates whenever what it reads changes. What it reads is what its code
+reads while it runs: not in the functions it creates (`setInterval(() => ...)`) or in its
+`defer`, and not the variables it writes. It cleans up with `defer`: the deferred call runs before
+the effect runs again, and when `{if}`, `{switch}` or `{for}` removes the component.
+
+```go
+comp Todos() {
+    state todos []string = load()
+    // Saved again on every change of the list.
+    effect {
+        localStorage.setItem("todos", JSON.stringify(todos))
+    }
+    // ...
+}
+```
+
+- An effect returns nothing. Unlike `mount()`, it does not wait for the markup to be in the
+  document, and it runs again.
+- An effect after an early `return` of the component may not be created, so, like the markup
+  there, it does not run again on changes.
 
 **Two-way binding.** `bind:value={name}` on `<input>`, `<textarea>` and `<select>` and
 `bind:checked={done}` on `<input>` show the variable's value and write what the user entered into

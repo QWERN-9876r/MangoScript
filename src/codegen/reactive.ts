@@ -16,6 +16,11 @@ export interface Source {
   readonly kind: 'state' | 'prop';
   /** The function that brings dependent nodes up to date, e.g. `$$updateCount3`. */
   readonly update: string;
+  /**
+   * Statements that compute again the `derived` values that read it: `double = count * 2`. They
+   * run first, also before the markup exists, so that the values are right whenever they are read.
+   */
+  readonly computations: string[];
   /** Statements that bring the nodes depending on it up to date. */
   readonly dependents: string[];
   /** Places that change it. */
@@ -30,6 +35,11 @@ export interface Write {
 }
 
 const EMPTY: ReadonlySet<Source> = new Set();
+
+/** Everything a change of the source runs: the computations, then the updates of the nodes. */
+export function updatesOf(source: Source): string[] {
+  return [...source.computations, ...source.dependents];
+}
 
 /**
  * Where the updates of live markup go: the update functions of a component's state, or the update
@@ -164,6 +174,11 @@ export class Reactive implements Live {
     return value !== undefined && this.renderFunctions.has(value);
   }
 
+  /** Adds a statement that computes a `derived` value again when the sources change. */
+  compute(sources: ReadonlySet<Source>, statement: string): void {
+    for (const source of sources) source.computations.push(statement);
+  }
+
   depend(sources: ReadonlySet<Source>, statement: string): void {
     for (const source of sources) {
       if (!source.dependents.includes(statement)) source.dependents.push(statement);
@@ -174,14 +189,17 @@ export class Reactive implements Live {
     return source.dependents.length;
   }
 
-  /** Sources whose values an expression reads, directly or through local functions. */
-  dependencies(node: ast.Node): Set<Source> {
+  /**
+   * Sources whose values an expression reads, directly or through local functions. `read` finds
+   * the names that the node itself reads.
+   */
+  dependencies(node: ast.Node, read = readNames): Set<Source> {
     const found = new Set<Source>();
     const seen = new Set<string>();
-    const visit = (node: ast.Node): void => {
+    const visit = (node: ast.Node, read: typeof readNames): void => {
       const names = new Set<string>();
 
-      readNames(node, names);
+      read(node, names);
       for (const name of names) {
         if (seen.has(name)) continue;
         seen.add(name);
@@ -193,11 +211,11 @@ export class Reactive implements Live {
 
         const fn = this.functions.get(name);
 
-        if (fn) visit(fn);
+        if (fn) visit(fn, readNames);
       }
     };
 
-    visit(node);
+    visit(node, read);
 
     return found;
   }
@@ -326,7 +344,8 @@ export class Reactive implements Live {
 
             if (!value) return;
             add(name.name, this.rootSources(value));
-            if (inMarkup) add(name.name, this.dependencies(value));
+            // A derived value changes with all it is computed from.
+            if (inMarkup || node.keyword === 'derived') add(name.name, this.dependencies(value));
           });
           break;
 

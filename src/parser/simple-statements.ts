@@ -97,7 +97,12 @@ export abstract class SimpleStatementParser extends ParserBase {
 
   protected parseVariableDeclaration(start: number, exported: boolean): ast.VariableDeclaration {
     const token = this.next();
-    const keyword = token.kind === 'const' ? 'const' : token.text === 'state' ? 'state' : 'let';
+    const keyword =
+      token.kind === 'const'
+        ? 'const'
+        : token.text === 'state' || token.text === 'derived'
+          ? token.text
+          : 'let';
     const names = [this.parseIdentifier('variable name')];
 
     while (this.accept(',')) names.push(this.parseIdentifier('variable name'));
@@ -106,7 +111,13 @@ export abstract class SimpleStatementParser extends ParserBase {
     const values = this.accept('=') ? this.parseExpressionList() : [];
     const { end } = this.span(start);
 
-    if (values.length === 0 && type === null) {
+    if (keyword === 'derived' && (names.length !== 1 || values.length !== 1)) {
+      this.error(
+        'derived is one name and the expression it is computed from, e.g. derived double = count * 2',
+        start,
+        end,
+      );
+    } else if (values.length === 0 && type === null) {
       this.error(`"${names[0]!.name}" needs a type or a value`, start, end);
     } else if (values.length === 0 && keyword === 'const') {
       this.error('constants need a value', start, end);

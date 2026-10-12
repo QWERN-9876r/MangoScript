@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { AssignmentChecker } from './assignments.ts';
-import { isUntyped, isNumeric } from './helpers.ts';
+import { isUntyped, isNumeric, ownStatements } from './helpers.ts';
 import {
   func,
   hasZeroValue,
@@ -12,8 +12,8 @@ import {
   type Type,
 } from './types.ts';
 
-// Statements: declarations of variables, blocks, `mount()`. Assignments and `return` are in
-// assignments.ts.
+// Statements: declarations of variables, blocks, `mount()`, `effect`. Assignments and `return`
+// are in assignments.ts.
 
 export abstract class StatementChecker extends AssignmentChecker {
   protected override checkStatement(node: ast.Statement): void {
@@ -86,6 +86,10 @@ export abstract class StatementChecker extends AssignmentChecker {
         this.checkMount(node);
         break;
 
+      case 'EffectStatement':
+        this.checkEffect(node);
+        break;
+
       case 'ImportDeclaration':
       case 'FuncDeclaration':
       case 'ComponentDeclaration':
@@ -98,6 +102,23 @@ export abstract class StatementChecker extends AssignmentChecker {
         // Declarations are handled by declareStatements(); jumps were checked by the parser.
         break;
     }
+  }
+
+  /**
+   * `effect { ... }`: runs once the markup is created and again when what it reads changes, like
+   * a handler. It cleans up with `defer`, so it returns nothing.
+   */
+  protected checkEffect(node: ast.EffectStatement): void {
+    for (const statement of ownStatements(node.body)) {
+      if (statement.kind === 'ReturnStatement' && statement.values.length > 0) {
+        this.error(
+          'an effect returns nothing; clean up with defer, e.g. defer clearInterval(timer)',
+          statement.values[0]!,
+        );
+      }
+    }
+
+    this.checkFunction([], func([], []), null, node.body, { closure: true });
   }
 
   /**

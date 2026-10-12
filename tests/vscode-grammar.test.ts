@@ -176,6 +176,13 @@ describe('VS Code grammar', () => {
     expect(scopeOf('    widget.mount(element)', 'mount')).not.toBe('storage.type.mount');
   });
 
+  it('treats effect and derived as keywords only at the start of a statement', () => {
+    expect(scopeOf('    effect {', 'effect')).toBe('storage.type.effect');
+    expect(scopeOf('    run(effect)', 'effect')).not.toBe('storage.type.effect');
+    expect(scopeOf('    derived double = count * 2', 'derived')).toBe('storage.type.state');
+    expect(scopeOf('let derived = 1', 'derived')).toBe('variable.other.readwrite');
+  });
+
   it('treats state as a keyword only at the start of a declaration', () => {
     expect(scopeOf('    state count = 0', 'state')).toBe('storage.type.state');
     expect(scopeOf('let state = load()', 'state')).toBe('variable.other.readwrite');

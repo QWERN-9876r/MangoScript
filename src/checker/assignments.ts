@@ -116,6 +116,11 @@ export abstract class AssignmentChecker extends InitializerChecker {
 
         if (binding.kind === 'const') {
           this.error(`cannot assign to "${target.name}": it is a constant`, target);
+        } else if (binding.kind === 'derived') {
+          this.error(
+            `cannot assign to "${target.name}": it is derived, so change what it is computed from`,
+            target,
+          );
         } else if (binding.kind === 'loop') {
           this.error(`cannot assign to loop variable "${target.name}"`, target);
         } else if (binding.kind === 'prop') {

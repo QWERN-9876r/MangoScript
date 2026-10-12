@@ -39,10 +39,14 @@ export type DeferMode =
   // Every `defer` is at the top level of the body: nested try/finally blocks.
   | 'try'
   // Some `defer` is inside an if/loop/switch: a stack of closures run by $$runDeferred.
-  | 'stack';
+  | 'stack'
+  // The body of `effect`: the closures wait for the next run of the effect or its removal.
+  | 'effect';
 
 interface FunctionContext {
   deferMode: DeferMode;
+  /** Where `defer` puts its closures in 'stack' and 'effect' modes. */
+  deferList: string;
   /** Counter for `$$0`, `$$1`, ... temporaries. */
   temps: number;
   /** Innermost last: `null` for loops and switches, a label for a switch compiled to if/else. */
@@ -63,7 +67,12 @@ export abstract class Emitter {
   private level = 0;
 
   private readonly scopes: Map<string, BindingKind>[] = [];
-  protected fn: FunctionContext = { deferMode: 'none', temps: 0, breakTargets: [] };
+  protected fn: FunctionContext = {
+    deferMode: 'none',
+    deferList: '$$defer',
+    temps: 0,
+    breakTargets: [],
+  };
   /** Helpers that the module must define, such as $$runDeferred. */
   protected readonly helpers = new Set<Helper>();
   /**
@@ -338,7 +347,7 @@ export abstract class Emitter {
   protected withFunction<T>(mode: DeferMode, params: ast.Parameter[], emit: () => T): T {
     const saved = this.fn;
 
-    this.fn = { deferMode: mode, temps: 0, breakTargets: [] };
+    this.fn = { deferMode: mode, deferList: '$$defer', temps: 0, breakTargets: [] };
     try {
       return this.withScope(
         params.map((param): [string, BindingKind] => [param.name.name, 'param']),

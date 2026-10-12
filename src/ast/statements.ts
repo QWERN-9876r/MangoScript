@@ -38,6 +38,7 @@ export type Statement =
   | TryStatement
   | DeferStatement
   | MountStatement
+  | EffectStatement
   | JsxElementStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
@@ -184,5 +185,15 @@ export interface DeferStatement extends NodeBase {
  */
 export interface MountStatement extends NodeBase {
   kind: 'MountStatement';
+  body: BlockStatement;
+}
+
+/**
+ * `effect { ... }` at the top level of a component: runs once the markup is created, and again
+ * whenever what it reads changes. Its `defer` runs before it runs again and when the component is
+ * removed.
+ */
+export interface EffectStatement extends NodeBase {
+  kind: 'EffectStatement';
   body: BlockStatement;
 }

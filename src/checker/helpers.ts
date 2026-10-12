@@ -30,7 +30,8 @@ export function ownStatements(body: ast.BlockStatement): ast.Statement[] {
       node.kind === 'FuncExpression' ||
       node.kind === 'ArrowFunction' ||
       node.kind === 'ClassDeclaration' ||
-      node.kind === 'MountStatement'
+      node.kind === 'MountStatement' ||
+      node.kind === 'EffectStatement'
     )
       return;
     forEachChild(node, visit);

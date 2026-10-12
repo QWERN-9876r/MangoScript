@@ -26,12 +26,37 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
 
       if (value) this.withHoisting(true, () => this.returnedMarkup(value, early));
       this.line(early.exit);
+      this.returnedEarly = true;
+
+      return;
+    }
+
+    if (node.kind === 'VariableDeclaration' && node.keyword === 'derived') {
+      this.derivedValue(node);
 
       return;
     }
 
     super.statement(node);
     if (isDecoratorArgument(node)) this.decoratorArgument(node);
+  }
+
+  /**
+   * `derived double = count * 2` is a variable computed again, first, in the updates of what it
+   * reads; one that reads no state is a constant.
+   */
+  private derivedValue(node: ast.VariableDeclaration): void {
+    const { reactive } = this;
+    const [name] = node.names;
+    const [value] = node.values;
+    const sources = reactive && value ? reactive.dependencies(value) : new Set<Source>();
+
+    super.statement(sources.size > 0 ? node : { ...node, keyword: 'const' });
+    if (!reactive || !name || !value || sources.size === 0) return;
+
+    const expression = this.withHoisting(false, () => this.expression(value, ARROW));
+
+    reactive.compute(sources, `${this.name(name.name)} = ${expression};`);
   }
 
   /**
