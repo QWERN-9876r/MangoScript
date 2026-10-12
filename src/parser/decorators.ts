@@ -99,7 +99,7 @@ export abstract class DecoratorParser extends DeclarationParser {
     }
 
     if (!this.check('const') && !this.check('let') && !this.isStateDeclaration()) {
-      this.fail(`only state, const and func can be public, not ${describe(this.peek())}`);
+      this.fail(`only state, derived, const and func can be public, not ${describe(this.peek())}`);
     }
 
     const declaration = this.parseVariableDeclaration(modifier.start, false);

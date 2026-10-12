@@ -137,7 +137,7 @@ export abstract class DecoratorChecker extends DecoratorExportChecker {
       } else if (
         statement.kind === 'VariableDeclaration' &&
         statement.isPublic &&
-        (statement.keyword === 'state' || statement.keyword === 'const')
+        statement.keyword !== 'let'
       ) {
         for (const name of statement.names) add(name, statement.keyword);
       }

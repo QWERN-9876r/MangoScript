@@ -718,8 +718,8 @@ comp Playground() {
   evaluated for every instance in the scope of the component's parameters, so
   `@card(product.price)` works on `comp ProductCard(product Product)`. When the parameter changes,
   the decorator gets the new value, like a property of a child component.
-- **Public members** — `public state`, `public const` and `public func` — are visible to the
-  component:
+- **Public members** — `public state`, `public derived`, `public const` and `public func` — are
+  visible to the component:
   - reading is `get(@visible.shown)`; in markup it updates like a read of the component's own
     state;
   - calling is `@visible.show()`;
@@ -729,8 +729,8 @@ comp Playground() {
   - `get` is special only when its argument starts with `@`, so the program's own `get(url)` still
     works. `visible.shown` without `@` and `@visible.shown` outside `get` are errors that suggest
     `get(@visible.shown)`;
-  - there is no `public let`: a value that changes and is read outside is a `state`, and one that
-    does not change is a `const`.
+  - there is no `public let`: a value that changes and is read outside is a `state` (or a
+    `derived` one, computed from state), and one that does not change is a `const`.
 
   Without `public`, members are visible only inside the decorator, where they are used by their
   plain names: `shown`, `show()`.
@@ -995,7 +995,7 @@ body of `for`: the code of one row of the list is written there once, and no ext
 10. **Shared logic of components is decorators, `dec name(...) { ... }`,** applied at compile time
     (see "Decorators"). Not for the component's own state: for logic added to it. The arguments are
     positional, evaluated in the scope of the component's parameters. Public members are
-    `public state`, `public const` and `public func`, with no `public let`; outside they are read
+    `public state`, `public derived`, `public const` and `public func`, with no `public let`; outside they are read
     with `get(@name.member)` and called as `@name.f()`, and writing them from outside is an error.
     The type of the wrapper's parameter is written explicitly. One decorator sees another only
     through `needs`, and the one it needs must be applied above it. A decorator applied twice is an

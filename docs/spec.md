@@ -1123,8 +1123,9 @@ comp Clicker(label string) {
 - **The body** may hold `state`, `const`, `let`, functions, `mount()` and, at the end, the `return`
   of a wrapper. Its own names are used in it as usual; the component does not see them unless they
   are `public`.
-- **Public members** are `public state`, `public const` and `public func`; there is no
-  `public let`. The component reads state and constants with `get(@counter.count)` (in markup this
+- **Public members** are `public state`, `public derived`, `public const` and `public func`;
+  there is no `public let`. The component reads state, derived values and constants with
+  `get(@counter.count)` (in markup this
   updates like its own state) and calls functions as `@counter.add()`. Outside the decorator its
   members are read-only: `get(@counter.count) = 0` or `get(@counter.items).push(x)` is an error,
   changes go through its public functions. `get` is special only when its argument starts with `@`.

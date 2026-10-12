@@ -208,8 +208,9 @@ export func decorators() Node {
         {example("decorators")}
         <ul>
             <li>
-                The component sees only what is <b>public</b>: it reads <code>public state</code>
-                {" "}and <code>public const</code> with <code>get(@ticker.ticks)</code> and calls a
+                The component sees only what is <b>public</b>: it reads <code>public state</code>,
+                {" "}<code>public derived</code> and <code>public const</code> with
+                {" "}<code>get(@ticker.ticks)</code> and calls a
                 {" "}<code>public func</code> as <code>@ticker.toggle()</code>. In markup,
                 {" "}<code>get</code> updates like the component's own state. Other names of the
                 decorator are its own and cannot clash with the component's.

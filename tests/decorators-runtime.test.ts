@@ -65,6 +65,26 @@ document.body.append(<Clicker label="a" />, <Clicker label="b" />)
     expect(String(body)).toBe('<body><button>a: 5</button><button>b: 7</button></body>');
   });
 
+  it('updates the markup that reads a public derived value', () => {
+    const { body } = mountWithDom(`dec counted() {
+    public state count = 1
+    public derived double = count * 2
+
+    public func add() {
+        count++
+    }
+}
+@counted
+comp Clicker() {
+    return <button onClick={@counted.add()}>{get(@counted.double)}</button>
+}
+document.body.append(<Clicker />)
+`);
+
+    body.find('button').click();
+    expect(String(body)).toBe('<body><button>4</button></body>');
+  });
+
   it('keeps the names of the decorator apart from the component', () => {
     const { body } = mountWithDom(`${counter}@counter
 comp Clicker() {

@@ -138,7 +138,7 @@ export interface DecoratorInfo {
 }
 
 export interface PublicMember {
-  kind: 'state' | 'const' | 'func';
+  kind: 'state' | 'derived' | 'const' | 'func';
   type: Type;
 }
 

@@ -208,8 +208,9 @@ export func decorators() Node {
         {example("decorators")}
         <ul>
             <li>
-                Компонент видит только <b>публичное</b>: читает <code>public state</code> и
-                {" "}<code>public const</code> через <code>get(@ticker.ticks)</code> и вызывает
+                Компонент видит только <b>публичное</b>: читает <code>public state</code>,
+                {" "}<code>public derived</code> и <code>public const</code> через
+                {" "}<code>get(@ticker.ticks)</code> и вызывает
                 {" "}<code>public func</code> как <code>@ticker.toggle()</code>. В разметке
                 {" "}<code>get</code> обновляется, как собственное состояние компонента. Остальные
                 имена декоратора — его собственные и не пересекаются с именами компонента.

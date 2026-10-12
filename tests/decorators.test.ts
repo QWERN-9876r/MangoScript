@@ -95,7 +95,7 @@ describe('syntax', () => {
     ],
     [
       'dec a() {\n    public mount() {\n    }\n}',
-      'only state, const and func can be public, not "mount"',
+      'only state, derived, const and func can be public, not "mount"',
     ],
     ['@a(...xs) comp B() {\n    return <p />\n}', 'arguments of a decorator cannot be spread'],
     [
@@ -176,6 +176,31 @@ describe('types', () => {
     ]);
     expect(use('    counter.add()')).toEqual([
       '"counter" is not defined; to call a function of @counter write @counter.add()',
+    ]);
+  });
+
+  it('reads public derived values with get, and keeps them read-only', () => {
+    const counted = (body: string) =>
+      errors(`dec counted() {
+    public state count = 0
+    public derived double = count * 2
+
+    public func add() {
+        count++
+    }
+}
+@counted
+comp A() {
+${body}
+    return <p />
+}`);
+
+    expect(counted('    const n number = get(@counted.double)')).toEqual([]);
+    expect(counted('    get(@counted.double) = 1')).toEqual([
+      '"double" of @counted is read-only outside it; change it with one of its public functions, e.g. @counted.add()',
+    ]);
+    expect(counted('    const x = @counted.double')).toEqual([
+      'read "double" of @counted with get(@counted.double)',
     ]);
   });
 
