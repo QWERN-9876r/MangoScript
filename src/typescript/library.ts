@@ -57,7 +57,14 @@ export class LibraryTypes implements Library {
   }
 
   /** The element of a tag; custom elements like `<app-card>` are HTMLElement. */
-  element(tag: string): Type | undefined {
+  element(tag: string, svg = false): Type | undefined {
+    if (svg) {
+      return this.cached(
+        `svg ${tag}`,
+        () => this.entry('SVGElementTagNameMap', tag) ?? this.type('SVGElement'),
+      );
+    }
+
     return this.cached(
       `element ${tag}`,
       () =>

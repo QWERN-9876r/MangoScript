@@ -1,4 +1,5 @@
 import { DOM_TYPES, EVENT } from './dom.ts';
+import { SVG_TYPES } from './dom-svg.ts';
 import {
   ANY,
   arrayOf,
@@ -353,6 +354,7 @@ export const LIBRARY_TYPES: ReadonlySet<string> = new Set([
   'URL',
   'Event',
   ...[...DOM_TYPES.keys()].filter((name) => name !== 'Content'),
+  ...SVG_TYPES.keys(),
 ]);
 
 export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
@@ -364,5 +366,6 @@ export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['Error', ERROR_CLASS.instance],
   ...['Date', 'RegExp', 'Map', 'Set', 'Promise', 'URL'].map((name): [string, Type] => [name, ANY]),
   ...DOM_TYPES,
+  ...SVG_TYPES,
   ['Event', EVENT],
 ]);

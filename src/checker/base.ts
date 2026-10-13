@@ -15,7 +15,7 @@ import {
   type Flow,
   globalScope,
 } from './context.ts';
-import { DOCUMENT_FRAGMENT, elementType, eventType, HTML_ELEMENT, NODE } from './dom.ts';
+import { DOCUMENT_FRAGMENT, eventType, HTML_ELEMENT, NODE } from './dom.ts';
 import {
   explainMismatch,
   isAssignable,
@@ -326,11 +326,6 @@ export abstract class CheckerBase {
     }
 
     return this.domTypes;
-  }
-
-  /** The type of the element `<tag>` creates. */
-  protected elementOf(tag: string): Type {
-    return this.options.library?.element(tag) ?? elementType(tag);
   }
 
   /** The `event` of an `on*` attribute: its `currentTarget` is the element. */

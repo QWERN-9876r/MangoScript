@@ -1,7 +1,14 @@
 import type * as ast from '../ast.ts';
 import { forEachChild } from '../walk.ts';
 import { CONTENT } from './dom.ts';
-import { isAssignable, nonNull, unionMembers, type FunctionType, type Type } from './types.ts';
+import {
+  isAssignable,
+  nonNull,
+  unionMembers,
+  widenLiterals,
+  type FunctionType,
+  type Type,
+} from './types.ts';
 import type { Scope } from './context.ts';
 import { type Binding } from './context.ts';
 
@@ -42,10 +49,15 @@ export function ownStatements(body: ast.BlockStatement): ast.Statement[] {
   return found;
 }
 
-/** Values that can be element children: text, numbers, nodes, lists of them, or null. */
-/** Text, numbers, nodes (`node` is the type of a DOM node), lists of them, or null. */
-export function isContent(type: Type, node: Type): boolean {
-  if (type === CONTENT) return true;
+/**
+ * Values that can be element children: text, numbers (literal types included), nodes (`node` is
+ * the type of a DOM node), lists of them, or null.
+ */
+export function isContent(given: Type, node: Type): boolean {
+  if (given === CONTENT) return true;
+
+  const type = widenLiterals(given);
+
   switch (type.kind) {
     case 'string':
     case 'number':
@@ -64,6 +76,9 @@ export function isContent(type: Type, node: Type): boolean {
     case 'object':
     case 'class':
       return isAssignable(type, node);
+
+    case 'union':
+      return type.types.every((member) => isContent(member, node));
 
     default:
       return false;

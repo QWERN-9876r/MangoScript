@@ -59,7 +59,7 @@ const PARENT_MEMBERS: Record<string, Member> = {
   childElementCount: p(NUMBER),
 };
 
-const ELEMENT_MEMBERS: Record<string, Member> = {
+export const ELEMENT_MEMBERS: Record<string, Member> = {
   ...NODE_MEMBERS,
   ...PARENT_MEMBERS,
   // Unlike other nodes, an element always has text content.

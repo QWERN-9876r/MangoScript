@@ -14,7 +14,6 @@ import {
   isNullable,
   nonNull,
   spreadFields,
-  STRING,
   typesEqual,
   typeToString,
   UNKNOWN,
@@ -230,12 +229,8 @@ export abstract class ComponentChecker extends MarkupChecker {
       return;
     }
 
-    const valueType =
-      value === null
-        ? BOOL
-        : value.kind === 'StringLiteral'
-          ? STRING
-          : this.checkValue(value, type);
+    // A string gets the literal type where one is expected: <Button kind="ghost" />.
+    const valueType = value === null ? BOOL : this.checkValue(value, type);
 
     this.expectAssignable(valueType, type, value ?? attribute, ` for "${name}" of <${component}>`);
   }

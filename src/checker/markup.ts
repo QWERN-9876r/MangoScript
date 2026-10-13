@@ -1,6 +1,8 @@
 import type * as ast from '../ast.ts';
+import { childrenInSvg, isSvgElement } from '../svg.ts';
 import { Scope } from './context.ts';
-import { domProperty } from './dom.ts';
+import { domProperty, elementType } from './dom.ts';
+import { svgElementType } from './dom-svg.ts';
 import { isContent, isAttributeValue, isUntyped } from './helpers.ts';
 import { OperatorChecker } from './operators.ts';
 import { BOOL, func, STRING, typeToString, type Type } from './types.ts';
@@ -8,11 +10,22 @@ import { BOOL, func, STRING, typeToString, type Type } from './types.ts';
 // Markup: elements, their children and attributes, `bind:` and event handlers.
 
 export abstract class MarkupChecker extends OperatorChecker {
+  /** Whether the markup being checked is inside `<svg>`: its elements are SVG then. */
+  private inSvg = false;
+
+  /** The type of the element `<tag>` creates; outside markup, SVG only for SVG's own tags. */
+  protected elementOf(tag: string, svg = isSvgElement(tag, false)): Type {
+    const type = this.options.library?.element(tag, svg);
+
+    return type ?? (svg ? svgElementType(tag) : elementType(tag));
+  }
+
   protected override checkElement(node: ast.ElementExpression): Type {
     if (node.tag && /^[A-Z]/.test(node.tag.name)) return this.checkComponentUse(node, node.tag);
 
     const tag = node.tag?.name ?? null;
-    const type = tag === null ? this.dom.fragment : this.elementOf(tag);
+    const svg = tag !== null && isSvgElement(tag, this.inSvg);
+    const type = tag === null ? this.dom.fragment : this.elementOf(tag, svg);
 
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxSpreadAttribute') {
@@ -26,7 +39,7 @@ export abstract class MarkupChecker extends OperatorChecker {
       } else if (tag !== null && attribute.name.name.startsWith('bind:')) {
         this.checkBinding(attribute, tag, node.attributes);
       } else if (tag !== null) {
-        this.checkAttribute(attribute, tag, type);
+        this.checkAttribute(attribute, tag, type, svg);
       }
     }
 
@@ -46,7 +59,14 @@ export abstract class MarkupChecker extends OperatorChecker {
       }
     }
 
-    this.checkChildren(node.children);
+    const saved = this.inSvg;
+
+    this.inSvg = childrenInSvg(tag, svg, saved);
+    try {
+      this.checkChildren(node.children);
+    } finally {
+      this.inSvg = saved;
+    }
 
     return type;
   }
@@ -77,7 +97,12 @@ export abstract class MarkupChecker extends OperatorChecker {
     }
   }
 
-  protected checkAttribute(attribute: ast.JsxAttribute, tag: string, element: Type): void {
+  protected checkAttribute(
+    attribute: ast.JsxAttribute,
+    tag: string,
+    element: Type,
+    svg = false,
+  ): void {
     const name = attribute.name.name;
     const { value } = attribute;
     // `<app-card count={3} />`: a property of a web component of this module.
@@ -114,7 +139,8 @@ export abstract class MarkupChecker extends OperatorChecker {
     // `<a download>` without a value sets an empty attribute, whatever the property type is.
     if (value === null) return;
 
-    const property = domProperty(tag, name);
+    // SVG attributes are set with setAttribute: their properties are objects.
+    const property = svg ? null : domProperty(tag, name);
 
     if (property) {
       this.expectAssignable(valueType, property.type, value, ` for attribute "${name}"`);

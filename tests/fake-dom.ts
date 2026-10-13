@@ -315,6 +315,8 @@ export function mountJsWithDom(code: string): { output: string[]; body: FakeNode
   const document = {
     body,
     createElement: (tag: string) => customElements.create(tag),
+    createElementNS: (namespace: string, tag: string) =>
+      Object.assign(new FakeNode(tag), { namespaceURI: namespace }),
     createDocumentFragment: () => new FakeNode('#fragment'),
     createTextNode: (data: unknown) => new FakeNode('#text', data),
   };

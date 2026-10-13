@@ -843,6 +843,10 @@ link.append("Link ", name);
 - **Types:** `<input>` is an `HTMLInputElement`, `<a>` an `HTMLAnchorElement` and so on. Attributes
   that match DOM properties are checked against the property's type. Children are strings, numbers,
   nodes, arrays of them or `?T`; `null` shows nothing.
+- **SVG:** `<svg>`, the elements inside it and the tags that only SVG has (`<path>`, `<circle>`,
+  `<g>`...) are created in the SVG namespace, with `createElementNS`, and their attributes are set
+  with `setAttribute`. `<a>`, `<title>` and the other tags HTML has too are SVG only inside `<svg>`;
+  the children of `<foreignObject>` are HTML.
 - **Events:** a function name, `obj.method` or a function literal is the handler. Anything else is
   code that runs on the event, with the variable `event`: `onClick={count++}`,
   `onSubmit={event.preventDefault(); send()}`. So `onClick={save()}` calls `save` on a click.

@@ -1,5 +1,5 @@
 import type * as ast from '../ast.ts';
-import type { Type } from '../checker/types.ts';
+import { widenLiterals, type Type } from '../checker/types.ts';
 import { forEachChild } from '../walk.ts';
 
 // Types and small functions of markup code generation.
@@ -17,8 +17,11 @@ export function eventName(attribute: string): string {
 /** How a child expression is appended: as is, spread, after a null check, or by $$append. */
 export function contentKind(
   node: ast.Expression,
-  type: Type | undefined,
+  given: Type | undefined,
 ): 'value' | 'list' | 'nullable' | 'unknown' {
+  // `"primary" | "ghost"` is text like `string`.
+  const type = given && widenLiterals(given);
+
   if (type === undefined) {
     // Without types only literals are known for sure.
     return node.kind === 'StringLiteral' ||

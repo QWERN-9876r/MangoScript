@@ -1,5 +1,7 @@
 import type * as ast from '../ast.ts';
+import { widenLiterals } from '../checker/types.ts';
 import { constantAttributes } from '../refs.ts';
+import { childrenInSvg, isSvgElement } from '../svg.ts';
 import { isSimple, startsWithObjectLiteral } from './analysis.ts';
 import { AttributeEmitter } from './attributes.ts';
 import { contentKind, type Content, type ControlStatement } from './element-helpers.ts';
@@ -27,10 +29,13 @@ export abstract class ElementEmitter extends AttributeEmitter {
     live: Live | null,
   ): string;
 
-  /** The element a ref created for markup to fill in; implemented by RefEmitter. */
+  /**
+   * The element a ref created for markup to fill in; not `created` when it may be missing, as
+   * `$$root` of a function. Implemented by RefEmitter.
+   */
   protected abstract presetElement(
     node: ast.ElementExpression,
-  ): { name: string } | { create: string } | null;
+  ): { name: string; created: boolean } | null;
 
   /** Control flow in live markup that depends on state; implemented by ControlFlowEmitter. */
   protected abstract liveControl(
@@ -96,20 +101,19 @@ export abstract class ElementEmitter extends AttributeEmitter {
     live: Live | null,
   ): string {
     const tag = node.tag?.name ?? null;
+    const svg = tag !== null && isSvgElement(tag, this.inSvg);
     const preset = this.presetElement(node);
     // A ref created the element with its constant attributes, so the markup only fills it in.
-    const created = preset && 'name' in preset ? preset.name : null;
+    const created = preset?.created ? preset.name : null;
     const name = created ?? declaration?.split(' ').at(-1) ?? this.elementName(tag);
     const create =
-      tag === null
-        ? 'document.createDocumentFragment()'
-        : `document.createElement(${JSON.stringify(tag)})`;
+      tag === null ? 'document.createDocumentFragment()' : this.createElement(tag, svg);
     const constants = new Set<ast.JsxAttribute | ast.JsxSpreadAttribute>(
       created ? constantAttributes(node) : [],
     );
 
     if (created === null) {
-      const value = preset && 'create' in preset ? preset.create : create;
+      const value = preset ? `${preset.name} ?? ${create}` : create;
 
       this.line(`${declaration ?? `const ${name}`} = ${value};`);
     }
@@ -123,7 +127,7 @@ export abstract class ElementEmitter extends AttributeEmitter {
       if (attribute.kind === 'JsxAttribute' && attribute.name.name.startsWith('bind:')) {
         bindings.push(attribute);
       } else {
-        this.attribute(name, tag, attribute, live);
+        this.attribute(name, tag, attribute, live, svg);
       }
     }
 
@@ -131,7 +135,15 @@ export abstract class ElementEmitter extends AttributeEmitter {
       for (const attribute of bindings) this.binding(name, tag, attribute, live);
     }
 
-    this.children(name, node.children, live);
+    const inSvg = this.inSvg;
+
+    this.inSvg = childrenInSvg(tag, svg, inSvg);
+    try {
+      this.children(name, node.children, live);
+    } finally {
+      this.inSvg = inSvg;
+    }
+
     if (created !== null && declaration) this.line(`${declaration} = ${created};`);
 
     return name;
@@ -280,7 +292,8 @@ export abstract class ElementEmitter extends AttributeEmitter {
     live: Live,
     sources: ReadonlySet<Source>,
   ): string {
-    const kind = this.typeOf(expression)?.kind;
+    const type = this.typeOf(expression);
+    const kind = type && widenLiterals(type).kind;
     const id = this.nextId();
 
     if (kind === 'string' || kind === 'number') {

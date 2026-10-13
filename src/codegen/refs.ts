@@ -9,6 +9,7 @@ import {
   refTargets,
   type Root,
 } from '../refs.ts';
+import { isSvgElement, svgElements } from '../svg.ts';
 import { forEachChild } from '../walk.ts';
 import { EarlyReturnEmitter } from './early-returns.ts';
 
@@ -34,6 +35,8 @@ export interface RootPreset {
 export abstract class RefEmitter extends EarlyReturnEmitter {
   /** The elements that the refs of the component being written are bound to. */
   private refElements = new Map<string, ast.ElementExpression>();
+  /** Those of them that are SVG elements. */
+  private svgTargets = new Set<ast.ElementExpression>();
   private rootPreset: RootPreset | null = null;
   /** Tags of components that refs point to or that are at the top of components: lazily. */
   private rootTags: Set<string> | null = null;
@@ -44,15 +47,25 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
     preset: RootPreset | null,
     emit: () => T,
   ): T {
-    const saved = { refElements: this.refElements, rootPreset: this.rootPreset };
+    const saved = {
+      refElements: this.refElements,
+      svgTargets: this.svgTargets,
+      rootPreset: this.rootPreset,
+      inSvg: this.inSvg,
+    };
 
     this.refElements = refTargets(component.body);
+    this.svgTargets = this.refElements.size > 0 ? svgElements(component.body) : new Set();
     this.rootPreset = preset;
+    // The markup of a component starts outside <svg>, wherever the component is used.
+    this.inSvg = false;
     try {
       return emit();
     } finally {
       this.refElements = saved.refElements;
+      this.svgTargets = saved.svgTargets;
       this.rootPreset = saved.rootPreset;
+      this.inSvg = saved.inSvg;
     }
   }
 
@@ -77,11 +90,14 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
       }
 
       const tag = element.tag.name;
-      const create = `document.createElement(${JSON.stringify(tag)})`;
+      // The root of another component has no <svg> above it in its own markup.
+      const svg = element === target ? this.svgTargets.has(target) : isSvgElement(tag, false);
+      const create = this.createElement(tag, svg);
 
       this.line(`const ${name} = ${preset ? `${preset.name} ?? ${create}` : create};`);
-      for (const attribute of constantAttributes(element))
-        this.attribute(name, tag, attribute, null);
+      for (const attribute of constantAttributes(element)) {
+        this.attribute(name, tag, attribute, null, svg);
+      }
     }
   }
 
@@ -91,17 +107,14 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
    */
   protected override presetElement(
     node: ast.ElementExpression,
-  ): { name: string } | { create: string } | null {
+  ): { name: string; created: boolean } | null {
     const ref = refName(node);
 
-    if (ref !== null) return { name: this.name(ref) };
+    if (ref !== null) return { name: this.name(ref), created: true };
 
     const preset = this.rootPreset;
 
-    if (preset?.node !== node || node.tag === null) return null;
-    if (preset.created) return { name: preset.name };
-
-    return { create: `${preset.name} ?? document.createElement(${JSON.stringify(node.tag.name)})` };
+    return preset?.node === node && node.tag !== null ? preset : null;
   }
 
   /**

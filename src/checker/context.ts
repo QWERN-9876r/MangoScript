@@ -35,8 +35,8 @@ export interface Library {
   primitive(kind: 'string' | 'number' | 'bool'): Type | undefined;
   /** `Array<element>`: members that the built-in array type does not list. */
   array(element: Type): Type | undefined;
-  /** What `<tag>` creates: `HTMLElementTagNameMap[tag]`. */
-  element(tag: string): Type | undefined;
+  /** What `<tag>` creates: `HTMLElementTagNameMap[tag]`, or `SVGElementTagNameMap[tag]` in SVG. */
+  element(tag: string, svg?: boolean): Type | undefined;
   /** The event of `on<name>`: `HTMLElementEventMap[name]`, e.g. `MouseEvent` for `click`. */
   event(name: string): Type | undefined;
 }

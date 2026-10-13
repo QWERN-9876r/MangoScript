@@ -59,7 +59,7 @@ export class DeclarationImporter {
       type: (name) => current().type(name),
       primitive: (kind) => current().primitive(kind),
       array: (element) => current().array(element),
-      element: (tag) => current().element(tag),
+      element: (tag, svg) => current().element(tag, svg),
       event: (name) => current().event(name),
     };
   }

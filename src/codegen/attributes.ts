@@ -1,6 +1,7 @@
 import type * as ast from '../ast.ts';
 import { domProperty } from '../checker/dom.ts';
 import { attributeName } from '../html-tag.ts';
+import { SVG_NAMESPACE } from '../svg.ts';
 import { eventName, mentions } from './element-helpers.ts';
 import type { Live, Source } from './reactive.ts';
 import { ARROW } from './syntax.ts';
@@ -23,6 +24,18 @@ export abstract class AttributeEmitter extends UpdateEmitter {
   /** The element that elements of markup blocks are appended to, in plain control flow. */
   protected contentTarget: string | null = null;
 
+  /** Whether the markup being written is inside `<svg>`: its elements are SVG then. */
+  protected inSvg = false;
+
+  /** `document.createElement("div")`, or `createElementNS` for an SVG element. */
+  protected createElement(tag: string, svg: boolean): string {
+    const quoted = JSON.stringify(tag);
+
+    return svg
+      ? `document.createElementNS(${JSON.stringify(SVG_NAMESPACE)}, ${quoted})`
+      : `document.createElement(${quoted})`;
+  }
+
   /** `onClick={count++}` becomes `() => { count++; }`; a function is used as it is. */
   protected handler(value: ast.JsxAttribute['value']): string {
     return this.withRendering(0, () => this.handlerFunction(value));
@@ -39,6 +52,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     tag: string | null,
     attribute: ast.JsxAttribute | ast.JsxSpreadAttribute,
     live: Live | null,
+    svg = false,
   ): void {
     if (attribute.kind === 'JsxSpreadAttribute') {
       this.setLive(live, attribute.argument, (text) => `Object.assign(${element}, ${text});`);
@@ -49,7 +63,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     const name = attribute.name.name;
     const { value } = attribute;
 
-    const webProperty = tag === null ? null : this.webComponentProperty(tag, name);
+    const webProperty = tag === null || svg ? null : this.webComponentProperty(tag, name);
 
     if (webProperty) {
       this.webComponentAttribute(element, webProperty, value, live);
@@ -84,7 +98,8 @@ export abstract class AttributeEmitter extends UpdateEmitter {
       return;
     }
 
-    const property = tag === null ? null : domProperty(tag, name);
+    // SVG attributes are set with setAttribute: their properties are objects.
+    const property = tag === null || svg ? null : domProperty(tag, name);
 
     if (value === null) {
       // `<input disabled>`: true for boolean properties, an empty attribute otherwise.

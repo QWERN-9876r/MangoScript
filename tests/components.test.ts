@@ -134,6 +134,17 @@ describe('types', () => {
   ])('rejects %j', (source, message) => {
     expect(errors(source)).toEqual([message]);
   });
+
+  it('gives a string attribute the literal type a property expects', () => {
+    const button = (use: string) =>
+      `type Kind "primary" | "ghost"\ncomp B(kind Kind = "primary") {\n    return <b title={kind}>{kind}</b>\n}\nconst b = ${use}`;
+
+    expect(errors(button('<B kind="ghost" />'))).toEqual([]);
+    expect(errors(button('<B kind={"ghost"} />'))).toEqual([]);
+    expect(errors(button('<B kind="other" />'))).toEqual([
+      'cannot use "other" as Kind for "kind" of <B>',
+    ]);
+  });
 });
 
 describe('code generation', () => {

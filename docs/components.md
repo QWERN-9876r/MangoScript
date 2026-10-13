@@ -53,15 +53,22 @@ element without taking it out, see "References: `ref`".
 
 ### Types
 
-| Literal               | Type                                         |
-| --------------------- | -------------------------------------------- |
-| `<a>`, `<input>`, ... | `HTMLAnchorElement`, `HTMLInputElement`, ... |
-| an unknown tag        | `HTMLElement`                                |
-| `<>...</>`            | `DocumentFragment`                           |
+| Literal                | Type                                         |
+| ---------------------- | -------------------------------------------- |
+| `<a>`, `<input>`, ...  | `HTMLAnchorElement`, `HTMLInputElement`, ... |
+| an unknown tag         | `HTMLElement`                                |
+| `<>...</>`             | `DocumentFragment`                           |
+| `<svg>`, `<path>`, ... | `SVGSVGElement`, `SVGPathElement`, ...       |
 
 This needed the DOM among the built-in types: `Node`, `HTMLElement` and the most common elements,
 `Event` and its variants, the type of `document`. Done: in Node the DOM types come from TypeScript's
 `lib.dom`, and the browser compiler has hand-written ones.
+
+SVG works without anything extra: `<svg>`, the elements inside it and the tags that only SVG has
+(`<path>`, `<circle>`, `<g>`...) are created with `createElementNS`, and their attributes with
+`setAttribute`, since SVG properties are objects, not strings. Tags HTML has too (`<a>`,
+`<title>`) are SVG only inside `<svg>`, and the children of `<foreignObject>` are HTML again. So a
+component can return `<path>` to be put into an icon.
 
 What can be passed as a child in `{...}`:
 
