@@ -85,7 +85,7 @@ comp Playground() {
         </div>
         <div class={styles.output}>
             <Tabs items={tabs} active={tab} onSelect={select(event)}>
-                <Button kind="ghost" size="sm" onPress={source = t.playgroundStart}>{t.reset}</Button>
+                <Button kind="ghost" size="sm" onClick={source = t.playgroundStart}>{t.reset}</Button>
             </Tabs>
             {if tab == "js" {
                 <div>{shown ? compiledView(source) : loadingView()}</div>

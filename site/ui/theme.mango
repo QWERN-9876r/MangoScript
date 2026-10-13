@@ -65,6 +65,6 @@ export comp ThemeToggle(labels ThemeLabels) {
     return <IconButton
         icon={mode == "auto" ? "monitor" : mode == "light" ? "sun" : "moon"}
         label={labels[mode]}
-        onPress={next()}
+        onClick={next()}
     />
 }

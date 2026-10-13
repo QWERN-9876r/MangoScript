@@ -21,7 +21,7 @@ export comp Drawer(open bool, onClose func(), label string, closeLabel string, c
         <div class={styles.backdrop} onClick={onClose()} />
         <div class={styles.panel} role="dialog" aria-modal="true" aria-label={label}>
             <div class={styles.top}>
-                <IconButton icon="close" label={closeLabel} onPress={onClose()} />
+                <IconButton icon="close" label={closeLabel} onClick={onClose()} />
             </div>
             {children}
         </div>

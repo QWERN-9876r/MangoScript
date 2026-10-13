@@ -2,7 +2,7 @@
 // repository, and a component next to the JavaScript it compiles to.
 
 import { Badge } from "../ui/badge.mango"
-import { Button } from "../ui/button.mango"
+import { LinkButton } from "../ui/button.mango"
 import { Icon } from "../ui/icon.mango"
 import styles from "./hero.module.css"
 import { highlight } from "./highlight.mango"
@@ -37,9 +37,11 @@ comp Hero() {
                 <p class={styles.tagline}>{t.tagline}</p>
                 <p class={styles.lead}>{t.heroLead}</p>
                 <div class={styles.actions}>
-                    <Button kind="primary" size="lg" href="#intro" icon="arrow-right">{t.heroStart}</Button>
-                    <Button size="lg" href="#playground" icon="play">{t.playground}</Button>
-                    <Button kind="ghost" size="lg" href={REPOSITORY} icon="github">GitHub</Button>
+                    <LinkButton kind="primary" size="lg" href="#intro" icon="arrow-right">
+                        {t.heroStart}
+                    </LinkButton>
+                    <LinkButton size="lg" href="#playground" icon="play">{t.playground}</LinkButton>
+                    <LinkButton kind="ghost" size="lg" href={REPOSITORY} icon="github">GitHub</LinkButton>
                 </div>
             </div>
             <div class={styles.panels}>

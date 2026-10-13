@@ -45,21 +45,6 @@
   margin-left: auto;
 }
 
-/* The same page in the other language. */
-.language {
-  padding: 6px 10px;
-  border-radius: 999px;
-  color: var(--mui-muted);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.language:hover {
-  background: var(--mui-accent-soft);
-  color: var(--mui-text);
-}
-
 .code {
   display: none;
 }

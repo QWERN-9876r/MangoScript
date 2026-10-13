@@ -3,7 +3,7 @@
 // "JavaScript" and "Run" tabs are in example.mango, the playground in playground.mango. The
 // compiler runs right in the browser.
 
-import { Button, IconButton } from "../ui/button.mango"
+import { IconButton, IconLink, LinkButton } from "../ui/button.mango"
 import { Drawer } from "../ui/drawer.mango"
 import { NavGroup, NavList } from "../ui/nav-list.mango"
 import { Prose } from "../ui/prose.mango"
@@ -87,13 +87,14 @@ comp DocsPage(sections []Section) {
     return <div>
         <header class={styles.topbar}>
             <span class={styles.menuButton}>
-                <IconButton icon="menu" label={t.menu} onPress={menuOpen = true} />
+                <IconButton icon="menu" label={t.menu} onClick={menuOpen = true} />
             </span>
             <a class={styles.brand} href="#intro"><span aria-hidden="true">🥭</span> MangoScript</a>
             <span class={styles.tagline}>{t.tagline}</span>
             <nav class={styles.links}>
-                <a
-                    class={styles.language}
+                <LinkButton
+                    kind="ghost"
+                    size="sm"
                     href={t.otherHref}
                     hreflang={t.otherLanguageCode}
                     lang={t.otherLanguageCode}
@@ -101,11 +102,13 @@ comp DocsPage(sections []Section) {
                 >
                     <span class={styles.name}>{t.otherLanguage}</span>
                     <span class={styles.code}>{t.otherLanguageCode.toUpperCase()}</span>
-                </a>
+                </LinkButton>
                 <ThemeToggle labels={t.theme} />
-                <IconButton icon="github" label={t.repository} href={REPOSITORY} />
+                <IconLink icon="github" label={t.repository} href={REPOSITORY} />
                 <span class={styles.playgroundLink}>
-                    <Button kind="primary" size="sm" href="#playground" icon="play">{t.playground}</Button>
+                    <LinkButton kind="primary" size="sm" href="#playground" icon="play">
+                        {t.playground}
+                    </LinkButton>
                 </span>
             </nav>
             <div class="progress" />

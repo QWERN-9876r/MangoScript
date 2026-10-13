@@ -20,7 +20,7 @@ export comp CopyButton(text string, label string = "Copy", doneLabel string = "C
         icon={copied ? "check" : "copy"}
         label={copied ? doneLabel : label}
         size="sm"
-        onPress={copy()}
+        onClick={copy()}
     />
 }
 
