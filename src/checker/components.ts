@@ -5,7 +5,7 @@ import { endlessRecursion } from '../recursion.ts';
 import type { ComponentInfo } from './context.ts';
 import { CONTENT } from './dom.ts';
 import { lookupIn, ownStatements, isUntyped, callSignature } from './helpers.ts';
-import { MarkupChecker } from './markup.ts';
+import { ATTRIBUTES, ForwardingChecker } from './forwarding.ts';
 import {
   BOOL,
   func,
@@ -22,9 +22,12 @@ import {
 
 // Components: their bodies and uses, properties and spread, names they use from the module, recursion.
 
-export abstract class ComponentChecker extends MarkupChecker {
+export abstract class ComponentChecker extends ForwardingChecker {
   protected override resolveProps(info: ComponentInfo): void {
     for (const param of info.node.params) {
+      // `...attrs` takes the attributes that are not properties.
+      if (param.rest) continue;
+
       const name = param.name.name;
       const type = param.type ? this.resolveType(param.type) : UNKNOWN;
 
@@ -63,9 +66,10 @@ export abstract class ComponentChecker extends MarkupChecker {
 
     const types: Type[] = [];
 
+    this.checkAttrsSpreads(info);
     for (const param of node.params) {
       const prop = info.props.get(param.name.name);
-      const type = prop?.type ?? UNKNOWN;
+      const type = param.rest ? ATTRIBUTES : (prop?.type ?? UNKNOWN);
 
       types.push(type);
       if (param.defaultValue) {
@@ -145,7 +149,9 @@ export abstract class ComponentChecker extends MarkupChecker {
           attribute.name,
         );
       } else if (!prop) {
-        this.error(`<${tag.name}> has no property "${name}"`, attribute.name);
+        if (!this.checkForwarded(attribute, info, tag.name)) {
+          this.error(`<${tag.name}> has no property "${name}"`, attribute.name);
+        }
       } else {
         this.checkProp(attribute, prop.type, tag.name);
       }

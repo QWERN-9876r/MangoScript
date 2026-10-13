@@ -1,6 +1,8 @@
 import type * as ast from '../ast.ts';
 import { isDecoratorArgument } from '../decorators.ts';
+import { attrsParam, attrsTarget } from '../attrs.ts';
 import { ownRoot } from '../refs.ts';
+import { isSvgElement } from '../svg.ts';
 import type { Reactive } from './reactive.ts';
 import { type Live, type Source } from './reactive.ts';
 import { ARROW, lowerFirst, upperFirst } from './syntax.ts';
@@ -124,6 +126,8 @@ export abstract class ComponentEmitter extends StyleEmitter {
 
     const values = new Map<string, string>();
     const reactiveProps = new Map<string, [string, Set<Source>]>();
+    const rest = attrsParam(component);
+    const forwarded: ast.JsxAttribute[] = [];
 
     for (const attribute of node.attributes) {
       if (attribute.kind === 'JsxSpreadAttribute') {
@@ -134,6 +138,11 @@ export abstract class ComponentEmitter extends StyleEmitter {
       const prop = attribute.name.name;
 
       if (prop === 'ref') continue;
+      if (rest && !component.params.some((param) => param.name.name === prop)) {
+        forwarded.push(attribute);
+        continue;
+      }
+
       values.set(prop, this.prop(attribute, component));
       reactiveProps.delete(prop);
 
@@ -153,6 +162,8 @@ export abstract class ComponentEmitter extends StyleEmitter {
       this.children(fragment, node.children, live);
       values.set('children', fragment);
     }
+
+    if (rest) values.set(rest.name.name, this.attrsApplier(component, forwarded, live));
 
     const root = this.rootFor(node);
 
@@ -217,7 +228,8 @@ export abstract class ComponentEmitter extends StyleEmitter {
    * except `children` may get the caller's state, so all of them are sources here.
    */
   protected override componentFunction(component: ast.ComponentDeclaration): void {
-    const props = component.params.filter((param) => param.name.name !== 'children');
+    // `children` and `...attrs` are given once: the setter does not take them.
+    const props = component.params.filter((param) => param.name.name !== 'children' && !param.rest);
 
     this.withFunction('none', component.params, () => {
       const reactive = this.reactiveOf(
@@ -251,6 +263,59 @@ export abstract class ComponentEmitter extends StyleEmitter {
         `${exported}function $$${component.name.name}(${params}) ${resolveMarkers(body, reactive)}`,
       );
     });
+  }
+
+  /**
+   * The attributes of a use that are not properties of the component, as a function that sets them
+   * on the element `{...attrs}` is on: `($$element) => { $$element.disabled = true; }`. It is
+   * written here, so their values see the names of the caller; when they depend on its state, the
+   * element is kept for its updates. A class or a style is added to that of the element.
+   */
+  private attrsApplier(
+    component: ast.ComponentDeclaration,
+    attributes: readonly ast.JsxAttribute[],
+    live: Live | null,
+  ): string {
+    const tag = attrsTarget(component)?.tag?.name;
+
+    if (!tag || attributes.length === 0) return 'null';
+
+    const svg = isSvgElement(tag, false);
+    const id = this.nextId();
+    const reactive = attributes.some(
+      ({ value }) =>
+        live !== null &&
+        value !== null &&
+        value.kind !== 'EventHandler' &&
+        live.dependencies(value).size > 0,
+    );
+    const element = reactive ? `$$attrsElement${id}` : '$$element';
+
+    if (reactive) this.line(`let ${element};`);
+
+    const body = this.block(() => {
+      if (reactive) this.line(`${element} = $$element;`);
+      for (const attribute of attributes) {
+        const { name, value } = attribute;
+
+        if (name.name === 'class' && value?.kind === 'StringLiteral') {
+          const classes = value.value.split(/\s+/).filter(Boolean);
+
+          this.line(
+            `${element}.classList.add(${classes.map((each) => JSON.stringify(each)).join(', ')});`,
+          );
+        } else if (name.name === 'style' && value?.kind === 'StringLiteral') {
+          this.line(`${element}.style.cssText += ${JSON.stringify(`; ${value.value}`)};`);
+        } else {
+          this.attribute(element, tag, attribute, live, svg);
+        }
+      }
+    });
+    const applier = `$$attrs${id}`;
+
+    this.line(`const ${applier} = ($$element) => ${body};`);
+
+    return applier;
   }
 
   /** The statements of the body, then its markup. `label` is for early returns of a block. */

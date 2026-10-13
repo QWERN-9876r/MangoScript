@@ -27,6 +27,9 @@ export abstract class AttributeEmitter extends UpdateEmitter {
   /** Whether the markup being written is inside `<svg>`: its elements are SVG then. */
   protected inSvg = false;
 
+  /** `attrs` of `...attrs` in the component being written: `{...attrs}` applies them. */
+  protected attrsParam: string | null = null;
+
   /** `document.createElement("div")`, or `createElementNS` for an SVG element. */
   protected createElement(tag: string, svg: boolean): string {
     const quoted = JSON.stringify(tag);
@@ -56,7 +59,16 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     scope: string | null = null,
   ): void {
     if (attribute.kind === 'JsxSpreadAttribute') {
-      this.setLive(live, attribute.argument, (text) => `Object.assign(${element}, ${text});`);
+      const { argument } = attribute;
+
+      // The attributes passed on: the use made a function that sets them on the element.
+      if (argument.kind === 'Identifier' && argument.name === this.attrsParam) {
+        this.line(`${this.name(argument.name)}?.(${element});`);
+
+        return;
+      }
+
+      this.setLive(live, argument, (text) => `Object.assign(${element}, ${text});`);
 
       return;
     }

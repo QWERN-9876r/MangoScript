@@ -881,6 +881,42 @@ comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
 Properties are read-only: a parameter cannot be assigned inside the component. To change the
 parent's state, it is passed through a function property, like `onToggle` above.
 
+### Attributes passed on: `...attrs`
+
+A component that wraps an element usually needs the attributes of that element too: `disabled`,
+`type`, `title`, `aria-*`, handlers. Declaring each as a property would repeat the DOM, so the last
+property `...attrs` takes the attributes of a use that are not properties, and `{...attrs}` puts
+them on one element:
+
+```go
+comp Button(kind "primary" | "ghost" = "primary", children Content, ...attrs) {
+    return <button class={kind} type="button" {...attrs}>{children}</button>
+}
+
+<Button kind="ghost" type="submit" disabled={busy} onClick={save()}>Save</Button>
+```
+
+- **Checked as attributes of that element.** `disabled={1}` is an error as on `<button>`, and
+  `event` in `onClick` is typed by it. `bind:` does not go through.
+- **One element, created once.** `{...attrs}` is on one element of the component's markup, outside
+  `{if}`, `{for}` and functions, not on another component. Attributes written after it override
+  the passed ones, those before it are overridden.
+- **A class or a style** passed on is added to those of the element, so it is a string:
+  `class="wide"`.
+- **No object at runtime.** The use writes a function of the attributes in its own code, so their
+  values see its names and its state updates them; the component calls it where `{...attrs}` is:
+
+```js
+const $$attrs2 = ($$element) => {
+  $$element.type = "submit";
+  $$element.addEventListener("click", () => {
+    save();
+  });
+};
+// ...in the code of Button:
+attrs?.($$button4);
+```
+
 ### Decorators
 
 > Implemented: declarations, arguments, public members with `get`, `mount()`, wrappers, `needs`

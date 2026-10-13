@@ -1,0 +1,16 @@
+// ...attrs получает атрибуты, которые не являются свойствами, а {...attrs} ставит их на кнопку:
+// type, disabled и onClick проверяются как атрибуты <button>
+comp Button(kind "primary" | "ghost" = "primary", children Content, ...attrs) {
+    return <button class={kind} type="button" {...attrs}>{children}</button>
+}
+
+comp Form() {
+    state saved = 0
+    return <p>
+        <Button onClick={saved++} title="Сохранить черновик">Сохранить</Button>
+        <Button kind="ghost" disabled={saved == 0} onClick={saved = 0}>Сбросить</Button>
+        {" "}Сохранено {saved} раз
+    </p>
+}
+
+document.body.append(<Form />)

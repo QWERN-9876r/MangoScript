@@ -64,7 +64,9 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
       for (const source of propSources) sources.add(source);
     }
 
-    const settable = component.params.filter((param) => param.name.name !== 'children');
+    const settable = component.params.filter(
+      (param) => param.name.name !== 'children' && !param.rest,
+    );
     const setterArgs = withoutTrailingUndefined(
       settable.map((param) => reactiveProps.get(param.name.name)?.[0] ?? argument(param)),
     );

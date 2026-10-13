@@ -33,11 +33,11 @@ import {
 } from './types.ts';
 
 // The type checker is a chain of layers, one per area, like the code generator: base → imports →
-// declarations → classes → resolution → initializers → assignments → statements → control flow → functions →
-// expressions → operators → markup → components → refs → styles → decorator wrappers → decorator
-// exports → decorators → decorator members → members → calls → Checker (checker.ts). The checking
-// of statements, expressions and markup calls itself recursively, so methods of later layers that
-// earlier ones call are declared here as abstract.
+// declarations → classes → resolution → initializers → assignments → statements → control flow →
+// functions → expressions → operators → markup → forwarding → components → refs → styles →
+// decorator wrappers → decorator exports → decorators → decorator members → members → calls →
+// Checker (checker.ts). The checking of statements, expressions and markup calls itself
+// recursively, so methods of later layers that earlier ones call are declared here as abstract.
 //
 // This layer has the state of a check, diagnostics, scopes and names, and the DOM types.
 

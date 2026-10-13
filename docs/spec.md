@@ -905,6 +905,9 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
   fields are ignored, and attributes after the spread override it.
 - **Function properties** (`onPress func()`) take code by the same rule as `on*` of elements.
 - **Properties are read-only.** To change the parent's state, pass a function property.
+- **`...attrs`,** the last property, takes the attributes of a use that are not properties;
+  `{...attrs}` puts them on one element of the component's markup, created once, and the use is
+  checked as if they were written on that element. A class or a style is added to the element's.
 - **There is no component in JS:** its code is inlined as a block where it is used, and the values
   of the attributes are computed before that block. The exceptions are recursive and exported
   components, see below, and large ones: a component whose copies would add more than 100 lines

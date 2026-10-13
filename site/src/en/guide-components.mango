@@ -43,6 +43,13 @@ export func components() Node {
         </p>
         {example("components")}
         <p>
+            The last property <code>...attrs</code> takes the attributes of a use that are not
+            properties, and <code>{"{...attrs}"}</code> puts them on one element of the component.
+            They are checked as attributes of that element, so a button keeps all of its own:
+            {" "}<code>disabled</code>, <code>type</code>, <code>aria-*</code>, handlers.
+        </p>
+        {example("attrs")}
+        <p>
             A component can use itself, for a tree or nested comments. Such a component cannot be
             inlined, so it becomes a function, and every call of it has its own state. The recursion
             must end: the compiler accepts a use inside <code>{"{if ...}"}</code> or

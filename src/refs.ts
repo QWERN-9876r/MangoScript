@@ -10,12 +10,15 @@ import { forEachChild } from './walk.ts';
 /** Why markup may be created more than once, so that a ref cannot point into it. */
 export type Repeated = 'for' | 'if' | 'switch' | 'expression' | 'function' | 'block';
 
-export interface RefBinding {
-  attribute: ast.JsxAttribute;
+/** An attribute of markup, the element it is on, and whether that markup is created once. */
+export interface MarkupBinding<A> {
+  attribute: A;
   element: ast.ElementExpression;
   /** Null when the markup is created exactly once. */
   repeated: Repeated | null;
 }
+
+export type RefBinding = MarkupBinding<ast.JsxAttribute>;
 
 /** `ref={input}` of an element or a component use. */
 export function refAttribute(node: ast.ElementExpression): ast.JsxAttribute | undefined {
@@ -55,17 +58,29 @@ export function constantAttributes(node: ast.ElementExpression): ast.JsxAttribut
   return found;
 }
 
-/**
- * The `ref={...}` attributes in the markup of a body, and whether that markup is created exactly
- * once: what a `return` gives (also through the wrapper a decorator returns), `const x = <markup>`
- * at the top level, and the elements and children of components inside them.
- */
+/** The `ref={...}` attributes in the markup of a body; see markupBindings. */
 export function refBindings(body: ast.BlockStatement): RefBinding[] {
-  const found: RefBinding[] = [];
+  return markupBindings(
+    body,
+    (attribute): attribute is ast.JsxAttribute =>
+      attribute.kind === 'JsxAttribute' && attribute.name.name === 'ref',
+  );
+}
+
+/**
+ * The attributes that `wanted` picks in the markup of a body, and whether that markup is created
+ * exactly once: what a `return` gives (also through the wrapper a decorator returns),
+ * `const x = <markup>` at the top level, and the elements and children of components inside them.
+ */
+export function markupBindings<A extends ast.JsxAttribute | ast.JsxSpreadAttribute>(
+  body: ast.BlockStatement,
+  wanted: (attribute: ast.JsxAttribute | ast.JsxSpreadAttribute) => attribute is A,
+): MarkupBinding<A>[] {
+  const found: MarkupBinding<A>[] = [];
 
   const markup = (node: ast.ElementExpression, repeated: Repeated | null): void => {
     for (const attribute of node.attributes) {
-      if (attribute.kind === 'JsxAttribute' && attribute.name.name === 'ref') {
+      if (wanted(attribute)) {
         found.push({ attribute, element: node, repeated });
       } else {
         visit(attribute, repeated ?? 'expression');

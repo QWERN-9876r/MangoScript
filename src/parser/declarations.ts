@@ -144,13 +144,22 @@ export abstract class DeclarationParser extends ControlFlowParser {
    * `(a, b number, c string)`. Names without a type take the type of the next typed name, as in
    * Go; only arrow functions may leave types out entirely.
    */
-  protected parseParams(typesOptional: boolean, allowDefaults = false): ast.Parameter[] {
+  protected parseParams(
+    typesOptional: boolean,
+    allowDefaults = false,
+    allowRest = false,
+  ): ast.Parameter[] {
     this.expect('(');
 
     const params: ast.Parameter[] = [];
     let untyped = 0;
 
     while (!this.check(')')) {
+      if (this.check('...')) {
+        params.push(this.parseRestParam(allowRest));
+        break;
+      }
+
       const name = this.parseIdentifier('parameter name');
       const type = this.canStartType() ? this.parseType() : null;
       const defaultValue = allowDefaults && this.accept('=') ? this.parseExpression() : null;
@@ -174,6 +183,48 @@ export abstract class DeclarationParser extends ControlFlowParser {
     }
 
     return params;
+  }
+
+  /** `...attrs`: the attributes that a component passes on to one of its elements. */
+  private parseRestParam(allowed: boolean): ast.Parameter {
+    const start = this.next().start;
+    const name = this.parseIdentifier('parameter name');
+
+    if (!allowed) {
+      this.error(
+        `...${name.name} is only for components: it takes the attributes of an element`,
+        start,
+        name.end,
+      );
+    }
+
+    if (this.canStartType() || this.check('=')) {
+      const at = this.peek().start;
+
+      // After the error, the type and the default are read, so they are not reported again.
+      if (this.canStartType()) this.parseType();
+      if (this.accept('=')) this.parseExpression();
+      this.error(
+        `...${name.name} has no type and no default: it gets the type of the element it is spread on`,
+        at,
+        this.span(at).end,
+      );
+    }
+
+    // After the error, the rest of the list is skipped up to the `)`.
+    if (this.check(',')) {
+      this.error(`...${name.name} is the last property of a component`, start, name.end);
+      while (!this.check(')') && !this.check('EOF')) this.next();
+    }
+
+    return {
+      kind: 'Parameter',
+      name,
+      type: null,
+      defaultValue: null,
+      rest: true,
+      ...this.span(start),
+    };
   }
 
   /** Result types after a parameter list: nothing, `T`, or `(T1, T2)`. */
@@ -213,7 +264,7 @@ export abstract class DeclarationParser extends ControlFlowParser {
       );
     }
 
-    const params = this.parseParams(false, true);
+    const params = this.parseParams(false, true, true);
     const body = this.withContext({ ...FUNCTION_BODY, inComponent: true }, () =>
       this.parseComponentBody(),
     );

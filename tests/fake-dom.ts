@@ -59,6 +59,18 @@ export class FakeNode {
     });
   }
 
+  /** `classList.add` adds to `className`, as in the DOM. */
+  get classList(): { add: (...names: string[]) => void } {
+    return {
+      add: (...names) => {
+        const classes = typeof this.className === 'string' ? this.className : '';
+        const current = classes.split(' ').filter(Boolean);
+
+        this.className = [...current, ...names.filter((name) => !current.includes(name))].join(' ');
+      },
+    };
+  }
+
   /** The node with this `id` inside this one, or this one. */
   byId(id: string): FakeNode | null {
     if (this.id === id) return this;

@@ -1,0 +1,16 @@
+// ...attrs takes the attributes that are not properties, and {...attrs} puts them on the button:
+// type, disabled and onClick are checked as attributes of <button>
+comp Button(kind "primary" | "ghost" = "primary", children Content, ...attrs) {
+    return <button class={kind} type="button" {...attrs}>{children}</button>
+}
+
+comp Form() {
+    state saved = 0
+    return <p>
+        <Button onClick={saved++} title="Save the draft">Save</Button>
+        <Button kind="ghost" disabled={saved == 0} onClick={saved = 0}>Reset</Button>
+        {" "}Saved {saved} times
+    </p>
+}
+
+document.body.append(<Form />)

@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { attrsParam } from '../attrs.ts';
 import { mentionsName } from '../names.ts';
 import {
   componentRoot,
@@ -53,6 +54,7 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
       svgTargets: this.svgTargets,
       rootPreset: this.rootPreset,
       inSvg: this.inSvg,
+      attrsParam: this.attrsParam,
     };
 
     this.refElements = refTargets(component.body);
@@ -60,6 +62,8 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
     this.rootPreset = preset;
     // The markup of a component starts outside <svg>, wherever the component is used.
     this.inSvg = false;
+    // Its `{...attrs}` applies the attributes it was given.
+    this.attrsParam = attrsParam(component)?.name.name ?? null;
     try {
       return emit();
     } finally {
@@ -67,6 +71,7 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
       this.svgTargets = saved.svgTargets;
       this.rootPreset = saved.rootPreset;
       this.inSvg = saved.inSvg;
+      this.attrsParam = saved.attrsParam;
     }
   }
 

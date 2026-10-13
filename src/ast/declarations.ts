@@ -59,6 +59,11 @@ export interface Parameter extends NodeBase {
   type: TypeNode | null;
   /** `kind string = "info"`: only properties of components and decorators have default values. */
   defaultValue: Expression | null;
+  /**
+   * `...attrs`, the last property of a component: the attributes of a use that are not its
+   * properties, which `{...attrs}` puts on one of its elements.
+   */
+  rest?: true;
 }
 
 /**
