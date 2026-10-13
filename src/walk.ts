@@ -108,6 +108,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       break;
 
     case 'IncDecStatement':
+    case 'DeleteStatement':
       visit(node.target);
       break;
 
@@ -214,6 +215,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       visit(node.right);
       break;
 
+    case 'AsExpression':
+      visit(node.expression);
+      visit(node.type);
+      break;
+
     case 'ConditionalExpression':
       visit(node.test);
       visit(node.consequent);
@@ -304,6 +310,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
 
     case 'PropertySignature':
       visit(node.name);
+      visit(node.type);
+      break;
+
+    case 'IndexSignature':
+      visit(node.key);
       visit(node.type);
       break;
 

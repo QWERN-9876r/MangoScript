@@ -96,6 +96,7 @@ export function effectReads(node: ast.Node, names: Set<string>): void {
       return;
 
     case 'IncDecStatement':
+    case 'DeleteStatement':
       if (node.target.kind !== 'Identifier') effectReads(node.target, names);
 
       return;

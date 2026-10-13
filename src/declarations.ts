@@ -160,6 +160,10 @@ class DeclarationPrinter {
   /** Members of an interface or an object type, with the parameter names of its methods. */
   private objectMembers(members: readonly ast.TypeMember[], type: ObjectType): string[] {
     return members.map((member) => {
+      if (member.kind === 'IndexSignature') {
+        return `[key: string]: ${type.index ? tsType(type.index, false) : 'any'};`;
+      }
+
       const name = member.name.name;
       const memberType = type.members.get(name)?.type;
 

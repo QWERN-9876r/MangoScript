@@ -101,6 +101,9 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
     case 'ConditionalExpression':
       return `(? ${sx(node.test)} ${sx(node.consequent)} ${sx(node.alternate)})`;
 
+    case 'AsExpression':
+      return `(as ${sx(node.expression)} ${ty(node.type)})`;
+
     case 'CallExpression':
       return `(${node.optional ? '?call' : 'call'} ${[node.callee, ...node.arguments].map(sx).join(' ')})`;
 
@@ -151,6 +154,8 @@ export function ty(node: ast.TypeNode): string {
 }
 
 export function member(node: ast.TypeMember): string {
+  if (node.kind === 'IndexSignature') return `[${ty(node.key)}]: ${ty(node.type)}`;
+
   return node.kind === 'PropertySignature'
     ? `${node.name.name} ${ty(node.type)}`
     : `${node.name.name}(${node.params.map(param).join(', ')})${results(node.results)}`;

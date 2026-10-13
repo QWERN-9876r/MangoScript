@@ -145,7 +145,15 @@ export interface ObjectType extends NodeBase {
 }
 
 /** Members of interfaces and object types. */
-export type TypeMember = PropertySignature | MethodSignature;
+export type TypeMember = PropertySignature | MethodSignature | IndexSignature;
+
+/** `[string]: Shape`: the type of the fields an object has besides the ones listed. */
+export interface IndexSignature extends NodeBase {
+  kind: 'IndexSignature';
+  /** `string` or `number`. */
+  key: TypeNode;
+  type: TypeNode;
+}
 
 /** `label ?string`. A field with a nullable type may be omitted in object literals. */
 export interface PropertySignature extends NodeBase {

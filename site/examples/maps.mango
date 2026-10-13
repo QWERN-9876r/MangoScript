@@ -1,0 +1,15 @@
+// { [string]: T } is an object used as a map: any key, values of type T
+const prices { [string]: number } = { mango: 3, lychee: 7 }
+prices["papaya"] = 4
+delete prices.lychee                 // delete removes a key
+
+// A function type can be written as an arrow: (name string) => string
+const format (name string) => string = name => `${name}: €${prices[name]}`
+
+for name in Object.keys(prices) {
+    console.log(format(name))
+}
+
+// as sees a value as a related type: JSON.parse gives any
+const saved = JSON.parse(`{ "mango": 5 }`) as { [string]: number }
+console.log("saved:", saved["mango"])

@@ -1,4 +1,5 @@
 import { instanceMembers, isSubclass, publicMembers } from './classes.ts';
+import { memberNames } from './lazy.ts';
 import { isNullable, literalBase, nonNull, union } from './constructors.ts';
 import { UNKNOWN, VOID, type FunctionType, type Member, type Type } from './model.ts';
 import { typeToString } from './printing.ts';
@@ -94,9 +95,23 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
         if (source.kind === 'function') return target.members.size === 0;
       }
 
+      if (target.index && !indexAssignable(source, target.index, nested)) return false;
+
       return missingMember(source, target.members, nested) === null;
     }
   }
+}
+
+/** `{ [string]: T }` accepts an object whose own index and fields are all `T`. */
+function indexAssignable(source: Type, index: Type, assuming: [Type, Type][]): boolean {
+  if (source.kind !== 'object') return false;
+  if (source.index && !assignable(source.index, index, assuming)) return false;
+
+  return [...memberNames(source.members)].every((name) => {
+    const member = source.members.get(name);
+
+    return !member || member.method || assignable(member.type, index, assuming);
+  });
 }
 
 function functionAssignable(source: FunctionType, target: FunctionType, assuming: [Type, Type][]) {

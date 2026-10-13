@@ -38,6 +38,10 @@ export abstract class StatementChecker extends AssignmentChecker {
         this.checkAssignment(node);
         break;
 
+      case 'DeleteStatement':
+        this.checkDelete(node);
+        break;
+
       case 'IncDecStatement': {
         const type = this.checkTarget(node.target);
 
@@ -148,6 +152,43 @@ export abstract class StatementChecker extends AssignmentChecker {
         { start: node.start, end: node.start + 'mount'.length },
       );
     }
+  }
+
+  /**
+   * `delete scores[name]` removes a key of an object used as a map, `{ [string]: T }`, or a field
+   * that may be missing, of type `?T`; values of type `any` are not checked.
+   */
+  private checkDelete(node: ast.DeleteStatement): void {
+    const { target } = node;
+
+    if (target.kind !== 'MemberExpression' && target.kind !== 'IndexExpression') return;
+
+    const object = nonNull(this.checkValue(target.object));
+    const name =
+      target.kind === 'MemberExpression'
+        ? target.property.name
+        : target.index.kind === 'StringLiteral'
+          ? target.index.value
+          : null;
+
+    if (target.kind === 'IndexExpression') this.checkValue(target.index);
+    if (isUntyped(object)) return;
+    if (object.kind === 'array') {
+      this.error('delete leaves a hole in an array: remove items with splice', node);
+
+      return;
+    }
+
+    const field = name === null || object.kind !== 'object' ? undefined : object.members.get(name);
+
+    if (object.kind === 'object' && object.index && !field) return;
+    if (field && !field.method && isNullable(field.type)) return;
+    this.error(
+      name === null
+        ? `cannot delete a key of ${typeToString(object)}: it is not a map, { [string]: T }`
+        : `cannot delete "${name}" of ${typeToString(object)}: only keys of { [string]: T } and fields of type ?T can be deleted`,
+      target,
+    );
   }
 
   protected checkBlock(statements: readonly ast.Statement[]): void {

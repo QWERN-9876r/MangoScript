@@ -62,6 +62,9 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
       case 'IncDecStatement':
         return `${this.expression(node.target, POSTFIX)}${node.operator}`;
 
+      case 'DeleteStatement':
+        return `delete ${this.expression(node.target, POSTFIX)}`;
+
       case 'ExpressionStatement':
         return this.expression(node.expression, 0);
     }

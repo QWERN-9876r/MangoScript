@@ -40,11 +40,16 @@ export type Statement =
   | MountStatement
   | EffectStatement
   | StyleStatement
+  | DeleteStatement
   | JsxElementStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
 export type SimpleStatement =
-  VariableDeclaration | ExpressionStatement | AssignmentStatement | IncDecStatement;
+  | VariableDeclaration
+  | ExpressionStatement
+  | AssignmentStatement
+  | IncDecStatement
+  | DeleteStatement;
 
 export interface BlockStatement extends NodeBase {
   kind: 'BlockStatement';
@@ -207,6 +212,15 @@ export interface EffectStatement extends NodeBase {
 export interface StyleStatement extends NodeBase {
   kind: 'StyleStatement';
   parts: (CssText | Expression)[];
+}
+
+/**
+ * `delete scores[name]`: removes a key of an object used as a map (`{ [string]: T }`), or a field
+ * of type `?T`.
+ */
+export interface DeleteStatement extends NodeBase {
+  kind: 'DeleteStatement';
+  target: Expression;
 }
 
 /** Raw CSS text of a `style` block, as written. */

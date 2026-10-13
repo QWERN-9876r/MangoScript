@@ -68,6 +68,10 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'ThisExpression':
         return ['this', PRIMARY];
 
+      // `as` is only for the checker.
+      case 'AsExpression':
+        return this.expressionWithPrecedence(node.expression);
+
       case 'SuperExpression':
         return ['super', PRIMARY];
 

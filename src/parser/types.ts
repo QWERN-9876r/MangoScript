@@ -50,16 +50,8 @@ export abstract class TypeParser extends ClassParser {
     const start = this.peek().start;
 
     switch (this.peek().kind) {
-      case '(': {
-        // Grouping: `[](string | number)`, `?(A | B)`.
-        this.next();
-
-        const type = this.parseType();
-
-        this.expect(')');
-
-        return type;
-      }
+      case '(':
+        return this.parseParenthesizedType();
 
       case 'String': {
         const value = this.parseStringLiteral();
@@ -117,6 +109,68 @@ export abstract class TypeParser extends ClassParser {
     }
   }
 
+  /**
+   * Grouping, `[](string | number)`, or a function type written as an arrow,
+   * `(paths []string) => Shape`, the same as `func([]string) Shape`. Its parameters may have
+   * names, which only document them.
+   */
+  protected parseParenthesizedType(): ast.TypeNode {
+    const start = this.next().start;
+    const params = this.parseList(')', () => {
+      if (this.check('Identifier') && this.startsNamedParam()) this.next();
+
+      return this.parseType();
+    });
+
+    if (this.accept('=>')) {
+      const result = this.parseType();
+      const voids = result.kind === 'TypeReference' && result.name.name === 'void';
+
+      return { kind: 'FuncType', params, results: voids ? [] : [result], ...this.span(start) };
+    }
+
+    if (params.length !== 1) {
+      this.error(
+        'types in parentheses are the parameters of a function type: (a A, b B) => R',
+        start,
+        this.span(start).end,
+      );
+    }
+
+    return (
+      params[0] ?? {
+        kind: 'TypeReference',
+        name: { kind: 'Identifier', name: 'any', start, end: start },
+        typeArgs: [],
+        start,
+        end: start,
+      }
+    );
+  }
+
+  /** `paths []string` in `(paths []string) => Shape`: a name before the type of a parameter. */
+  private startsNamedParam(): boolean {
+    const next = this.peek(1);
+
+    switch (next.kind) {
+      case 'Identifier':
+      case '?':
+      case '{':
+      case '(':
+      case 'func':
+      case 'String':
+      case 'Number':
+        return true;
+
+      // `x []number` is named, `Box[number]` has type arguments.
+      case '[':
+        return this.peek(2).kind === ']';
+
+      default:
+        return false;
+    }
+  }
+
   /** `{ name string; x, y number; area() number }`, separated by newlines, `;` or `,`. */
   protected override parseTypeMembers(): ast.TypeMember[] {
     this.expect('{');
@@ -139,6 +193,27 @@ export abstract class TypeParser extends ClassParser {
 
   protected parseTypeMember(): ast.TypeMember[] {
     const start = this.peek().start;
+
+    // `[string]: Shape`: an object used as a map.
+    if (this.accept('[')) {
+      const key = this.parseType();
+
+      if (key.kind !== 'TypeReference' || !['string', 'number'].includes(key.name.name)) {
+        this.error(
+          'the key of [key]: T is string or number, e.g. [string]: number',
+          key.start,
+          key.end,
+        );
+      }
+
+      this.expect(']');
+      this.expect(':', '":" and the type of the values, e.g. [string]: number');
+
+      const type = this.parseType();
+
+      return [{ kind: 'IndexSignature', key, type, ...this.span(start) }];
+    }
+
     const name = this.parsePropertyName('member name');
 
     if (this.check('(')) {

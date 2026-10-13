@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { FunctionChecker } from './functions.ts';
-import { expectsLiteral, callName } from './helpers.ts';
+import { expectsLiteral, callName, isUntyped } from './helpers.ts';
 import {
   ANY,
   arrayOf,
@@ -8,6 +8,7 @@ import {
   commonType,
   hasUntypedBase,
   instanceMembers,
+  isAssignable,
   literal,
   NEVER,
   nonNull,
@@ -106,6 +107,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
       case 'ConditionalExpression':
         return this.checkConditional(node, expected);
+
+      case 'AsExpression':
+        return this.checkAs(node);
 
       case 'NewExpression':
         return this.checkNew(node, expected);
@@ -307,5 +311,24 @@ export abstract class ExpressionChecker extends FunctionChecker {
     }
 
     return untyped ? ANY : { kind: 'object', name: null, members, call: null };
+  }
+
+  /**
+   * `value as Type`: the types must be related, one assignable to the other, as in TypeScript:
+   * `element as HTMLInputElement`, `JSON.parse(text) as Config`, but not `count as string`.
+   */
+  private checkAs(node: ast.AsExpression): Type {
+    const target = this.resolveType(node.type);
+    const source = this.checkValue(node.expression, target);
+    const related = isAssignable(source, target) || isAssignable(target, source);
+
+    if (!isUntyped(source) && !isUntyped(target) && !related) {
+      this.error(
+        `cannot use ${typeToString(source)} as ${typeToString(target)}, even with "as": the types are not related`,
+        node,
+      );
+    }
+
+    return target;
   }
 }

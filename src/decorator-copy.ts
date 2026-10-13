@@ -33,6 +33,7 @@ const TYPE_NODES: ReadonlySet<string> = new Set([
   'TypeParameter',
   'PropertySignature',
   'MethodSignature',
+  'IndexSignature',
 ]);
 
 function isNode(value: unknown): value is ast.Node {

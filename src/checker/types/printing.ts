@@ -51,6 +51,8 @@ export function typeToString(type: Type): string {
         ([name, member]) => `${name} ${typeToString(member.type)}`,
       );
 
+      if (type.index) members.unshift(`[string]: ${typeToString(type.index)}`);
+
       return members.length === 0 ? '{}' : `{ ${members.join('; ')} }`;
     }
 

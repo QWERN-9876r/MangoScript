@@ -205,6 +205,18 @@ describe('VS Code grammar', () => {
     expect(scopeOf('let style = 1', 'style')).toBe('variable.other.readwrite');
   });
 
+  it('colours as and delete only where they are keywords', () => {
+    expect(scopeOf('const n = x as number', 'as')).toBe('keyword.operator.expression.as');
+    expect(scopeOf('const as = 1', 'as')).not.toBe('keyword.operator.expression.as');
+    expect(scopeOf('    delete scores[name]', 'delete')).toBe('keyword.operator.expression.delete');
+    expect(scopeOf('<p onClick={delete counts.a} />', 'delete')).toBe(
+      'keyword.operator.expression.delete',
+    );
+    expect(scopeOf('const f = (delete number) => delete', 'delete')).not.toBe(
+      'keyword.operator.expression.delete',
+    );
+  });
+
   it('treats ref as a keyword only at the start of a declaration', () => {
     expect(scopeOf('    ref input', 'ref')).toBe('storage.type.state');
     expect(scopeOf('    ref box HTMLElement', 'ref')).toBe('storage.type.state');

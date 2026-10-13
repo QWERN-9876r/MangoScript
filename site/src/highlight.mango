@@ -142,6 +142,10 @@ func identifierClass(text string, next string, language string) string {
         if text == "dec" && next == "Identifier" || text == "public" && PUBLIC_NEXT.includes(next) {
             return "kw"
         }
+        // value as Type, and delete before what it removes
+        if text == "as" && next != "=" && next != ")" || text == "delete" && next == "Identifier" {
+            return "kw"
+        }
     }
     if next == "(" {
         return "fn"

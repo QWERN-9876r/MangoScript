@@ -120,6 +120,7 @@ function objectType(type: ObjectType): string {
   });
 
   if (type.call) members.push(methodType('', type.call));
+  if (type.index) members.unshift(`[key: string]: ${tsType(type.index)};`);
 
   return members.length === 0 ? '{}' : `{ ${members.filter(Boolean).join(' ')} }`;
 }

@@ -39,6 +39,16 @@ export abstract class ExpressionParser extends TypeParser {
     while (true) {
       const operator = this.peek().kind;
 
+      // `value as Type` binds like a comparison, as in TypeScript.
+      if (this.checkWord('as') && minPrecedence <= BINARY_PRECEDENCE['<']) {
+        this.next();
+
+        const type = this.parseType();
+
+        left = { kind: 'AsExpression', expression: left, type, start: left.start, end: type.end };
+        continue;
+      }
+
       if (!isBinaryOperator(operator)) return left;
 
       const precedence = BINARY_PRECEDENCE[operator];

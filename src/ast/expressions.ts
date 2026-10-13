@@ -26,7 +26,18 @@ export type Expression =
   | IndexExpression
   | ElementExpression
   | DecoratorMember
-  | DecoratorGet;
+  | DecoratorGet
+  | AsExpression;
+
+/**
+ * `value as Type`: the value seen as another type, as in TypeScript. The types must be related:
+ * one assignable to the other. Nothing is left of it in JS.
+ */
+export interface AsExpression extends NodeBase {
+  kind: 'AsExpression';
+  expression: Expression;
+  type: TypeNode;
+}
 
 export interface Identifier extends NodeBase {
   kind: 'Identifier';

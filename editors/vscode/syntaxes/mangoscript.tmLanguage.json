@@ -248,6 +248,16 @@
           "match": "(?<![\\w$])(?<![^.]\\.)(?:typeof|instanceof)(?![\\w$])"
         },
         {
+          "comment": "`value as Type`: `as` between a value and a type; a variable named `as` is a name.",
+          "name": "keyword.operator.expression.as.mango",
+          "match": "(?<=[\\w$)\\]\"'`]\\s)as(?=\\s+[\\[?{(A-Za-z_$\"'0-9])"
+        },
+        {
+          "comment": "`delete` at the start of a statement (also in a handler), followed by what it removes.",
+          "match": "(?:^|(?<=[{;]))\\s*(delete)(?=\\s+[A-Za-z_$])",
+          "captures": { "1": { "name": "keyword.operator.expression.delete.mango" } }
+        },
+        {
           "name": "variable.language.this.mango",
           "match": "(?<![\\w$])(?<![^.]\\.)this(?![\\w$])"
         },

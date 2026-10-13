@@ -252,6 +252,7 @@ export class Reactive implements Live {
           break;
 
         case 'IncDecStatement':
+        case 'DeleteStatement':
           write(node.target);
           break;
 

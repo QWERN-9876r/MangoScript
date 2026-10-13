@@ -91,14 +91,30 @@ func variables() Node {
                     <td>функция с параметром <code>number</code> и результатом <code>string</code></td>
                 </tr>
                 <tr>
+                    <td><code>(name string) =&gt; bool</code></td>
+                    <td>такой же тип функции, записанный стрелкой</td>
+                </tr>
+                <tr>
                     <td><code>interface User {"{ ... }"}</code></td>
                     <td>объект с перечисленными полями и методами</td>
+                </tr>
+                <tr>
+                    <td><code>{"{ [string]: number }"}</code></td>
+                    <td>объект-словарь: любые ключи, значения <code>number</code></td>
                 </tr>
                 <tr><td><code>type ID number</code></td><td>другое имя для типа</td></tr>
                 <tr><td><code>any</code></td><td>что угодно, без проверок — например, значения из JS</td></tr>
             </tbody>
         </table>
         {example("types")}
+        <p>
+            У объекта-словаря тип <code>{"{ [string]: T }"}</code>: ключи у него любые, а
+            {" "}<code>delete prices.lychee</code> удаляет ключ. <code>value as Type</code>
+            позволяет смотреть на значение как на связанный тип, например на результат
+            {" "}<code>JSON.parse</code>; несвязанные типы, как <code>count as string</code>, —
+            ошибка компиляции.
+        </p>
+        {example("maps")}
     </>
 }
 

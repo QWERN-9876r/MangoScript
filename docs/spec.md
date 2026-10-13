@@ -179,27 +179,36 @@ only reports at compile time what would fail at run time.
 
 ## 3. Types
 
-| MangoScript    | Values                                       | In JS             |
-| -------------- | -------------------------------------------- | ----------------- |
-| `number`       | numbers                                      | `number`          |
-| `string`       | strings                                      | `string`          |
-| `bool`         | `true`, `false`                              | `boolean`         |
-| `any`          | anything, unchecked                          | —                 |
-| `error`        | an error or `null`                           | `Error` or `null` |
-| `[]T`          | an array                                     | `Array`           |
-| `?T`           | a value of type `T` or `null`                | a value or `null` |
-| `func(A, B) R` | a function                                   | a function        |
-| `A \| B`       | a value of type `A` or of type `B`           | a value           |
-| `"all"`, `42`  | exactly that value                           | a value           |
-| `{ x number }` | an object with these fields                  | an object         |
-| a class name   | an instance of the class                     | an instance       |
-| an interface   | any value with the needed fields and methods | —                 |
+| MangoScript       | Values                                       | In JS             |
+| ----------------- | -------------------------------------------- | ----------------- |
+| `number`          | numbers                                      | `number`          |
+| `string`          | strings                                      | `string`          |
+| `bool`            | `true`, `false`                              | `boolean`         |
+| `any`             | anything, unchecked                          | —                 |
+| `error`           | an error or `null`                           | `Error` or `null` |
+| `[]T`             | an array                                     | `Array`           |
+| `?T`              | a value of type `T` or `null`                | a value or `null` |
+| `func(A, B) R`    | a function                                   | a function        |
+| `(a A) => R`      | the same function type, written as an arrow  | a function        |
+| `A \| B`          | a value of type `A` or of type `B`           | a value           |
+| `"all"`, `42`     | exactly that value                           | a value           |
+| `{ x number }`    | an object with these fields                  | an object         |
+| `{ [string]: T }` | an object used as a map: any key, values `T` | an object         |
+| a class name      | an instance of the class                     | an instance       |
+| an interface      | any value with the needed fields and methods | —                 |
 
 The type goes after the name, without a colon: `x number`, `xs []string`, `cb func(number) bool`,
 `user ?User`.
 
 Typing is **structural**, as in TypeScript: a value fits a type if it has all the needed fields and
 methods of the needed types.
+
+- **A function type as an arrow,** `(paths []string) => Shape`, is the same as
+  `func([]string) Shape`; the names of the parameters only document them, and `=> void` means no
+  result. Parentheses with one type and no arrow still group: `[](string | number)`.
+- **An object used as a map,** `{ [string]: number }`, has any keys with values of that type; the
+  key is `string` or `number`. An object literal or another object fits it if all its fields do.
+  `scores["ann"]` and `scores[name]` are a `number`, and `delete scores[name]` removes a key.
 
 ### Type declarations
 
@@ -1280,12 +1289,23 @@ The full design, reactivity included, is in [docs/components.md](components.md).
 | `i++`, `i--`      | the same    | only as a statement: `a = i++` is an error; no `++i`      |
 | `&&`, `\|\|`, `!` | the same    | only for `bool`; a default value is written with `??`     |
 | `a + b`           | the same    | numbers or strings; `"a" + 1` is an error, use a template |
+| `x as T`          | `x`         | the types must be related, see below                      |
+| `delete obj.key`  | the same    | only as a statement, see below                            |
 
 The rest is as in JS: arithmetic, comparisons, bitwise operations, `**`, `??`, `?.`, `? :`,
 `typeof`, `instanceof`, `new`, spread `...`, indexing `xs[i]`.
 
 The language has no `var`, `function`, `===`, `while`, `do...while`, `for...in`, `with` or comma
 operator.
+
+- **`value as Type`** sees a value as another type, as in TypeScript, and leaves nothing in JS. The
+  types must be related, one assignable to the other: `element as HTMLInputElement` and
+  `JSON.parse(text) as Config` pass, `count as string` is an error. `as` binds like a comparison:
+  `a + b as number > c` is `((a + b) as number) > c`. A variable named `as` is still a name.
+- **`delete obj.key`** removes a key of a map (`{ [string]: T }`), a field of type `?T`, or a field
+  of an `any`; a required field cannot be deleted, and an array needs `splice`. It is a statement,
+  also in handlers, and in a component it updates what reads the object. `delete` is a keyword only
+  at the start of a statement.
 
 Only a function call or `new` can be a statement on its own, as in Go: a line `a + b` or
 `user.name` by itself is an error. This catches typos and a line break before a binary operator:
@@ -1411,6 +1431,12 @@ types of other imports come from TypeScript declarations (section 9).
    Proposal: allow the signature `(User, error)` with `return null, err` and consider the value not
    `null` after the check `err != null`. Nothing changes at runtime; it is a rule of type checking
    only.
+
+## Known problems
+
+1. **Types of TypeScript that extend `Array` cannot be indexed:** `match[1]` of a
+   `RegExpExecArray` is an error, `cannot index RegExpExecArray`. For now, put the value into an
+   `any` variable first. To be fixed.
 
 ## Implementation order
 

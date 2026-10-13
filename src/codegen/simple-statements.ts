@@ -152,6 +152,10 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
         this.line(`${this.expression(node.target, POSTFIX)}${node.operator};`);
         break;
 
+      case 'DeleteStatement':
+        this.line(`delete ${this.expression(node.target, POSTFIX)};`);
+        break;
+
       case 'ReturnStatement':
         this.line(this.returnStatement(node));
         break;

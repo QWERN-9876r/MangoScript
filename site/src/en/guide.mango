@@ -91,14 +91,29 @@ func variables() Node {
                     <td>a function with a <code>number</code> parameter and a <code>string</code> result</td>
                 </tr>
                 <tr>
+                    <td><code>(name string) =&gt; bool</code></td>
+                    <td>the same kind of function type, written as an arrow</td>
+                </tr>
+                <tr>
                     <td><code>interface User {"{ ... }"}</code></td>
                     <td>an object with the listed fields and methods</td>
+                </tr>
+                <tr>
+                    <td><code>{"{ [string]: number }"}</code></td>
+                    <td>an object used as a map: any keys, <code>number</code> values</td>
                 </tr>
                 <tr><td><code>type ID number</code></td><td>another name for a type</td></tr>
                 <tr><td><code>any</code></td><td>anything, unchecked: for example, values from JS</td></tr>
             </tbody>
         </table>
         {example("types")}
+        <p>
+            An object used as a map has the type <code>{"{ [string]: T }"}</code>: its keys can be
+            any, and <code>delete prices.lychee</code> removes one. <code>value as Type</code> sees
+            a value as a related type, for example what <code>JSON.parse</code> returns; unrelated
+            types, such as <code>count as string</code>, are a compile error.
+        </p>
+        {example("maps")}
     </>
 }
 

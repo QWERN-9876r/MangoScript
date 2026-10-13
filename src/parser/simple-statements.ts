@@ -20,6 +20,11 @@ export abstract class SimpleStatementParser extends ParserBase {
   protected parseSimpleStatement(): ast.SimpleStatement {
     const start = this.peek().start;
 
+    // `delete` is a keyword only at the start of a statement, followed by what it removes.
+    if (this.checkWord('delete') && ['Identifier', 'this'].includes(this.peek(1).kind)) {
+      return this.parseDelete();
+    }
+
     if (this.check('let') || this.check('const'))
       return this.parseVariableDeclaration(start, false);
 
@@ -85,6 +90,20 @@ export abstract class SimpleStatementParser extends ParserBase {
       start,
       this.span(start).end,
     );
+  }
+
+  /** `delete scores[name]`: removes a field, so the target is one. */
+  private parseDelete(): ast.DeleteStatement {
+    const { start } = this.next();
+    const target = this.parseExpression();
+    const field =
+      (target.kind === 'MemberExpression' || target.kind === 'IndexExpression') && !target.optional;
+
+    if (!field) {
+      this.error('delete removes a field: delete obj.key or delete obj[key]', start, target.end);
+    }
+
+    return { kind: 'DeleteStatement', target, ...this.span(start) };
   }
 
   protected parseExpressionList(): ast.Expression[] {
