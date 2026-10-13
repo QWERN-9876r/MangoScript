@@ -1,11 +1,12 @@
 import type * as ast from '../ast.ts';
 import { isDecoratorArgument } from '../decorators.ts';
-import { EarlyReturnEmitter } from './early-returns.ts';
+import { ownRoot } from '../refs.ts';
 import type { Reactive } from './reactive.ts';
 import { type Live, type Source } from './reactive.ts';
 import { ARROW, lowerFirst, upperFirst } from './syntax.ts';
 import { resolveMarkers } from './updates.ts';
 import { type Ending, hasEarlyReturn, hasMount } from './component-helpers.ts';
+import { RefEmitter } from './refs.ts';
 
 /**
  * Components, inlined where they are used: `<Card title="Hi" />` becomes a block with the code of
@@ -16,7 +17,7 @@ import { type Ending, hasEarlyReturn, hasMount } from './component-helpers.ts';
  * again, which the parent calls when their values depend on its state.
  */
 
-export abstract class ComponentEmitter extends EarlyReturnEmitter {
+export abstract class ComponentEmitter extends RefEmitter {
   /** An early `return` in a component: its markup, then the exit from the body. */
   protected override statement(node: ast.Statement): void {
     const early = this.earlyReturns;
@@ -33,6 +34,12 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
 
     if (node.kind === 'VariableDeclaration' && node.keyword === 'derived') {
       this.derivedValue(node);
+
+      return;
+    }
+
+    if (node.kind === 'VariableDeclaration' && node.keyword === 'ref') {
+      this.refDeclaration(node);
 
       return;
     }
@@ -123,6 +130,7 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
 
       const prop = attribute.name.name;
 
+      if (prop === 'ref') continue;
       values.set(prop, this.prop(attribute, component));
       reactiveProps.delete(prop);
 
@@ -143,7 +151,9 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
       values.set('children', fragment);
     }
 
-    if (isFunction) return this.callComponent(component, values, reactiveProps, live);
+    const root = this.rootFor(node);
+
+    if (isFunction) return this.callComponent(component, values, reactiveProps, live, root?.name);
 
     const result = `$$${lowerFirst(name)}${this.nextId()}`;
     const label = hasEarlyReturn(component) ? `$$body${this.nextId()}` : null;
@@ -163,20 +173,23 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
 
     const reactive = this.reactiveOf(component, setters.keys());
     const props = component.params.map((param): [string, 'const'] => [param.name.name, 'const']);
-    const block = this.inComponent(reactive, mountNode, () =>
-      this.block(() =>
-        this.withScope(props, () => {
-          for (const param of component.params) {
-            const value =
-              values.get(param.name.name) ??
-              (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
-            const keyword = setters.has(param.name.name) ? 'let' : 'const';
+    const preset = this.inlineRoot(component, root);
+    const block = this.withRefs(component, preset, () =>
+      this.inComponent(reactive, mountNode, () =>
+        this.block(() =>
+          this.withScope(props, () => {
+            for (const param of component.params) {
+              const value =
+                values.get(param.name.name) ??
+                (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
+              const keyword = setters.has(param.name.name) ? 'let' : 'const';
 
-            this.line(`${keyword} ${this.name(param.name.name)} = ${value};`);
-          }
+              this.line(`${keyword} ${this.name(param.name.name)} = ${value};`);
+            }
 
-          this.body(component, result, reactive, { kind: 'inline', setters }, label);
-        }),
+            this.body(component, result, reactive, { kind: 'inline', setters }, label);
+          }),
+        ),
       ),
     );
     // The setters may change arguments of decorators, so their markers are resolved too.
@@ -208,12 +221,20 @@ export abstract class ComponentEmitter extends EarlyReturnEmitter {
       );
       const result = `$$${lowerFirst(component.name.name)}${this.nextId()}`;
       const mountNode = hasMount(component) ? `$$mountNode${this.nextId()}` : null;
-      const params = this.parameters(component.params, '');
-      const body = this.inComponent(reactive, mountNode, () =>
-        this.block(() => {
-          this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
-          this.body(component, result, reactive, { kind: 'function', props }, null);
-        }),
+      // A ref to the component created the element at its top: `$$root`, undefined without one.
+      const own = this.takesRoot(component) ? ownRoot(component) : null;
+      const preset =
+        own && typeof own !== 'string' ? { node: own, name: '$$root', created: false } : null;
+      const params = [this.parameters(component.params, ''), ...(preset ? ['$$root'] : [])]
+        .filter((each) => each !== '')
+        .join(', ');
+      const body = this.withRefs(component, preset, () =>
+        this.inComponent(reactive, mountNode, () =>
+          this.block(() => {
+            this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
+            this.body(component, result, reactive, { kind: 'function', props }, null);
+          }),
+        ),
       );
 
       // Other modules import an exported component under the name of its function.

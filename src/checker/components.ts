@@ -133,6 +133,11 @@ export abstract class ComponentChecker extends MarkupChecker {
       const name = attribute.name.name;
       const prop = info.props.get(name);
 
+      if (name === 'ref') {
+        this.checkRefAttribute(attribute, node);
+        continue;
+      }
+
       if (given.has(name)) this.error(`duplicate property "${name}"`, attribute.name);
       given.add(name);
       if (name === 'children' && prop) {

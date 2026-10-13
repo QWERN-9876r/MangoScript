@@ -32,6 +32,7 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     values: ReadonlyMap<string, string>,
     reactiveProps: ReadonlyMap<string, [string, Set<Source>]>,
     live: Live | null,
+    root?: string,
   ): string {
     const name = component.name.name;
     const id = this.nextId();
@@ -39,7 +40,11 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     // A missing property with a default value is left undefined, so that the default applies.
     const argument = (param: ast.Parameter) =>
       values.get(param.name.name) ?? (param.defaultValue ? 'undefined' : 'null');
-    const args = withoutTrailingUndefined(component.params.map(argument));
+    // The element a ref created for it goes last, as `$$root`.
+    const args = withoutTrailingUndefined([
+      ...component.params.map(argument),
+      ...(root === undefined ? [] : [root]),
+    ]);
     const fn = this.functionNames.get(component) ?? `$$${name}`;
     const call = `${fn}(${args.join(', ')})`;
 

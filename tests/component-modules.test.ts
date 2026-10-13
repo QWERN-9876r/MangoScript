@@ -139,7 +139,8 @@ describe('generated code', () => {
     const exporter = compileIn(project({ 'card.mango': card }), 'card.mango');
 
     expect(exporter.diagnostics).toEqual([]);
-    expect(exporter.code).toContain('export function $$Card(title, count = 0, children) {');
+    // `$$root` is the element that `<Card ref={card} />` created in advance.
+    expect(exporter.code).toContain('export function $$Card(title, count = 0, children, $$root) {');
     // A component that is not exported is inlined into the function, in its module.
     expect(exporter.code).not.toContain('$$Icon');
     expect(exporter.code).toContain(

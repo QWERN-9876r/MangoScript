@@ -3,6 +3,7 @@ import type { Type } from '../checker/types.ts';
 import { type CopyListener, renamer } from '../decorator-copy.ts';
 import { decorate, decoratedName } from '../decorators.ts';
 import type { InlinePackage } from '../inline-packages.ts';
+import { componentRoot, type Root } from '../refs.ts';
 
 // Components of other modules in the module that uses them. Each is called, or inlined with what
 // its package brings (inline-packages.ts). Inlined code keeps referring to its own module: its
@@ -15,6 +16,8 @@ export interface ImportedComponent {
   inline: InlinePackage | null;
   /** The types of the expressions of its module. */
   types: WeakMap<ast.Expression, Type> | null;
+  /** The element at the top of what it creates, found in its module, or why it is not known. */
+  root: Root;
 }
 
 /** An inlined component of another module, with the components it brings, by their tags here. */
@@ -22,8 +25,8 @@ export interface LocalizedPackage {
   /** The tags here of the components of the other module. */
   tags: Map<string, string>;
   inline: Map<string, ast.ComponentDeclaration>;
-  /** Components it calls, with the names of their functions here. */
-  functions: Map<string, { node: ast.ComponentDeclaration; name: string }>;
+  /** Components it calls, with the names of their functions here and the elements at their top. */
+  functions: Map<string, { node: ast.ComponentDeclaration; name: string; root: Root }>;
   /** The hidden names it imports: as exported there, as named here. */
   imports: [string, string][];
 }
@@ -48,7 +51,7 @@ export function localize(
   const renames = new Map(found.moduleNames.map((used) => [used, decoratedName(name, used)]));
   const copy = renamer(renames, copied, { tags, decorators: prefixes });
   const inline = new Map<string, ast.ComponentDeclaration>();
-  const functions = new Map<string, { node: ast.ComponentDeclaration; name: string }>();
+  const functions = new Map<string, { node: ast.ComponentDeclaration; name: string; root: Root }>();
 
   // Here the copy is not exported: it is inlined like a component of this module.
   for (const [other, node] of found.components) {
@@ -59,7 +62,9 @@ export function localize(
 
   // A copy of its own: the same component may be imported here directly too.
   for (const [other, node] of found.functions) {
-    functions.set(tag(other), { node: { ...node }, name: `$$${tag(other)}` });
+    const root = packageRoot(found, other, new Set());
+
+    functions.set(tag(other), { node: { ...node }, name: `$$${tag(other)}`, root });
   }
 
   const imports: [string, string][] = [
@@ -80,6 +85,16 @@ export function localize(
   ];
 
   return { tags, inline, functions, imports };
+}
+
+/** The element at the top of what a component of a package creates, by its name there. */
+function packageRoot(found: InlinePackage, name: string, seen: Set<string>): Root {
+  const node = found.components.get(name) ?? found.functions.get(name);
+
+  if (!node || seen.has(name)) return 'is not known in advance';
+  seen.add(name);
+
+  return componentRoot(decorate(node, found.decorators), (tag) => packageRoot(found, tag, seen));
 }
 
 /**

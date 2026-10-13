@@ -103,6 +103,7 @@ function importedCode(
           node: component.node,
           inline: component.inline,
           types: component.expressionTypes,
+          root: component.root ?? 'is not known in advance',
         });
       }
 

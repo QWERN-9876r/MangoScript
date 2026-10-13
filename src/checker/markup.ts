@@ -21,6 +21,8 @@ export abstract class MarkupChecker extends OperatorChecker {
         if (!isUntyped(spread) && spread.kind !== 'object') {
           this.error(`cannot spread ${typeToString(spread)} into attributes`, attribute.argument);
         }
+      } else if (attribute.name.name === 'ref') {
+        this.checkRefAttribute(attribute, node);
       } else if (tag !== null && attribute.name.name.startsWith('bind:')) {
         this.checkBinding(attribute, tag, node.attributes);
       } else if (tag !== null) {

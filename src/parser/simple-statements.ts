@@ -95,12 +95,27 @@ export abstract class SimpleStatementParser extends ParserBase {
     return expressions;
   }
 
+  /** `ref input` is one name, and the markup gives its element. */
+  private checkRef(names: ast.Identifier[], valued: boolean, start: number, end: number): void {
+    const name = names[0]!.name;
+
+    if (valued) {
+      this.error(
+        `ref "${name}" gets its element from the markup, not from a value: write ref ${name} and <div ref={${name}}>`,
+        start,
+        end,
+      );
+    } else if (names.length > 1) {
+      this.error(`ref declares one name, e.g. ref ${name}`, start, end);
+    }
+  }
+
   protected parseVariableDeclaration(start: number, exported: boolean): ast.VariableDeclaration {
     const token = this.next();
     const keyword =
       token.kind === 'const'
         ? 'const'
-        : token.text === 'state' || token.text === 'derived'
+        : token.text === 'state' || token.text === 'derived' || token.text === 'ref'
           ? token.text
           : 'let';
     const names = [this.parseIdentifier('variable name')];
@@ -111,7 +126,9 @@ export abstract class SimpleStatementParser extends ParserBase {
     const values = this.accept('=') ? this.parseExpressionList() : [];
     const { end } = this.span(start);
 
-    if (keyword === 'derived' && (names.length !== 1 || values.length !== 1)) {
+    if (keyword === 'ref') {
+      this.checkRef(names, values.length > 0, start, end);
+    } else if (keyword === 'derived' && (names.length !== 1 || values.length !== 1)) {
       this.error(
         'derived is one name and the expression it is computed from, e.g. derived double = count * 2',
         start,

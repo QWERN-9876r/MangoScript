@@ -8,6 +8,7 @@ export type BindingKind =
   | 'const'
   | 'state'
   | 'derived'
+  | 'ref'
   | 'param'
   | 'function'
   | 'class'

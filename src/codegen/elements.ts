@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { constantAttributes } from '../refs.ts';
 import { isSimple, startsWithObjectLiteral } from './analysis.ts';
 import { AttributeEmitter } from './attributes.ts';
 import { contentKind, type Content, type ControlStatement } from './element-helpers.ts';
@@ -25,6 +26,11 @@ export abstract class ElementEmitter extends AttributeEmitter {
     component: ast.ComponentDeclaration,
     live: Live | null,
   ): string;
+
+  /** The element a ref created for markup to fill in; implemented by RefEmitter. */
+  protected abstract presetElement(
+    node: ast.ElementExpression,
+  ): { name: string } | { create: string } | null;
 
   /** Control flow in live markup that depends on state; implemented by ControlFlowEmitter. */
   protected abstract liveControl(
@@ -90,18 +96,30 @@ export abstract class ElementEmitter extends AttributeEmitter {
     live: Live | null,
   ): string {
     const tag = node.tag?.name ?? null;
-    const name = declaration?.split(' ').at(-1) ?? this.elementName(tag);
+    const preset = this.presetElement(node);
+    // A ref created the element with its constant attributes, so the markup only fills it in.
+    const created = preset && 'name' in preset ? preset.name : null;
+    const name = created ?? declaration?.split(' ').at(-1) ?? this.elementName(tag);
     const create =
       tag === null
         ? 'document.createDocumentFragment()'
         : `document.createElement(${JSON.stringify(tag)})`;
+    const constants = new Set<ast.JsxAttribute | ast.JsxSpreadAttribute>(
+      created ? constantAttributes(node) : [],
+    );
 
-    this.line(`${declaration ?? `const ${name}`} = ${create};`);
+    if (created === null) {
+      const value = preset && 'create' in preset ? preset.create : create;
+
+      this.line(`${declaration ?? `const ${name}`} = ${value};`);
+    }
 
     // Bindings go last: `valueAsNumber` needs the `type` attribute to be set.
     const bindings: ast.JsxAttribute[] = [];
 
     for (const attribute of node.attributes) {
+      if (constants.has(attribute)) continue;
+      if (attribute.kind === 'JsxAttribute' && attribute.name.name === 'ref') continue;
       if (attribute.kind === 'JsxAttribute' && attribute.name.name.startsWith('bind:')) {
         bindings.push(attribute);
       } else {
@@ -114,6 +132,7 @@ export abstract class ElementEmitter extends AttributeEmitter {
     }
 
     this.children(name, node.children, live);
+    if (created !== null && declaration) this.line(`${declaration} = ${created};`);
 
     return name;
   }

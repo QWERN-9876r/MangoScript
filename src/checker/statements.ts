@@ -153,6 +153,12 @@ export abstract class StatementChecker extends AssignmentChecker {
   }
 
   protected checkVariableDeclaration(node: ast.VariableDeclaration): void {
+    if (node.keyword === 'ref') {
+      this.checkRefDeclaration(node);
+
+      return;
+    }
+
     const declared = node.type ? this.resolveType(node.type) : null;
     const { names, values } = node;
     // The variables exist from the start of their declaration, as in JS, so functions in the

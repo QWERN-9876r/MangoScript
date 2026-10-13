@@ -106,13 +106,14 @@ export abstract class StatementParser extends SimpleStatementParser {
       this.fail(`"${token.text}" is not a MangoScript keyword: ${hint}`);
     }
 
-    const misplaced = this.isStateDeclaration()
-      ? this.peek().text
-      : this.isMountDeclaration()
-        ? 'mount()'
-        : this.isEffectDeclaration()
-          ? 'effect'
-          : null;
+    const misplaced =
+      this.isStateDeclaration() || this.isRefDeclaration()
+        ? this.peek().text
+        : this.isMountDeclaration()
+          ? 'mount()'
+          : this.isEffectDeclaration()
+            ? 'effect'
+            : null;
 
     if (misplaced !== null) {
       this.fail(
@@ -211,6 +212,11 @@ export abstract class StatementParser extends SimpleStatementParser {
     return (
       (this.checkWord('state') || this.checkWord('derived')) && this.peek(1).kind === 'Identifier'
     );
+  }
+
+  /** `ref input`: like `state`, a keyword only at the start of a statement in a component. */
+  protected isRefDeclaration(): boolean {
+    return this.checkWord('ref') && this.peek(1).kind === 'Identifier';
   }
 
   /** `effect {`: like `state`, a keyword only at the start of a statement in a component. */

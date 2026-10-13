@@ -1,8 +1,8 @@
 import type * as ast from '../ast.ts';
 import { decoratorNames, wrapperBody, wrapperOf } from '../decorators.ts';
-import { ComponentChecker } from './components.ts';
 import type { ComponentInfo, DecoratorInfo } from './context.ts';
 import { isUntyped, ownStatements } from './helpers.ts';
+import { RefChecker } from './refs.ts';
 import { isAssignable, typeToString, UNKNOWN, type Type } from './types.ts';
 
 // The wrappers of decorators, `return (content Element) => <div>{content}</div>`: what they get from
@@ -12,7 +12,7 @@ const EXAMPLE = 'return (content Element) => <div>{content}</div>';
 
 type WrapperInfo = NonNullable<DecoratorInfo['wrapper']>;
 
-export abstract class DecoratorWrapperChecker extends ComponentChecker {
+export abstract class DecoratorWrapperChecker extends RefChecker {
   /** The type of what the wrapper gets, resolved with the other declarations of the module. */
   protected resolveWrapper(info: DecoratorInfo): void {
     const node = wrapperOf(info.node);

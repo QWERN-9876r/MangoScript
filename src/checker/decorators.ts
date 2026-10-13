@@ -109,11 +109,13 @@ export abstract class DecoratorChecker extends DecoratorExportChecker {
     this.component = null;
     this.decorator = info;
     try {
-      this.withClass(null, () =>
-        this.checkFunction(node.params, func(info.params, []), null, node.body, {
-          paramKind: 'prop',
-          inspect: (scope) => this.collectMembers(info, scope),
-        }),
+      this.withRefs(node.body, () =>
+        this.withClass(null, () =>
+          this.checkFunction(node.params, func(info.params, []), null, node.body, {
+            paramKind: 'prop',
+            inspect: (scope) => this.collectMembers(info, scope),
+          }),
+        ),
       );
     } finally {
       this.component = saved.component;
@@ -137,7 +139,8 @@ export abstract class DecoratorChecker extends DecoratorExportChecker {
       } else if (
         statement.kind === 'VariableDeclaration' &&
         statement.isPublic &&
-        statement.keyword !== 'let'
+        statement.keyword !== 'let' &&
+        statement.keyword !== 'ref'
       ) {
         for (const name of statement.names) add(name, statement.keyword);
       }

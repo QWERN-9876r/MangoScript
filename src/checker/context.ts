@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import type { Wrapper } from '../decorators.ts';
 import type { Diagnostic } from '../diagnostics.ts';
 import type { InlinePackage } from '../inline-packages.ts';
+import type { Root } from '../refs.ts';
 import { GLOBAL_TYPES, GLOBAL_VALUES, LIBRARY_TYPES } from './builtins.ts';
 import { type ClassInfo, type Type, type TypeParam } from './types.ts';
 
@@ -66,6 +67,7 @@ export type BindingKind =
   | 'const'
   | 'state'
   | 'derived'
+  | 'ref'
   | 'param'
   | 'prop'
   | 'function'
@@ -105,6 +107,11 @@ export interface ComponentInfo {
    * are names there.
    */
   result: Type | null;
+  /**
+   * The element at the top of what `<Card />` creates, which `<Card ref={card} />` creates in
+   * advance, or why it is not known; found in its module once its body is checked.
+   */
+  root: Root | null;
   /**
    * For an exported component: what another module needs to inline it instead of calling it, and
    * the types of the expressions of this module, for the code generator there.

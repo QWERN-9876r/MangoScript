@@ -101,6 +101,7 @@ export abstract class DeclarationChecker extends CheckerBase {
             decorators: [],
             expanded: statement,
             result: null,
+            root: null,
             inline: null,
             expressionTypes: null,
           };

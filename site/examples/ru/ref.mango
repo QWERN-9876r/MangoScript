@@ -1,0 +1,43 @@
+// ref даёт имя элементу внутри разметки: он есть с начала тела, с атрибутами, записанными
+// строками, а разметка его заполняет
+comp Chat() {
+    state messages []string = ["Привет! Напишите что-нибудь"]
+    state draft = ""
+    ref log
+    ref input
+
+    // Выполняется снова после каждого нового сообщения: прокручивает список в конец
+    effect {
+        if messages.length > 0 {
+            log.scrollTop = log.scrollHeight
+        }
+    }
+
+    // Разметка на странице: курсор ставится в поле ввода
+    mount() {
+        input.focus()
+    }
+
+    func send() {
+        if draft.trim() != "" {
+            messages.push(draft.trim())
+            draft = ""
+        }
+
+        input.focus()
+    }
+
+    return <section class="chat">
+        <ul class="log" ref={log}>
+            {for message in messages {
+                <li>{message}</li>
+            }}
+        </ul>
+        <form onSubmit={event.preventDefault(); send()}>
+            <input ref={input} bind:value={draft} placeholder="Сообщение" />
+            <button>Отправить</button>
+        </form>
+    </section>
+}
+
+document.body.append(<Chat />)

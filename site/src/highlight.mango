@@ -128,10 +128,10 @@ func identifierClass(text string, next string, language string) string {
         if MANGO_TYPES.includes(text) {
             return "type"
         }
-        // state, derived, mount, effect and dec are keywords only at the start of a declaration:
-        // state count = 0, mount() { }, effect { }, dec visible() { }; so is public, in classes and
-        // decorators
-        if (text == "state" || text == "derived") && next == "Identifier" ||
+        // state, derived, ref, mount, effect and dec are keywords only at the start of a
+        // declaration: state count = 0, ref input, mount() { }, effect { }, dec visible() { }; so
+        // is public, in classes and decorators
+        if (text == "state" || text == "derived" || text == "ref") && next == "Identifier" ||
             text == "mount" && next == "(" || text == "effect" && next == "{" {
             return "kw"
         }

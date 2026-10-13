@@ -106,7 +106,8 @@ export interface DecoratorUse extends NodeBase {
 
 /**
  * `let x number`, `const PI = 3.14`, `let a, b = 1, 2`, `const q, err = divide(10, 2)`; inside a
- * component also `state count = 0`.
+ * component also `state count = 0` and `ref input`, which has no value: the markup gives it with
+ * `<input ref={input} />`.
  *
  * `values` is empty (every name gets its zero value), has one value per name, or holds a single
  * call that returns several values.
@@ -114,7 +115,7 @@ export interface DecoratorUse extends NodeBase {
 export interface VariableDeclaration extends NodeBase {
   kind: 'VariableDeclaration';
   exported: boolean;
-  keyword: 'let' | 'const' | 'state' | 'derived';
+  keyword: 'let' | 'const' | 'state' | 'derived' | 'ref';
   /**
    * `public state`, `public derived` or `public const` in a decorator: the component reads it with
    * `get(@name.x)`.

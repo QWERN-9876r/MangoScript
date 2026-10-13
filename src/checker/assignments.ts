@@ -121,6 +121,11 @@ export abstract class AssignmentChecker extends InitializerChecker {
             `cannot assign to "${target.name}": it is derived, so change what it is computed from`,
             target,
           );
+        } else if (binding.kind === 'ref') {
+          this.error(
+            `cannot assign to "${target.name}": a ref always points to its element`,
+            target,
+          );
         } else if (binding.kind === 'loop') {
           this.error(`cannot assign to loop variable "${target.name}"`, target);
         } else if (binding.kind === 'prop') {

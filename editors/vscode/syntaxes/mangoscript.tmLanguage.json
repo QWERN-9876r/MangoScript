@@ -174,8 +174,8 @@
           }
         },
         {
-          "comment": "`state` and `derived` are keywords only at the start of a statement, followed by a name; a decorator's state may be `public state`.",
-          "match": "^\\s*(?:(public)\\s+)?(state|derived)(?=\\s+[A-Za-z_$])",
+          "comment": "`state`, `derived` and `ref` are keywords only at the start of a statement, followed by a name; a decorator's state may be `public state`.",
+          "match": "^\\s*(?:(public)\\s+)?(state|derived|ref)(?=\\s+[A-Za-z_$])",
           "captures": {
             "1": { "name": "storage.modifier.mango" },
             "2": { "name": "storage.type.state.mango" }

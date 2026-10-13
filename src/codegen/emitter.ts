@@ -6,6 +6,7 @@ import type { InlinePackage } from '../inline-packages.ts';
 import { type ImportedComponent, type LocalizedPackage, localize } from './imported.ts';
 import { assignedNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
+import type { Root } from '../refs.ts';
 import { forEachChild } from '../walk.ts';
 import { collectValueNames, type BindingKind } from './analysis.ts';
 import type { Helper } from './helpers.ts';
@@ -57,8 +58,10 @@ interface FunctionContext {
  * The base of the JS generator: the output buffer, scopes of declared names and the state of the
  * current function. The generator is split into layers, each adding to the previous one:
  *
- *     Emitter → ExpressionEmitter → StatementEmitter → UpdateEmitter → ElementEmitter
- *       → ControlFlowEmitter → ComponentEmitter → FunctionEmitter → JsGenerator
+ *     Emitter → ExpressionEmitter → SimpleStatementEmitter → ControlStatementEmitter
+ *       → StatementEmitter → UpdateEmitter → AttributeEmitter → ElementEmitter
+ *       → ControlFlowEmitter → ComponentPropsEmitter → EarlyReturnEmitter → RefEmitter
+ *       → ComponentEmitter → WebComponentEmitter → FunctionEmitter → JsGenerator
  */
 export abstract class Emitter {
   protected readonly program: ast.Program;
@@ -99,6 +102,8 @@ export abstract class Emitter {
   protected readonly webComponents = new Map<string, ast.ComponentDeclaration>();
   /** The JS functions of components of other modules: `$$Card`, imported from their modules. */
   protected readonly functionNames = new Map<ast.ComponentDeclaration, string>();
+  /** For those, the element at the top of what they create, found in their modules. */
+  protected readonly importedRoots = new Map<ast.ComponentDeclaration, Root>();
   /** The inlined copies of each component and the lines they take, to choose functions (js.ts). */
   readonly inlined = new Map<string, { copies: number; lines: number }>();
   /** The decorators that components of the module apply, by name. */
@@ -227,19 +232,20 @@ export abstract class Emitter {
     }
 
     // Other components of other modules are called: their functions are imported.
-    const called: [string, { node: ast.ComponentDeclaration; name: string }][] = [
+    const called: [string, { node: ast.ComponentDeclaration; name: string; root: Root }][] = [
       ...(options.components ?? []),
     ]
       .filter(([name]) => !this.inlinedImports.has(name))
-      .map(([name, component]) => [name, { node: component.node, name: `$$${name}` }]);
+      .map(([name, { node, root }]) => [name, { node, name: `$$${name}`, root }]);
 
     for (const localized of [...this.inlinedImports.values(), ...this.decoratorImports.values()]) {
       called.push(...localized.functions);
     }
 
-    for (const [tag, { node, name }] of called) {
+    for (const [tag, { node, name, root }] of called) {
       this.components.set(tag, node);
       this.functionNames.set(node, name);
+      this.importedRoots.set(node, root);
       functionComponents.add(node);
     }
 

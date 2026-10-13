@@ -3,7 +3,7 @@
 
 import { example } from "../example.mango"
 import { REPOSITORY, Section } from "../i18n.mango"
-import { components, decorators, markup, mounting, reactivity, webComponents } from "./guide-components.mango"
+import { components, decorators, markup, mounting, reactivity, refs, webComponents } from "./guide-components.mango"
 
 export const SECTIONS []Section = [
     { id: "intro", title: "What is MangoScript", content: intro },
@@ -19,6 +19,7 @@ export const SECTIONS []Section = [
     { id: "components", title: "Components", content: components },
     { id: "state", title: "State", content: reactivity },
     { id: "mount", title: "Mounting", content: mounting },
+    { id: "ref", title: "Refs", content: refs },
     { id: "web-components", title: "Web components", content: webComponents },
     { id: "decorators", title: "Decorators", content: decorators },
     { id: "tools", title: "Tools", content: tools },

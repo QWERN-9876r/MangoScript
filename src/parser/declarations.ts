@@ -230,7 +230,7 @@ export abstract class DeclarationParser extends ControlFlowParser {
     };
   }
 
-  /** Like a function body, but its own statements may also declare `state` and `mount()`. */
+  /** Like a function body, but its own statements may also declare `state`, `ref` and `mount()`. */
   protected parseComponentBody(): ast.BlockStatement {
     const start = this.expect('{').start;
     const body: ast.Statement[] = [];
@@ -254,7 +254,7 @@ export abstract class DeclarationParser extends ControlFlowParser {
       return statement;
     }
 
-    if (!this.isStateDeclaration()) return this.parseStatement();
+    if (!this.isStateDeclaration() && !this.isRefDeclaration()) return this.parseStatement();
 
     const declaration = this.parseVariableDeclaration(this.peek().start, false);
 

@@ -144,6 +144,43 @@ export func mounting() Node {
     </>
 }
 
+export func refs() Node {
+    return <>
+        <p>
+            <code>ref log</code> gives a name to an element inside the markup,
+            {" "}<code>{"<ul ref={log}>"}</code>, without taking the element out of it. The element
+            exists from the start of the body: it is created where the ref is declared, with the
+            attributes written as strings, and the markup fills it in. So a ref is never
+            {" "}<code>null</code>.
+        </p>
+        {example("ref")}
+        <ul>
+            <li>
+                A ref has the type of its element, here <code>HTMLUListElement</code>, or the one
+                written: <code>ref log HTMLElement</code>. It cannot be assigned.
+            </li>
+            <li>
+                Above <code>return</code> the element has its string attributes but no children and
+                no handlers yet; in <code>mount</code>, <code>effect</code> and handlers it is
+                complete. The markup can use an element written further down:
+                {" "}<code>{"<label for={input.id}>"}</code> before
+                {" "}<code>{"<input id=\"name\" ref={input} />"}</code>.
+            </li>
+            <li>
+                A ref points to one element, which the markup creates once. Inside
+                {" "}<code>{"{if}"}</code>, <code>{"{for}"}</code>, <code>{"{switch}"}</code> and
+                functions the element is created again, so a ref there is a compile error: an
+                element of a list goes into a component with a ref of its own.
+            </li>
+            <li>
+                <code>{"<Field ref={name} />"}</code> points to the element at the top of what
+                {" "}<code>Field</code> returns, and a decorator binds its refs in the markup of its
+                wrapper.
+            </li>
+        </ul>
+    </>
+}
+
 export func webComponents() Node {
     return <>
         <p>

@@ -1,0 +1,43 @@
+// ref names an element inside the markup: it exists from the start of the body, with the
+// attributes written as strings, and the markup fills it in
+comp Chat() {
+    state messages []string = ["Hi! Write something"]
+    state draft = ""
+    ref log
+    ref input
+
+    // Runs again after every new message: scrolls the list to the end
+    effect {
+        if messages.length > 0 {
+            log.scrollTop = log.scrollHeight
+        }
+    }
+
+    // The markup is on the page: the cursor goes into the input
+    mount() {
+        input.focus()
+    }
+
+    func send() {
+        if draft.trim() != "" {
+            messages.push(draft.trim())
+            draft = ""
+        }
+
+        input.focus()
+    }
+
+    return <section class="chat">
+        <ul class="log" ref={log}>
+            {for message in messages {
+                <li>{message}</li>
+            }}
+        </ul>
+        <form onSubmit={event.preventDefault(); send()}>
+            <input ref={input} bind:value={draft} placeholder="Message" />
+            <button>Send</button>
+        </form>
+    </section>
+}
+
+document.body.append(<Chat />)

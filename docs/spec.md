@@ -75,7 +75,7 @@ null  true  false  typeof  instanceof
 
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
 too, in `import` and `export` so is `from`, at the start of a statement in a component's body
-`state`, `derived`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
+`state`, `derived`, `ref`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
 parameters `needs`, and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is
 special only in `get(@name.member)`. Reserved
 for the future: `map`, `async`, `await`. Decorators are written before `comp`: `@html-tag` (see
@@ -1044,6 +1044,50 @@ $$mount(() => {
 });
 ```
 
+**References.** `ref name` at the top level of the body of a component or a decorator names an
+element of its markup, which `ref={name}` gives:
+
+```go
+comp Search() {
+    ref input
+    mount() {
+        input.focus()
+    }
+    return <form class="search">
+        <label for={input.id}>Find</label>
+        <input id="query" ref={input} />
+    </form>
+}
+```
+
+```js
+const input = document.createElement("input");
+input.id = "query";
+$$mount(() => $$mountNode2, () => {
+  input.focus();
+});
+// ...the markup fills the element in instead of creating it:
+$$label3.htmlFor = input.id;
+```
+
+- **The element exists from the start.** It is created where the ref is declared, with its
+  constant attributes: those written as a string or without a value, before any `{...spread}`.
+  The markup sets the rest where it is written: values in `{...}`, handlers, `bind:` and children.
+  So a ref is never `null`, and markup can refer to an element written further down.
+- **The type** is that of the element (`HTMLInputElement`), or the one written:
+  `ref input HTMLElement`. A ref cannot be assigned, and it is not state.
+- **Once.** A ref is bound to one element, in markup created exactly once: what a `return` gives,
+  `const x = <...>` at the top level of the body, the children of components there, and the wrapper
+  of a decorator, for the refs of the decorator. Inside `{if}`, `{for}`, `{switch}`, expressions and
+  functions a ref is an error. If an early `return` gives other markup, the element stays as it was
+  declared, outside the document.
+- **A ref to a component,** `<Card ref={card} />`, points to the element at the top of what `Card`
+  creates, through the wrappers of its decorators. The ref creates that element, and `Card` fills
+  it in: an inlined one directly, a function through its last argument, `$$root`. A component with
+  several `return`s, one that returns a fragment, or a wrapper that returns some other expression
+  cannot be pointed to: the element is not known in advance. A component cannot have a property
+  named `ref`.
+
 **Web components.** `@html-tag` before `comp` makes a component a custom element as well, so it
 works in plain HTML, in other frameworks and from JS. The tag is the component's name in kebab case,
 or the one given in the decorator:
@@ -1120,9 +1164,9 @@ comp Clicker(label string) {
   are evaluated for every instance with the component's properties in scope, so
   `@counter(label.length)` works; when a property changes, the argument is computed again. In the
   decorator its parameters are read-only.
-- **The body** may hold `state`, `const`, `let`, functions, `mount()` and, at the end, the `return`
-  of a wrapper. Its own names are used in it as usual; the component does not see them unless they
-  are `public`.
+- **The body** may hold `state`, `const`, `let`, `ref`, functions, `mount()` and, at the end, the
+  `return` of a wrapper; its refs are bound in the markup of the wrapper. Its own names are used in
+  it as usual; the component does not see them unless they are `public`.
 - **Public members** are `public state`, `public derived`, `public const` and `public func`;
   there is no `public let`. The component reads state, derived values and constants with
   `get(@counter.count)` (in markup this

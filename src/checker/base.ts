@@ -34,7 +34,7 @@ import {
 
 // The type checker is a chain of layers, one per area, like the code generator: base → declarations
 // → classes → resolution → initializers → assignments → statements → control flow → functions →
-// expressions → operators → markup → components → decorator wrappers → decorator exports →
+// expressions → operators → markup → components → refs → decorator wrappers → decorator exports →
 // decorators → decorator members → members → calls → Checker (checker.ts). The checking of
 // statements, expressions and markup calls itself recursively, so methods of later layers that
 // earlier ones call are declared here as abstract.
@@ -130,6 +130,13 @@ export abstract class CheckerBase {
   protected abstract checkDecoratorWrite(target: ast.Expression): boolean;
 
   protected abstract checkComponentUse(node: ast.ElementExpression, tag: ast.Identifier): Type;
+
+  protected abstract checkRefDeclaration(node: ast.VariableDeclaration): void;
+
+  protected abstract checkRefAttribute(
+    attribute: ast.JsxAttribute,
+    node: ast.ElementExpression,
+  ): void;
 
   protected abstract resolveProps(info: ComponentInfo): void;
 

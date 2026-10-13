@@ -4,8 +4,8 @@
 
 > Status: implemented are elements, components, `state`, `bind:`, `if` / `for` / `switch` in markup
 > (stages 1–4), recursive components, early returns, `mount()`, web components (`@html-tag`),
-> decorators (`dec`), `derived` and `effect`. The decisions made are collected at the end of the
-> document, together with what is not decided yet.
+> decorators (`dec`), `derived`, `effect` and `ref`. The decisions made are collected at the end of
+> the document, together with what is not decided yet.
 
 ## Goals
 
@@ -40,13 +40,16 @@ Attribute names are those of HTML, not the DOM properties of JSX: `class`, not `
 not `htmlFor`. Markup has no conflict with keywords, so there is no reason to rename them.
 
 Elements are ordinary values: they can be put into a variable, returned from a function, passed to
-`append`. A separate mechanism of references (`ref`) is not needed:
+`append`. Outside components that is all a reference to an element needs:
 
 ```go
 const input = <input placeholder="Name" />
 input.focus()
 form.append(input)
 ```
+
+In a component that would take the element out of the markup it returns. There `ref input` names an
+element without taking it out, see "References: `ref`".
 
 ### Types
 
@@ -212,16 +215,17 @@ document.body.append(<Counter initialValue={0} />)
 
 ### State
 
-| Construct                               | What it does                                                     |
-| --------------------------------------- | ---------------------------------------------------------------- |
-| `state count = 0`, `state items []Todo` | a reactive variable, like `let`; without a value, the zero value |
-| `derived double = count * 2`            | a computed value, read-only, like `const`                        |
-| `effect { ... }`                        | code that runs after creation and whenever what it reads changes |
+| Construct                               | What it does                                                      |
+| --------------------------------------- | ----------------------------------------------------------------- |
+| `state count = 0`, `state items []Todo` | a reactive variable, like `let`; without a value, the zero value  |
+| `derived double = count * 2`            | a computed value, read-only, like `const`                         |
+| `effect { ... }`                        | code that runs after creation and whenever what it reads changes  |
+| `ref input`                             | an element of the markup, which exists from the start of the body |
 
 The type can be written as with `let`: `state count number = 0`, `derived left number = ...`.
 
-`state`, `derived` and `effect` are keywords only at the start of a statement inside `comp`. In
-other code they are ordinary names: `let state = load()` can still be written (the same way as
+`state`, `derived`, `effect` and `ref` are keywords only at the start of a statement inside `comp`.
+In other code they are ordinary names: `let state = load()` can still be written (the same way as
 `static` and `private` in classes).
 
 Changes are tracked by writes to the variable:
@@ -535,6 +539,118 @@ The check in `$$updateName2` keeps the cursor in place in an input the user is e
 does not update the input itself: if `name` changes only in it, the handler updates only the
 greeting, and there is no `$$updateName2` at all.
 
+### References: `ref`
+
+```go
+comp Chat() {
+    state messages []string = ["Hi! Write something"]
+    state draft = ""
+    ref log
+    ref input
+
+    // Runs again after every new message: scrolls the list to the end
+    effect {
+        if messages.length > 0 {
+            log.scrollTop = log.scrollHeight
+        }
+    }
+
+    mount() {
+        input.focus()
+    }
+
+    return <section class="chat">
+        <ul class="log" ref={log}>{for message in messages { <li>{message}</li> }}</ul>
+        <form onSubmit={event.preventDefault(); messages.push(draft); draft = ""}>
+            <input ref={input} bind:value={draft} placeholder="Message" />
+        </form>
+    </section>
+}
+```
+
+- **Declaration.** `ref name` at the top level of the body of a component or a decorator, like
+  `state`. The markup gives it its element: `<ul ref={log}>`. Without a type the ref has the type
+  of its element, here `HTMLUListElement`; a type can be written: `ref log HTMLElement`.
+- **The element exists from the start.** It is created where the ref is declared, with its
+  constant attributes: those written as a string (`class="log"`) or without a value (`hidden`),
+  before any `{...spread}`, which may override them. The markup sets the rest where it is written:
+  values in `{...}`, handlers, `bind:` and children. So above `return` `log` is an empty
+  `<ul class="log">`, and markup can refer to an element further down:
+  `<label for={input.id}>` before `<input id="name" ref={input} />`. In `mount()`, `effect` and
+  handlers the element is complete. A ref is never `null`.
+- **Once.** A ref points to one element, which the markup creates exactly once: in what a `return`
+  gives, in `const x = <...>` at the top level of the body, in the children of components there,
+  and in the wrapper of a decorator. Inside `{if}`, `{for}`, `{switch}`, expressions and functions
+  the element is created again or many times, so a ref there is an error:
+  `ref={item} is inside {for}: the element is created for every item, so a ref cannot point to it; put the element into a component, and each copy gets its own ref`.
+  If an early `return` gives other markup, the element of the ref stays as it was declared, empty
+  and outside the document.
+- **A constant, not state.** A ref cannot be assigned, and what is done through it
+  (`log.scrollTop = ...`) is ordinary work with the DOM.
+
+```js
+let messages = ["Hi! Write something"];
+let draft = "";
+const log = document.createElement("ul");
+log.className = "log";
+const input = document.createElement("input");
+input.placeholder = "Message";
+// ...the effect, mount() and the rest of the markup, which fills the elements in:
+log.append($$for7);
+input.value = draft;
+input.addEventListener("input", () => {
+  draft = input.value;
+});
+```
+
+**A ref to a component.** `<Field ref={name} label="Name" />` points to the element at the top of
+what `Field` creates, through the wrappers of its decorators. The ref creates that element in
+advance, with its constant attributes, and `Field` fills it in. So the element must be known: one
+`return` with an element, or with a component whose element is known; a wrapper that returns
+markup, or what it got. Otherwise it is an error:
+`ref cannot point to <Card>: it has several returns, so its element is not known in advance`.
+
+Whether `Field` is inlined or becomes a function is the compiler's choice, so a ref works with both.
+An inlined component fills the element in, under a name of its own (`$$root4`) if its own names
+could hide the ref. A function gets it as its last argument, `$$root`, and creates one when it is
+not given:
+
+```js
+function $$Field(label, $$root) {
+  const $$label3 = $$root ?? document.createElement("label");
+  $$label3.className = "field";
+  // ...
+}
+
+// <Form>
+const name = document.createElement("label");
+name.className = "field";
+// ...
+const [$$field8] = $$Field("Name", name);
+```
+
+Only functions whose element is known and that a ref may point to have `$$root`: exported
+components, those with a ref to them in the module, and those at the top of such components. If the
+component has a ref to its own top element, both refs are the same element.
+
+**In a decorator,** a ref is bound in its own markup, the wrapper. A decorator does not see the
+component, so it cannot bind a ref in the component's markup:
+
+```go
+dec measured() {
+    public state width = 0
+    ref frame
+
+    mount() {
+        const observer = new ResizeObserver(() => { width = frame.clientWidth })
+        observer.observe(frame)
+        return () => observer.disconnect()
+    }
+
+    return (content Element) => <div class="measured" ref={frame}>{content}</div>
+}
+```
+
 ### Control flow in markup
 
 Inside `{...}` in markup you can write ordinary `if`, `for` and `switch`. The elements in their
@@ -710,9 +826,9 @@ comp Playground() {
   declaration at the top level of a module; elsewhere it is an ordinary name. The parameters are
   written as for functions, but may have default values at the end: `margin string = "0px"`.
   `export dec` exports a decorator, and in another module it is inlined like a component.
-- **The body** may hold `state`, `const`, `let`, functions, `mount() { ... }` and, at the end, the
-  `return` of a wrapper. Each of them is optional: a decorator without a wrapper only adds state
-  and logic.
+- **The body** may hold `state`, `const`, `let`, `ref`, functions, `mount() { ... }` and, at the
+  end, the `return` of a wrapper. Each of them is optional: a decorator without a wrapper only adds
+  state and logic. Its refs are bound in the markup of its wrapper.
 - **Application.** `@visible("300px")` before `comp`. The arguments are positional, as in a call of
   a function; without arguments the parentheses can be left out: `@notFound`. The arguments are
   evaluated for every instance in the scope of the component's parameters, so
@@ -912,6 +1028,7 @@ body of `for`: the code of one row of the list is written there once, and no ext
 | The handler `onClick={save()}` | called on render          | called on render               | called on a click                                                 |
 | Cleaning up effects            | a function from an effect | `onCleanup` / return           | the function returned by `mount()`                                |
 | Shared logic of components     | hooks, HOCs               | actions (Svelte), primitives   | decorators `dec`, inlined                                         |
+| A reference to an element      | `useRef`, set on render   | `bind:this` / `ref`, set later | `ref input`: the element exists from the start of the body        |
 
 ## What the compiler needs
 
@@ -1006,6 +1123,16 @@ body of `for`: the code of one row of the list is written there once, and no ext
     calls itself. Another module inlines it with the components of its module it uses, and gets the
     names of that module through hidden exports.
 
+12. **References to elements are `ref name` in the body and `ref={name}` in the markup.** The
+    element is created where the ref is declared, with its constant attributes, so the ref has it
+    from the start and is never `null`; the markup fills it in. So the markup must create it once:
+    a ref inside `{if}`, `{for}`, `{switch}`, expressions or functions is an error.
+    `<Card ref={card} />` points to the element at the top of what `Card` creates, which must be
+    known in advance: an inlined `Card` fills it in, and a function gets it as `$$root`. Elements
+    are still created with `createElement` and a statement per attribute: the second argument of
+    `createElement` takes no attributes, and `Object.assign` or a helper were slower when measured
+    and no shorter after minification.
+
 ## Not decided yet
 
 1. **Whether to report where the compiler did not inline.** Function components and proxies are
@@ -1031,3 +1158,10 @@ body of `for`: the code of one row of the list is written there once, and no ext
    `(page ?Element) => ...` that shows it when the component returns `null`. Now a component returns
    markup only, and the choice between `return`s is made once, at creation; the reactive way is the
    decorator's state, as in `notFound` above.
+7. **Refs in `{if}`, `{switch}` and `{for}`.** An element that exists only sometimes could be a ref
+   of type `?T`, and the elements of a list an array. For now such an element goes into a component
+   with a ref of its own.
+8. **`public ref` in decorators,** for the component to read the element of the wrapper.
+9. **One ref in several `return`s.** Only one `return` runs, so a ref could be bound in each of them
+   when their tags are the same; the same would let a ref point to a component with several
+   `return`s.

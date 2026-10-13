@@ -183,6 +183,13 @@ describe('VS Code grammar', () => {
     expect(scopeOf('let derived = 1', 'derived')).toBe('variable.other.readwrite');
   });
 
+  it('treats ref as a keyword only at the start of a declaration', () => {
+    expect(scopeOf('    ref input', 'ref')).toBe('storage.type.state');
+    expect(scopeOf('    ref box HTMLElement', 'ref')).toBe('storage.type.state');
+    expect(scopeOf('let ref = 1', 'ref')).toBe('variable.other.readwrite');
+    expect(scopeOf('ref = 2', 'ref')).toBe('variable.other.readwrite');
+  });
+
   it('treats state as a keyword only at the start of a declaration', () => {
     expect(scopeOf('    state count = 0', 'state')).toBe('storage.type.state');
     expect(scopeOf('let state = load()', 'state')).toBe('variable.other.readwrite');
