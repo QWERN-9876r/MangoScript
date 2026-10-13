@@ -117,7 +117,12 @@ function buildFiles(entries: string[], outDir: string | undefined, typeCheck: bo
     }
   }
 
-  const { outputs, errors } = build(entries, { outDir, typeCheck });
+  const { outputs, errors, warnings } = build(entries, { outDir, typeCheck });
+
+  for (const { file, diagnostics } of warnings) {
+    for (const warning of diagnostics)
+      console.warn(`${formatDiagnostic(file, warning, 'warning')}\n`);
+  }
 
   if (errors.length > 0) {
     const messages = errors.flatMap(({ file, diagnostics }) =>
@@ -140,11 +145,11 @@ function compileFile(
   options: { rewriteImports: boolean; typeCheck: boolean },
 ): string {
   const source = readFileSync(path, 'utf8');
-  const { code, diagnostics } = compile(source, { filename: path, ...options });
+  const { code, diagnostics, warnings } = compile(source, { filename: path, ...options });
+  const file = new SourceFile(path, source);
 
+  for (const warning of warnings) console.warn(`${formatDiagnostic(file, warning, 'warning')}\n`);
   if (diagnostics.length > 0) {
-    const file = new SourceFile(path, source);
-
     throw new CompileError(diagnostics.map((d) => formatDiagnostic(file, d)).join('\n\n'));
   }
 

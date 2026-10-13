@@ -120,7 +120,10 @@ export type Mode =
   // `<tag attributes`, element content between the tags, and `</tag`.
   | { kind: 'tag'; start: number }
   | { kind: 'content'; start: number }
-  | { kind: 'closingTag'; start: number };
+  | { kind: 'closingTag'; start: number }
+  // `style { ... }`: CSS. `depth` counts open blocks inside it; `item` is the text of the current
+  // rule or declaration so far, to tell a value from code `{x}` from a nested rule.
+  | { kind: 'css'; start: number; depth: number; item: string };
 
 export type MarkupMode = Extract<Mode, { kind: 'tag' | 'content' | 'closingTag' }>;
 

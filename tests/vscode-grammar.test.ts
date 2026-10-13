@@ -8,10 +8,11 @@ import { beforeAll, describe, expect, it } from 'vitest';
 // The VS Code extension in editors/vscode: its grammar is run by the same engine that VS Code uses.
 
 const root = new URL('..', import.meta.url).pathname;
-// The grammar of markup is a separate file that the main one includes, as in VS Code.
+// The grammars of markup and styles are separate files that the main one includes, as in VS Code.
 const grammarPaths: Record<string, string> = {
   'source.mango': join(root, 'editors/vscode/syntaxes/mangoscript.tmLanguage.json'),
   'source.mango.markup': join(root, 'editors/vscode/syntaxes/mangoscript-markup.tmLanguage.json'),
+  'source.mango.css': join(root, 'editors/vscode/syntaxes/mangoscript-css.tmLanguage.json'),
 };
 
 let grammar: textmate.IGrammar;
@@ -181,6 +182,27 @@ describe('VS Code grammar', () => {
     expect(scopeOf('    run(effect)', 'effect')).not.toBe('storage.type.effect');
     expect(scopeOf('    derived double = count * 2', 'derived')).toBe('storage.type.state');
     expect(scopeOf('let derived = 1', 'derived')).toBe('variable.other.readwrite');
+  });
+
+  it('colours CSS in style blocks, with values from code', () => {
+    const source = `comp Card(accent string) {
+    style {
+        .card:hover > p { color: {accent}; margin: 0 4px }
+        @media (min-width: 600px) { a { width: 50% } }
+    }
+    return <p />
+}`;
+
+    expect(scopeOf(source, 'style')).toBe('storage.type.style');
+    expect(scopeOf(source, '.card')).toBe('entity.other.attribute-name.class.css');
+    expect(scopeOf(source, ':hover')).toBe('entity.other.attribute-name.pseudo-class.css');
+    expect(scopeOf(source, 'color')).toBe('support.type.property-name.css');
+    expect(scopesOf(source, 'accent').at(-1)).toBe('variable.other.readwrite');
+    expect(scopeOf(source, '4px')).toBe('constant.numeric.css');
+    expect(scopeOf(source, '@media')).toBe('keyword.control.at-rule.css');
+    // After the block the code is code again.
+    expect(scopeOf(source, 'return')).toBe('keyword.control.flow');
+    expect(scopeOf('let style = 1', 'style')).toBe('variable.other.readwrite');
   });
 
   it('treats ref as a keyword only at the start of a declaration', () => {

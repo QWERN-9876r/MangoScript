@@ -5,6 +5,7 @@
 
 import { tokenize } from "../../src/lexer/lexer.ts"
 import { KEYWORDS } from "../../src/lexer/token.ts"
+import { highlightCss } from "./highlight-css.mango"
 
 // In the compiler, KEYWORDS is an array of literal types ("func" | "comp" | ...), and here it is
 // compared with any strings.
@@ -46,7 +47,9 @@ export func highlight(code string, language string) DocumentFragment {
             appendGap(fragment, code.slice(pos, token.start))
         }
         const kind = tokenClass(tokens, i, language)
-        if kind == "" {
+        if token.kind == "CssText" {
+            fragment.append(highlightCss(token.text))
+        } else if kind == "" {
             fragment.append(token.text)
         } else {
             fragment.append(<span class={kind}>{token.text}</span>)
@@ -128,11 +131,11 @@ func identifierClass(text string, next string, language string) string {
         if MANGO_TYPES.includes(text) {
             return "type"
         }
-        // state, derived, ref, mount, effect and dec are keywords only at the start of a
-        // declaration: state count = 0, ref input, mount() { }, effect { }, dec visible() { }; so
-        // is public, in classes and decorators
+        // state, derived, ref, mount, effect, style and dec are keywords only at the start of a
+        // declaration: state count = 0, ref input, mount() { }, effect { }, style { },
+        // dec visible() { }; so is public, in classes and decorators
         if (text == "state" || text == "derived" || text == "ref") && next == "Identifier" ||
-            text == "mount" && next == "(" || text == "effect" && next == "{" {
+            text == "mount" && next == "(" || (text == "effect" || text == "style") && next == "{" {
             return "kw"
         }
         if text == "dec" && next == "Identifier" || text == "public" && PUBLIC_NEXT.includes(next) {

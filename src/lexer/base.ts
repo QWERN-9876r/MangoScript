@@ -2,9 +2,9 @@ import type { Diagnostic } from '../diagnostics.ts';
 import { ENDS_STATEMENT, isDigit, type Mode } from './tables.ts';
 import type { StringKind, Token, TokenKind } from './token.ts';
 
-// The lexer is a chain of layers: base → literals → markup → Lexer (lexer.ts). This layer keeps the
-// position and the modes (code, markup tags, markup content), skips spaces and comments, and inserts
-// semicolons at the ends of lines.
+// The lexer is a chain of layers: base → literals → markup → style → Lexer (lexer.ts). This layer
+// keeps the position and the modes (code, markup tags, markup content, CSS), skips spaces and
+// comments, and inserts semicolons at the ends of lines.
 
 export abstract class LexerBase {
   protected readonly text: string;

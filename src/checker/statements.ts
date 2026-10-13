@@ -99,7 +99,9 @@ export abstract class StatementChecker extends AssignmentChecker {
       case 'TypeAliasDeclaration':
       case 'BreakStatement':
       case 'ContinueStatement':
-        // Declarations are handled by declareStatements(); jumps were checked by the parser.
+      case 'StyleStatement':
+        // Declarations and styles are handled by declareStatements(); jumps were checked by the
+        // parser.
         break;
     }
   }

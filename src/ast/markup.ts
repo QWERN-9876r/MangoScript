@@ -19,6 +19,7 @@ import type {
 } from './expressions.ts';
 import type {
   CatchClause,
+  CssText,
   ForInStatement,
   ForStatement,
   IfStatement,
@@ -179,6 +180,7 @@ export type Node =
   | Property
   | SpreadElement
   | TemplateElement
+  | CssText
   | JsxText
   | JsxExpressionContainer
   | JsxStatementContainer

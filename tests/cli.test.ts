@@ -124,6 +124,20 @@ export declare function dist(p: Point): number;
     expect(existsSync(join(dir, 'geom.js'))).toBe(false);
   });
 
+  it('prints warnings and still writes the files', () => {
+    const dir = project({
+      'card.mango':
+        'comp Card() {\n    style {\n        h1 { margin: 0 }\n    }\n    return <p />\n}\ndocument.body.append(<Card />)\n',
+    });
+    const result = mango(dir, 'build', 'card.mango');
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain(
+      'card.mango:3:9: warning: selector "h1" matches no element of Card',
+    );
+    expect(existsSync(join(dir, 'card.js'))).toBe(true);
+  });
+
   it('prints the JS of one file with --stdout', () => {
     const dir = project({ 'hello.mango': 'console.log("hi")\n' });
     const result = mango(dir, 'build', 'hello.mango', '--stdout');

@@ -61,7 +61,7 @@ interface FunctionContext {
  *     Emitter → ExpressionEmitter → SimpleStatementEmitter → ControlStatementEmitter
  *       → StatementEmitter → UpdateEmitter → AttributeEmitter → ElementEmitter
  *       → ControlFlowEmitter → ComponentPropsEmitter → EarlyReturnEmitter → RefEmitter
- *       → ComponentEmitter → WebComponentEmitter → FunctionEmitter → JsGenerator
+ *       → StyleEmitter → ComponentEmitter → WebComponentEmitter → FunctionEmitter → JsGenerator
  */
 export abstract class Emitter {
   protected readonly program: ast.Program;

@@ -246,6 +246,14 @@ export abstract class DeclarationParser extends ControlFlowParser {
 
   /** A statement at the top level of a component or a decorator. */
   protected parseComponentStatement(): ast.Statement {
+    if (this.isStyleBlock()) {
+      const style = this.parseStyle();
+
+      this.endStatement();
+
+      return style;
+    }
+
     if (this.isMountDeclaration() || this.isEffectDeclaration()) {
       const statement = this.isMountDeclaration() ? this.parseMount() : this.parseEffect();
 

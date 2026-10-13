@@ -1,5 +1,5 @@
 import type { Diagnostic } from '../diagnostics.ts';
-import { MarkupLexer } from './markup.ts';
+import { StyleLexer } from './style.ts';
 import { IDENTIFIER, isDigit, isMarkup } from './tables.ts';
 import { isKeyword, isPunctuator, type Token } from './token.ts';
 
@@ -11,7 +11,7 @@ export interface LexResult {
 
 // The lexer of a module; its layers are listed in base.ts.
 
-class Lexer extends MarkupLexer {
+class Lexer extends StyleLexer {
   run(): LexResult {
     if (this.text.startsWith('﻿')) this.pos = 1;
     while (true) {
@@ -22,6 +22,12 @@ class Lexer extends MarkupLexer {
         if (this.pos >= this.text.length) break;
         if (mode.kind === 'content') this.scanContent(mode);
         else this.scanTag(mode);
+        continue;
+      }
+
+      if (mode?.kind === 'css') {
+        if (this.pos >= this.text.length) break;
+        this.scanCss(mode);
         continue;
       }
 
@@ -39,6 +45,8 @@ class Lexer extends MarkupLexer {
     for (const mode of this.modes) {
       if (mode.kind === 'template') {
         this.error('unterminated template literal', mode.start, mode.start + 1);
+      } else if (mode.kind === 'css') {
+        this.error('unterminated style block: close it with "}"', mode.start, mode.start + 5);
       }
     }
 
@@ -97,6 +105,7 @@ class Lexer extends MarkupLexer {
       start,
       end: this.pos,
     });
+    if (word === 'style') this.startStyle(start);
 
     return true;
   }

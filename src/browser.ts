@@ -1,4 +1,5 @@
 import { compileModule } from './compile.ts';
+import type { Diagnostic } from './diagnostics.ts';
 import { SourceFile } from './source.ts';
 
 // The compiler for the browser, used by the documentation site: everything but reading imported
@@ -18,15 +19,21 @@ export interface BrowserCompileResult {
   /** The generated ES module; empty when there are diagnostics. */
   code: string;
   diagnostics: BrowserDiagnostic[];
+  /** Problems that do not stop compilation. */
+  warnings: BrowserDiagnostic[];
 }
 
 export function compile(source: string): BrowserCompileResult {
   const result = compileModule(source, { rewriteImports: false });
   const file = new SourceFile('', source);
-  const diagnostics = result.diagnostics.map((diagnostic) => ({
+  const located = (diagnostic: Diagnostic) => ({
     message: diagnostic.message,
     ...file.position(diagnostic.start),
-  }));
+  });
 
-  return { code: result.code, diagnostics };
+  return {
+    code: result.code,
+    diagnostics: result.diagnostics.map(located),
+    warnings: result.warnings.map(located),
+  };
 }

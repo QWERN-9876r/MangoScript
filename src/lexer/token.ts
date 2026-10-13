@@ -104,7 +104,8 @@ export type Punctuator = (typeof PUNCTUATORS)[number];
  * Token kinds whose `value` holds string contents. Template literals are split around
  * substitutions: `a${x}b${y}c` becomes TemplateHead("a") x TemplateMiddle("b") y TemplateTail("c"),
  * and a template without substitutions is a single Template token. In markup, JsxText is the text
- * between tags and JsxString an attribute value in quotes; both have HTML entities decoded.
+ * between tags and JsxString an attribute value in quotes; both have HTML entities decoded. CssText is
+ * the raw text of a `style { ... }` block between the values from code.
  */
 export type StringKind =
   | 'String'
@@ -113,7 +114,8 @@ export type StringKind =
   | 'TemplateMiddle'
   | 'TemplateTail'
   | 'JsxText'
-  | 'JsxString';
+  | 'JsxString'
+  | 'CssText';
 
 /**
  * Tokens of markup such as `<a href="/">text</a>`: JsxTagOpen `<`, JsxCloseTagOpen `</`, JsxName

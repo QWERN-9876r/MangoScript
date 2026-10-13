@@ -18,6 +18,12 @@ interface Effect {
 }
 
 export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
+  /** The CSS variables of the component's style, once its markup exists; by StyleEmitter. */
+  protected abstract setStyleValues(result: string): void;
+
+  /** Their updates, with those of the effects. */
+  protected abstract registerStyleValues(): void;
+
   /**
    * The effects of the component being written. One after an early return may not be created, so
    * it does not run again on changes, like the markup there.
@@ -79,6 +85,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
     const { reactive } = this;
 
     if (!reactive) return;
+    this.registerStyleValues();
     for (const effect of this.effects) {
       if (effect.registered || !effect.live) continue;
       effect.registered = true;
@@ -99,8 +106,9 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
 
   /**
    * After the markup of a component is created, before anything inserts it: the first node for
-   * `mount()` (a fragment is empty once inserted, so its first child is taken now), and the first
-   * run of the effects, whose cleanups also run when the component is removed.
+   * `mount()` (a fragment is empty once inserted, so its first child is taken now), the CSS
+   * variables of its style, and the first run of the effects, whose cleanups also run when the
+   * component is removed.
    */
   protected markupCreated(result: string): void {
     if (this.mountNode) {
@@ -108,6 +116,8 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
         `${this.mountNode} = ${result}?.nodeType === 11 ? ${result}.firstChild : ${result};`,
       );
     }
+
+    this.setStyleValues(result);
 
     for (const effect of this.effects) {
       this.line(`${effect.name}();`);

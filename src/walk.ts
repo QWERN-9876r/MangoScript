@@ -166,6 +166,10 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       visit(node.body);
       break;
 
+    case 'StyleStatement':
+      each(node.parts);
+      break;
+
     case 'TemplateLiteral':
       node.quasis.forEach((quasi, i) => {
         visit(quasi);
@@ -316,6 +320,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'BreakStatement':
     case 'ContinueStatement':
     case 'JsxText':
+    case 'CssText':
     case 'Identifier':
     case 'NumberLiteral':
     case 'StringLiteral':

@@ -203,6 +203,10 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       case 'EffectStatement':
         this.effectStatement(node);
         break;
+
+      case 'StyleStatement':
+        // Components write their styles themselves (ComponentEmitter).
+        break;
     }
   }
 

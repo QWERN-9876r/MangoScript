@@ -25,6 +25,7 @@ describe('documentation site', () => {
       'src/en/main.js',
       'src/en/strings.js',
       'src/example.js',
+      'src/highlight-css.js',
       'src/highlight.js',
       'src/i18n.js',
       'src/playground.js',

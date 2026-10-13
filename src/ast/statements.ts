@@ -39,6 +39,7 @@ export type Statement =
   | DeferStatement
   | MountStatement
   | EffectStatement
+  | StyleStatement
   | JsxElementStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
@@ -196,4 +197,20 @@ export interface MountStatement extends NodeBase {
 export interface EffectStatement extends NodeBase {
   kind: 'EffectStatement';
   body: BlockStatement;
+}
+
+/**
+ * `style { .card { padding: 8px; color: {accent} } }` at the top level of a component or a
+ * decorator: CSS for its own markup. `parts` are the raw CSS text around the values from code,
+ * which appear only in the values of declarations.
+ */
+export interface StyleStatement extends NodeBase {
+  kind: 'StyleStatement';
+  parts: (CssText | Expression)[];
+}
+
+/** Raw CSS text of a `style` block, as written. */
+export interface CssText extends NodeBase {
+  kind: 'CssText';
+  value: string;
 }

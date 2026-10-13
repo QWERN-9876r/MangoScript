@@ -13,8 +13,14 @@ export interface Diagnostic {
  *     hello.mango:2:9: error: unterminated string literal
  *     2 | let s = "abc
  *       |         ^^^^
+ *
+ * Warnings do not stop compilation: `warning:` instead of `error:`.
  */
-export function formatDiagnostic(file: SourceFile, diagnostic: Diagnostic): string {
+export function formatDiagnostic(
+  file: SourceFile,
+  diagnostic: Diagnostic,
+  severity: 'error' | 'warning' = 'error',
+): string {
   const { line, column } = file.position(diagnostic.start);
   const text = file.lineText(line);
   // Keep tabs so that the caret lines up with the source line.
@@ -23,7 +29,7 @@ export function formatDiagnostic(file: SourceFile, diagnostic: Diagnostic): stri
   const gutter = ' '.repeat(String(line).length);
 
   return [
-    `${file.name}:${line}:${column}: error: ${diagnostic.message}`,
+    `${file.name}:${line}:${column}: ${severity}: ${diagnostic.message}`,
     `${line} | ${text}`,
     `${gutter} | ${indent}${'^'.repeat(width)}`,
   ].join('\n');

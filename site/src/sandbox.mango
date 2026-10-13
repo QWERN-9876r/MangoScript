@@ -145,9 +145,13 @@ func runCompiled(code string, preview HTMLElement, output func([]string)) {
         define: (tag string, element any) => customElements.define(pageTag(tag), element),
         get: (tag string) => customElements.get(pageTag(tag)),
     }
+    // The styles of the program go into the result area too: the next run removes them with it.
     const sandboxDocument = {
         body: preview,
+        head: preview,
+        getElementById: (id string) => preview.querySelector(`[id="${id}"]`),
         createElement: (tag string) => document.createElement(pageTag(tag)),
+        createElementNS: (namespace string, tag string) => document.createElementNS(namespace, tag),
         createTextNode: (text string) => document.createTextNode(text),
         createDocumentFragment: () => document.createDocumentFragment(),
         querySelector: (selector string) => preview.querySelector(selector),

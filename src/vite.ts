@@ -28,16 +28,27 @@ export function mango(options: MangoPluginOptions = {}): Plugin {
 
       // Imports keep `.mango`: Vite resolves them and gives them to this plugin again.
       const result = compile(source, { filename: id, rewriteImports: false, typeCheck });
+      const file = new SourceFile(relative(root, id), source);
+      // Vite counts columns from 0.
+      const loc = (start: number) => {
+        const { line, column } = file.position(start);
+
+        return { line, column: column - 1 };
+      };
+
+      for (const warning of result.warnings) {
+        this.warn({
+          message: formatDiagnostic(file, warning, 'warning'),
+          id,
+          loc: loc(warning.start),
+        });
+      }
 
       if (result.diagnostics.length > 0) {
-        const file = new SourceFile(relative(root, id), source);
-        const { line, column } = file.position(result.diagnostics[0]!.start);
-
         this.error({
           message: result.diagnostics.map((d) => formatDiagnostic(file, d)).join('\n\n'),
           id,
-          // Vite counts columns from 0.
-          loc: { line, column: column - 1 },
+          loc: loc(result.diagnostics[0]!.start),
         });
       }
 

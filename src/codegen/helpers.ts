@@ -1,7 +1,15 @@
 // Small functions that a module gets only when its code needs them.
 
 export type Helper =
-  'runDeferred' | 'append' | 'attribute' | 'content' | 'branches' | 'list' | 'owner' | 'mount';
+  | 'runDeferred'
+  | 'append'
+  | 'attribute'
+  | 'content'
+  | 'branches'
+  | 'list'
+  | 'owner'
+  | 'mount'
+  | 'style';
 
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
@@ -260,6 +268,23 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     'function $$attribute(element, name, value) {',
     '  if (value == null) element.removeAttribute(name);',
     '  else element.setAttribute(name, value);',
+    '}',
+  ],
+  /**
+   * Adds the CSS of a component to the page once: modules that inline the same component add it
+   * with the same id. `$$styles` keeps the CSS of the module for the shadow roots of its web
+   * components, which the page's styles do not reach.
+   */
+  style: [
+    'const $$styles = [];',
+    '',
+    'function $$style(id, css) {',
+    '  $$styles.push(css);',
+    '  if (document.getElementById(id)) return;',
+    '  const style = document.createElement("style");',
+    '  style.id = id;',
+    '  style.textContent = css;',
+    '  document.head.append(style);',
     '}',
   ],
 };

@@ -83,7 +83,15 @@ export abstract class WebComponentEmitter extends ComponentEmitter {
       this.line(`  const [[node, update], remove] = $$owned(() => $$${name}(${args.join(', ')}));`);
       this.line('  this.#update = update ?? null;');
       this.line('  this.#remove = remove;');
-      this.line('  this.shadowRoot.append(node);');
+      // The styles of the page do not reach a shadow root: it gets the CSS of the module.
+      if (this.usedStyles.size > 0) {
+        this.line('  const style = document.createElement("style");');
+        this.line('  style.textContent = $$styles.join("\\n");');
+        this.line('  this.shadowRoot.append(style, node);');
+      } else {
+        this.line('  this.shadowRoot.append(node);');
+      }
+
       this.line('}');
       this.lines.push('');
       this.line('disconnectedCallback() {');

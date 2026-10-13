@@ -106,6 +106,22 @@ export abstract class StatementParser extends SimpleStatementParser {
       this.fail(`"${token.text}" is not a MangoScript keyword: ${hint}`);
     }
 
+    if (this.isStyleBlock()) {
+      // The lexer has read the block as CSS, so it is parsed as one to report a single error.
+      const style = this.parseStyle();
+
+      this.error(
+        this.context.inComponent
+          ? 'style is declared at the top level of a component, not inside blocks or functions'
+          : 'style can only be declared inside a component',
+        style.start,
+        style.start + 'style'.length,
+      );
+      this.endStatement();
+
+      return style;
+    }
+
     const misplaced =
       this.isStateDeclaration() || this.isRefDeclaration()
         ? this.peek().text
@@ -217,6 +233,35 @@ export abstract class StatementParser extends SimpleStatementParser {
   /** `ref input`: like `state`, a keyword only at the start of a statement in a component. */
   protected isRefDeclaration(): boolean {
     return this.checkWord('ref') && this.peek(1).kind === 'Identifier';
+  }
+
+  /** `style {`: the lexer reads the block as CSS where it starts a statement. */
+  protected isStyleBlock(): boolean {
+    return this.checkWord('style') && this.peek(1).kind === '{';
+  }
+
+  /** `style { ... }`: CSS text and, in the values of declarations, `{expression}`. */
+  protected parseStyle(): ast.StyleStatement {
+    const { start } = this.next();
+    const parts: ast.StyleStatement['parts'] = [];
+
+    this.expect('{');
+    while (!this.check('}') && !this.check('EOF')) {
+      const token = this.peek();
+
+      if (token.kind === 'CssText') {
+        this.next();
+        parts.push({ kind: 'CssText', value: token.value, start: token.start, end: token.end });
+      } else {
+        this.expect('{');
+        parts.push(this.withContext({ noObjectLiteral: false }, () => this.parseExpression()));
+        this.expect('}');
+      }
+    }
+
+    this.expect('}');
+
+    return { kind: 'StyleStatement', parts, ...this.span(start) };
   }
 
   /** `effect {`: like `state`, a keyword only at the start of a statement in a component. */

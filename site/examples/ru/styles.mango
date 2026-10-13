@@ -1,0 +1,34 @@
+// style — CSS для собственной разметки компонента: его элементы получают свой класс, поэтому
+// правила не задевают остальную страницу. {expr} в значении берётся из кода и следует за ним
+comp Ripeness() {
+    state percent = 30
+
+    style {
+        .ripeness {
+            display: grid;
+            gap: 8px;
+            max-width: 260px;
+        }
+        .track {
+            height: 10px;
+            border-radius: 999px;
+            background: #f0e3cb;
+        }
+        .fill {
+            width: {percent}%;
+            height: 100%;
+            border-radius: inherit;
+            background: {percent < 70 ? "#8fcf6f" : "#ffad42"};
+            transition: width 0.3s;
+        }
+    }
+
+    return <div class="ripeness">
+        <div class="track"><div class="fill" /></div>
+        <button onClick={percent = percent >= 100 ? 0 : percent + 35}>
+            Дозреть: {percent < 70 ? "зелёный" : "спелый"}
+        </button>
+    </div>
+}
+
+document.body.append(<Ripeness />)

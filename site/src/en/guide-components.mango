@@ -181,6 +181,37 @@ export func refs() Node {
     </>
 }
 
+export func styles() Node {
+    return <>
+        <p>
+            <code>{"style { ... }"}</code> in a component's body is CSS for its own markup. The
+            elements of that markup get a class of the component, and so does every selector:
+            {" "}<code>.track</code> here reaches no other track on the page, and the styles of
+            other components do not reach these elements.
+        </p>
+        {example("styles")}
+        <ul>
+            <li>
+                <code>{"{expr}"}</code> in the value of a declaration comes from code. The value
+                becomes a CSS variable of the element the component returns, and it follows the
+                state, as markup does: press the button.
+            </li>
+            <li>
+                The markup passed in as <code>children</code> and the markup of other components
+                keep their own styles; <code>:global(...)</code> makes a selector one of the
+                whole page.
+            </li>
+            <li>
+                A selector that matches no element of the markup is a warning of the compiler:
+                usually a typo, or the element is in another component.
+            </li>
+            <li>
+                A decorator can have <code>style</code> too, for the markup of its wrapper.
+            </li>
+        </ul>
+    </>
+}
+
 export func webComponents() Node {
     return <>
         <p>

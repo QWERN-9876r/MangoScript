@@ -4,7 +4,7 @@
 
 > Status: implemented are elements, components, `state`, `bind:`, `if` / `for` / `switch` in markup
 > (stages 1–4), recursive components, early returns, `mount()`, web components (`@html-tag`),
-> decorators (`dec`), `derived`, `effect` and `ref`. The decisions made are collected at the end of
+> decorators (`dec`), `derived`, `effect`, `ref` and `style`. The decisions made are collected at the end of
 > the document, together with what is not decided yet.
 
 ## Goals
@@ -231,7 +231,7 @@ document.body.append(<Counter initialValue={0} />)
 
 The type can be written as with `let`: `state count number = 0`, `derived left number = ...`.
 
-`state`, `derived`, `effect` and `ref` are keywords only at the start of a statement inside `comp`.
+`state`, `derived`, `effect`, `ref` and `style` are keywords only at the start of a statement inside `comp`.
 In other code they are ordinary names: `let state = load()` can still be written (the same way as
 `static` and `private` in classes).
 
@@ -658,6 +658,81 @@ dec measured() {
 }
 ```
 
+### Styles: `style`
+
+```go
+comp Meter(color string) {
+    state percent = 10
+
+    style {
+        .meter { display: grid; gap: 8px }
+        .fill {
+            width: {percent}%;
+            background: {color};
+        }
+        button:hover { opacity: 0.8 }
+    }
+
+    return <div class="meter">
+        <div class="fill" />
+        <button onClick={percent += 10}>+10%</button>
+    </div>
+}
+```
+
+- **Declaration.** `style { ... }` at the top level of the body of a component or a decorator,
+  like `effect`; there can be several. Inside is CSS as it is written: rules, nested rules with
+  `&`, `@media` and the rest. `style` is a keyword only at the start of a statement in a component,
+  followed by `{`.
+- **Scope.** Every element of the component's own markup gets the class of its style,
+  `mango-<name>-<hash of the CSS>`, and so does every compound selector, before its
+  pseudo-elements: `.fill` becomes `.fill.mango-meter-1n5i250`. So the rules reach neither other
+  components nor the markup passed in as `children`, which is the parent's. `:global(...)` keeps a
+  selector as it is: `:global(.dark) .fill`. A selector with `&` refers to the rule around it and is
+  not given the class again. The names of `@keyframes` stay global for now.
+- **Values from code.** `{expr}` is allowed only in the value of a declaration: `name:` followed by
+  a space or a value is a declaration (`color: {c}`), `name:name` is a selector (`a:hover {`).
+  The whole value becomes a CSS variable, `--mango-meter-1n5i250-0`, which the compiler sets on the
+  element the component returns: when it is created, and again when what the value reads
+  changes. So such a component returns an element, not a fragment. Values are strings or numbers,
+  and they see the whole body, as the markup does.
+- **Warnings.** A selector that no element of the markup can match by its tag, classes or id is a
+  warning: `selector ".fil" matches no element of Meter`. An element with `class={...}` may have
+  any class. Warnings do not stop compilation.
+- **In a decorator** the style is for the markup of its wrapper, with a class of its own and values
+  from the decorator.
+
+```js
+$$style("mango-meter-1n5i250", `.meter.mango-meter-1n5i250 {
+  display: grid;
+  gap: 8px;
+}
+.fill.mango-meter-1n5i250 {
+  width: var(--mango-meter-1n5i250-0);
+  background: var(--mango-meter-1n5i250-1);
+}
+button:hover.mango-meter-1n5i250 {
+  opacity: 0.8;
+}`);
+
+// <Meter>
+// ...
+$$button5.addEventListener("click", () => {
+  percent += 10;
+  $$meter1.style.setProperty("--mango-meter-1n5i250-0", `${percent}%`);
+});
+$$button5.className = "mango-meter-1n5i250";
+// ...
+$$meter1 = $$div3;
+$$meter1.style.setProperty("--mango-meter-1n5i250-0", `${percent}%`);
+$$meter1.style.setProperty("--mango-meter-1n5i250-1", color);
+```
+
+`$$style` is a helper of a few lines: it adds a `<style>` with the CSS to `<head>` once, whichever
+module comes first, so a component inlined into several modules has one copy on the page. A web
+component (`@html-tag`) renders into a shadow root, which the styles of the page do not reach, so
+it gets the CSS of its module there.
+
 ### Control flow in markup
 
 Inside `{...}` in markup you can write ordinary `if`, `for` and `switch`. The elements in their
@@ -833,7 +908,7 @@ comp Playground() {
   declaration at the top level of a module; elsewhere it is an ordinary name. The parameters are
   written as for functions, but may have default values at the end: `margin string = "0px"`.
   `export dec` exports a decorator, and in another module it is inlined like a component.
-- **The body** may hold `state`, `const`, `let`, `ref`, functions, `mount() { ... }` and, at the
+- **The body** may hold `state`, `const`, `let`, `ref`, `style`, functions, `mount() { ... }` and, at the
   end, the `return` of a wrapper. Each of them is optional: a decorator without a wrapper only adds
   state and logic. Its refs are bound in the markup of its wrapper.
 - **Application.** `@visible("300px")` before `comp`. The arguments are positional, as in a call of
@@ -1139,6 +1214,12 @@ body of `for`: the code of one row of the list is written there once, and no ext
     are still created with `createElement` and a statement per attribute: the second argument of
     `createElement` takes no attributes, and `Object.assign` or a helper were slower when measured
     and no shorter after minification.
+13. **Styles are `style { ... }` blocks of CSS in the body, scoped as in Svelte:** a class on every
+    element of the component's own markup and in every selector, with `:global(...)` to leave the
+    scope. Values from code are `{expr}` in the values of declarations, as in markup, and become CSS
+    variables of the element the component returns. The module adds its CSS to the page with
+    `$$style`, so styles work without a bundler and in the playground. A selector that matches no
+    element is a warning: the compiler got warnings, which do not stop compilation, with styles.
 
 ## Not decided yet
 
@@ -1172,3 +1253,8 @@ body of `for`: the code of one row of the list is written there once, and no ext
 9. **One ref in several `return`s.** Only one `return` runs, so a ref could be bound in each of them
    when their tags are the same; the same would let a ref point to a component with several
    `return`s.
+10. **Scoped names of `@keyframes`.** Now they are global, as in plain CSS.
+11. **The CSS in a file of its own**, `app.css` next to `app.js` or a CSS module for Vite, instead of
+    `$$style`: it would be cached apart from the code.
+12. **The class of a style only on the elements that some selector can match**, as in Svelte, to
+    make the code shorter.

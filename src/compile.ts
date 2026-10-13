@@ -30,6 +30,8 @@ export interface CompileResult {
   /** The generated ES module; empty when there are diagnostics. */
   code: string;
   diagnostics: Diagnostic[];
+  /** Problems that do not stop compilation, sorted by position. */
+  warnings: Diagnostic[];
   /** Relative paths of the `.mango` modules this file imports, as written in the imports. */
   dependencies: string[];
   /** The `.d.ts` for the module, with the `declarations` option. */
@@ -39,12 +41,13 @@ export interface CompileResult {
 export function compileModule(source: string, options: CoreCompileOptions = {}): CompileResult {
   const { program, diagnostics } = parse(source);
 
-  if (diagnostics.length > 0) return { code: '', diagnostics, dependencies: [] };
+  if (diagnostics.length > 0) return { code: '', diagnostics, warnings: [], dependencies: [] };
 
   const dependencies = mangoImports(program);
 
   let types: WeakMap<ast.Expression, Type> | undefined;
   let declarations: string | undefined;
+  let warnings: Diagnostic[] = [];
 
   if (options.typeCheck ?? true) {
     const { importModule, importDeclarations, library } = options;
@@ -54,8 +57,9 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
       ...(library ? { library } : {}),
     });
 
+    warnings = checked.warnings;
     if (checked.diagnostics.length > 0) {
-      return { code: '', diagnostics: checked.diagnostics, dependencies };
+      return { code: '', diagnostics: checked.diagnostics, warnings, dependencies };
     }
 
     types = checked.types;
@@ -69,7 +73,13 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     ...importedCode(program, options.importModule),
   });
 
-  return { code, diagnostics: [], dependencies, ...(declarations ? { declarations } : {}) };
+  return {
+    code,
+    diagnostics: [],
+    warnings,
+    dependencies,
+    ...(declarations ? { declarations } : {}),
+  };
 }
 
 /**

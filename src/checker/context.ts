@@ -55,6 +55,8 @@ export interface CheckOptions {
 
 export interface CheckResult {
   diagnostics: Diagnostic[];
+  /** Problems that do not stop compilation, e.g. a CSS selector that matches nothing. */
+  warnings: Diagnostic[];
   exports: ModuleExports;
   /** Types of every declaration at the top level of the module, exported or not. */
   declarations: ModuleExports;

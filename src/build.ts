@@ -23,6 +23,7 @@ export interface BuildOutput {
   declarations?: { output: string; code: string };
 }
 
+/** The errors or the warnings of a file. */
 export interface BuildError {
   file: SourceFile;
   diagnostics: Diagnostic[];
@@ -32,6 +33,8 @@ export interface BuildResult {
   /** Empty when there are errors: either every file is built or none. */
   outputs: BuildOutput[];
   errors: BuildError[];
+  /** Warnings do not stop the build. */
+  warnings: BuildError[];
 }
 
 /**
@@ -52,11 +55,19 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   const declarations = typeCheck && (options.declarations ?? true);
   const compiled: { source: string; code: string; declarations: string | undefined }[] = [];
   const errors: BuildError[] = [];
+  const warnings: BuildError[] = [];
 
   for (let i = 0; i < queue.length; i++) {
     const source = queue[i]!;
     const text = readFileSync(source, 'utf8');
     const result = compile(text, { filename: source, typeCheck, declarations });
+
+    if (result.warnings.length > 0) {
+      warnings.push({
+        file: new SourceFile(displayPath(source), text),
+        diagnostics: result.warnings,
+      });
+    }
 
     if (result.diagnostics.length > 0) {
       errors.push({
@@ -78,7 +89,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
     }
   }
 
-  if (errors.length > 0) return { outputs: [], errors };
+  if (errors.length > 0) return { outputs: [], errors, warnings };
 
   // The output keeps the folder structure below the given directories and all the files.
   const root = commonDirectory(queue, directories);
@@ -94,7 +105,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
     };
   });
 
-  return { outputs, errors };
+  return { outputs, errors, warnings };
 }
 
 /** The `.mango` files in a directory and its subdirectories, except `node_modules` and hidden ones. */

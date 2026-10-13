@@ -53,6 +53,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     attribute: ast.JsxAttribute | ast.JsxSpreadAttribute,
     live: Live | null,
     svg = false,
+    scope: string | null = null,
   ): void {
     if (attribute.kind === 'JsxSpreadAttribute') {
       this.setLive(live, attribute.argument, (text) => `Object.assign(${element}, ${text});`);
@@ -62,6 +63,12 @@ export abstract class AttributeEmitter extends UpdateEmitter {
 
     const name = attribute.name.name;
     const { value } = attribute;
+
+    if (name === 'class' && scope) {
+      this.scopedClass(element, value, live, svg, scope);
+
+      return;
+    }
 
     const webProperty = tag === null || svg ? null : this.webComponentProperty(tag, name);
 
@@ -131,6 +138,38 @@ export abstract class AttributeEmitter extends UpdateEmitter {
 
       this.line(`if (${text} != null) ${element}.setAttribute(${quoted}, ${text});`);
     }
+  }
+
+  /** The class of an element with the class of its style: `"card mango-card-1x9k2az"`. */
+  private scopedClass(
+    element: string,
+    value: ast.JsxAttribute['value'],
+    live: Live | null,
+    svg: boolean,
+    scope: string,
+  ): void {
+    if (value === null || value.kind === 'StringLiteral') {
+      this.scopeClass(element, `${value?.value ?? ''} ${scope}`.trim(), svg);
+    } else if (value.kind !== 'EventHandler') {
+      const nullable = this.typeOf(value)?.kind !== 'string';
+
+      this.setLive(live, value, (text) => {
+        const scoped = `\`\${${nullable ? `${text} ?? ""` : text}} ${scope}\``;
+
+        return svg
+          ? `${element}.setAttribute("class", ${scoped});`
+          : `${element}.className = ${scoped};`;
+      });
+    }
+  }
+
+  /** Sets the class of an element: `className`, or the attribute of an SVG element. */
+  protected scopeClass(element: string, classes: string, svg: boolean): void {
+    const text = JSON.stringify(classes);
+
+    this.line(
+      svg ? `${element}.setAttribute("class", ${text});` : `${element}.className = ${text};`,
+    );
   }
 
   /** `<app-card item-count={1} />`: the property of a web component of this module, if it has one. */

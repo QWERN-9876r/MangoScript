@@ -51,6 +51,24 @@ export class FakeNode {
     this.tagName = tagName;
     this.nodeType = tagName === '#text' ? 3 : tagName.startsWith('#') ? 11 : 1;
     if (data !== undefined) this.data = data;
+    // CSS variables of styles; not enumerable, so that the style shows only cssText.
+    Object.defineProperty(this.style, 'setProperty', {
+      value: (name: string, value: unknown) => {
+        this.style[name] = String(value);
+      },
+    });
+  }
+
+  /** The node with this `id` inside this one, or this one. */
+  byId(id: string): FakeNode | null {
+    if (this.id === id) return this;
+    for (const child of this.childNodes) {
+      const found = child.byId(id);
+
+      if (found) return found;
+    }
+
+    return null;
   }
 
   /** The body of the fake document is in the document; so are the nodes inside it. */
@@ -295,7 +313,11 @@ function baseClass(registry: FakeCustomElements): new () => FakeNode {
 }
 
 /** Compiles and runs a program with a fake `document`; returns what it printed and the body. */
-export function mountWithDom(source: string): { output: string[]; body: FakeNode } {
+export function mountWithDom(source: string): {
+  output: string[];
+  body: FakeNode;
+  head: FakeNode;
+} {
   const { code, diagnostics } = compile(source);
 
   expect(diagnostics).toEqual([]);
@@ -304,16 +326,19 @@ export function mountWithDom(source: string): { output: string[]; body: FakeNode
 }
 
 /** Runs generated JS without imports and exports, e.g. a bundle, with a fake `document`. */
-export function mountJsWithDom(code: string): { output: string[]; body: FakeNode } {
+export function mountJsWithDom(code: string): { output: string[]; body: FakeNode; head: FakeNode } {
   const output: string[] = [];
   const fakeConsole = { log: (...args: unknown[]) => output.push(args.map(String).join(' ')) };
   const body = new FakeNode('body');
+  const head = new FakeNode('head');
   const customElements = new FakeCustomElements(body);
 
   registry = customElements;
 
   const document = {
     body,
+    head,
+    getElementById: (id: string) => head.byId(id) ?? body.byId(id),
     createElement: (tag: string) => customElements.create(tag),
     createElementNS: (namespace: string, tag: string) =>
       Object.assign(new FakeNode(tag), { namespaceURI: namespace }),
@@ -332,7 +357,7 @@ export function mountJsWithDom(code: string): { output: string[]; body: FakeNode
 
   program(fakeConsole, document, FakeMutationObserver, customElements, customElements.HTMLElement);
 
-  return { output, body };
+  return { output, body, head };
 }
 
 /** Compiles and runs a program with a fake `document`; returns what it printed. */

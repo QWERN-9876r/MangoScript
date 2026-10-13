@@ -227,6 +227,10 @@ export abstract class DeclarationChecker extends CheckerBase {
     }
 
     for (const info of components) bodies.push(() => this.checkComponentBody(info));
+    // The values of `style` are read once the markup exists: they see the whole body.
+    for (const style of statements.filter((node) => node.kind === 'StyleStatement')) {
+      bodies.push(() => this.checkStyle(style));
+    }
 
     return bodies;
   }

@@ -57,8 +57,11 @@ class JsGenerator extends FunctionEmitter {
       this.hiddenExports();
     });
 
+    // The CSS of the components goes before the code, so that the page has it before the markup.
+    const styles = this.styleRegistrations();
     let lines = this.lines;
 
+    if (styles.length > 0) this.helpers.add('style');
     if (this.helpers.size > 0) {
       const needed = new Set<Helper>();
       const add = (helper: Helper) => {
@@ -83,6 +86,7 @@ class JsGenerator extends FunctionEmitter {
         ...lines.slice(0, imports),
         ...(imports > 0 ? [''] : []),
         ...helpers,
+        ...(styles.length > 0 ? ['', ...styles] : []),
         ...(rest.length > 0 ? [''] : []),
         ...rest,
       ];

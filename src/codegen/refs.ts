@@ -9,6 +9,7 @@ import {
   refTargets,
   type Root,
 } from '../refs.ts';
+import { hasClass } from '../styles.ts';
 import { isSvgElement, svgElements } from '../svg.ts';
 import { forEachChild } from '../walk.ts';
 import { EarlyReturnEmitter } from './early-returns.ts';
@@ -95,9 +96,15 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
       const create = this.createElement(tag, svg);
 
       this.line(`const ${name} = ${preset ? `${preset.name} ?? ${create}` : create};`);
+
+      const scope = this.scopeOf(element);
+
       for (const attribute of constantAttributes(element)) {
-        this.attribute(name, tag, attribute, null, svg);
+        this.attribute(name, tag, attribute, null, svg, scope);
       }
+
+      // The class of the style is constant too, when the element has no class of its own.
+      if (scope && !hasClass(element)) this.scopeClass(name, scope, svg);
     }
   }
 

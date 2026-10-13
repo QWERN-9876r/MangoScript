@@ -6,7 +6,7 @@ import { type Live, type Source } from './reactive.ts';
 import { ARROW, lowerFirst, upperFirst } from './syntax.ts';
 import { resolveMarkers } from './updates.ts';
 import { type Ending, hasEarlyReturn, hasMount } from './component-helpers.ts';
-import { RefEmitter } from './refs.ts';
+import { StyleEmitter } from './styles.ts';
 
 /**
  * Components, inlined where they are used: `<Card title="Hi" />` becomes a block with the code of
@@ -17,7 +17,7 @@ import { RefEmitter } from './refs.ts';
  * again, which the parent calls when their values depend on its state.
  */
 
-export abstract class ComponentEmitter extends RefEmitter {
+export abstract class ComponentEmitter extends StyleEmitter {
   /** An early `return` in a component: its markup, then the exit from the body. */
   protected override statement(node: ast.Statement): void {
     const early = this.earlyReturns;
@@ -43,6 +43,9 @@ export abstract class ComponentEmitter extends RefEmitter {
 
       return;
     }
+
+    // The CSS goes to the start of the module, its values to the element the component creates.
+    if (node.kind === 'StyleStatement') return;
 
     super.statement(node);
     if (isDecoratorArgument(node)) this.decoratorArgument(node);
@@ -175,20 +178,22 @@ export abstract class ComponentEmitter extends RefEmitter {
     const props = component.params.map((param): [string, 'const'] => [param.name.name, 'const']);
     const preset = this.inlineRoot(component, root);
     const block = this.withRefs(component, preset, () =>
-      this.inComponent(reactive, mountNode, () =>
-        this.block(() =>
-          this.withScope(props, () => {
-            for (const param of component.params) {
-              const value =
-                values.get(param.name.name) ??
-                (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
-              const keyword = setters.has(param.name.name) ? 'let' : 'const';
+      this.withStyles(component, result, () =>
+        this.inComponent(reactive, mountNode, () =>
+          this.block(() =>
+            this.withScope(props, () => {
+              for (const param of component.params) {
+                const value =
+                  values.get(param.name.name) ??
+                  (param.defaultValue ? this.expression(param.defaultValue, ARROW) : 'null');
+                const keyword = setters.has(param.name.name) ? 'let' : 'const';
 
-              this.line(`${keyword} ${this.name(param.name.name)} = ${value};`);
-            }
+                this.line(`${keyword} ${this.name(param.name.name)} = ${value};`);
+              }
 
-            this.body(component, result, reactive, { kind: 'inline', setters }, label);
-          }),
+              this.body(component, result, reactive, { kind: 'inline', setters }, label);
+            }),
+          ),
         ),
       ),
     );
@@ -229,11 +234,13 @@ export abstract class ComponentEmitter extends RefEmitter {
         .filter((each) => each !== '')
         .join(', ');
       const body = this.withRefs(component, preset, () =>
-        this.inComponent(reactive, mountNode, () =>
-          this.block(() => {
-            this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
-            this.body(component, result, reactive, { kind: 'function', props }, null);
-          }),
+        this.withStyles(component, result, () =>
+          this.inComponent(reactive, mountNode, () =>
+            this.block(() => {
+              this.line(mountNode ? `let ${result}, ${mountNode};` : `let ${result};`);
+              this.body(component, result, reactive, { kind: 'function', props }, null);
+            }),
+          ),
         ),
       );
 

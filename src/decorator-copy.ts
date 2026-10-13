@@ -7,6 +7,21 @@ import { declaredIn } from './names.ts';
 /** Called with each copy of a node, so that the generator keeps the types of the originals. */
 export type CopyListener = (copy: ast.Node, original: ast.Node) => void;
 
+/** The node each copy was made from. */
+const origins = new WeakMap<ast.Node, ast.Node>();
+
+/** The node in the code as written that `node` is a copy of, through copies of copies. */
+export function originOf(node: ast.Node): ast.Node {
+  let current = node;
+
+  while (true) {
+    const origin = origins.get(current);
+
+    if (!origin) return current;
+    current = origin;
+  }
+}
+
 const TYPE_NODES: ReadonlySet<string> = new Set([
   'TypeReference',
   'ArrayType',
@@ -43,6 +58,7 @@ export function renamer(
   other: OtherNames = {},
 ): <T extends ast.Node>(node: T, hidden: ReadonlySet<string>) => T {
   const done = <T extends ast.Node>(copy: T, original: ast.Node): T => {
+    origins.set(copy, original);
     copied?.(copy, original);
 
     return copy;

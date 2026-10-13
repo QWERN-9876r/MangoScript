@@ -75,7 +75,7 @@ null  true  false  typeof  instanceof
 
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
 too, in `import` and `export` so is `from`, at the start of a statement in a component's body
-`state`, `derived`, `ref`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
+`state`, `derived`, `ref`, `style`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
 parameters `needs`, and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is
 special only in `get(@name.member)`. Reserved
 for the future: `map`, `async`, `await`. Decorators are written before `comp`: `@html-tag` (see
@@ -1092,6 +1092,27 @@ $$label3.htmlFor = input.id;
   cannot be pointed to: the element is not known in advance. A component cannot have a property
   named `ref`.
 
+**Styles.** `style { ... }` at the top level of the body of a component or a decorator is CSS for
+its own markup:
+
+```go
+comp Badge(color string) {
+    style {
+        .badge { padding: 2px 8px; background: {color}; }
+    }
+    return <span class="badge">new</span>
+}
+```
+
+- **Scope.** The elements of the component's own markup get the class `mango-badge-<hash>`, and so
+  does every compound selector, so the rules reach neither the rest of the page nor the markup of
+  `children` and other components. `:global(...)` keeps a selector as it is.
+- **Values from code.** `{expr}` in the value of a declaration (`name:` followed by a space or a
+  value) is a string or a number. The value becomes a CSS variable that the compiler sets on the
+  element the component returns, and again when what it reads changes.
+- **The CSS** is added to `<head>` once by the code of the module, with `$$style`. A selector that
+  matches no element of the markup is a warning, which does not stop compilation.
+
 **Web components.** `@html-tag` before `comp` makes a component a custom element as well, so it
 works in plain HTML, in other frameworks and from JS. The tag is the component's name in kebab case,
 or the one given in the decorator:
@@ -1168,7 +1189,7 @@ comp Clicker(label string) {
   are evaluated for every instance with the component's properties in scope, so
   `@counter(label.length)` works; when a property changes, the argument is computed again. In the
   decorator its parameters are read-only.
-- **The body** may hold `state`, `const`, `let`, `ref`, functions, `mount()` and, at the end, the
+- **The body** may hold `state`, `const`, `let`, `ref`, `style`, functions, `mount()` and, at the end, the
   `return` of a wrapper; its refs are bound in the markup of the wrapper. Its own names are used in
   it as usual; the component does not see them unless they are `public`.
 - **Public members** are `public state`, `public derived`, `public const` and `public func`;

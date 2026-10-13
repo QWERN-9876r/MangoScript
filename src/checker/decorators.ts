@@ -123,6 +123,7 @@ export abstract class DecoratorChecker extends DecoratorExportChecker {
     }
 
     this.checkWrapper(info);
+    this.checkStyles(node.name.name, node.body, `@${node.name.name}`);
     if (node.exported) this.checkExportedDecorator(info);
   }
 

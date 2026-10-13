@@ -1,6 +1,7 @@
 import type * as ast from '../ast.ts';
 import { widenLiterals } from '../checker/types.ts';
 import { constantAttributes } from '../refs.ts';
+import { hasClass } from '../styles.ts';
 import { childrenInSvg, isSvgElement } from '../svg.ts';
 import { isSimple, startsWithObjectLiteral } from './analysis.ts';
 import { AttributeEmitter } from './attributes.ts';
@@ -36,6 +37,9 @@ export abstract class ElementEmitter extends AttributeEmitter {
   protected abstract presetElement(
     node: ast.ElementExpression,
   ): { name: string; created: boolean } | null;
+
+  /** The class of the style an element belongs to; implemented by StyleEmitter. */
+  protected abstract scopeOf(node: ast.ElementExpression): string | null;
 
   /** Control flow in live markup that depends on state; implemented by ControlFlowEmitter. */
   protected abstract liveControl(
@@ -111,6 +115,7 @@ export abstract class ElementEmitter extends AttributeEmitter {
     const constants = new Set<ast.JsxAttribute | ast.JsxSpreadAttribute>(
       created ? constantAttributes(node) : [],
     );
+    const scope = tag === null ? null : this.scopeOf(node);
 
     if (created === null) {
       const value = preset ? `${preset.name} ?? ${create}` : create;
@@ -127,9 +132,12 @@ export abstract class ElementEmitter extends AttributeEmitter {
       if (attribute.kind === 'JsxAttribute' && attribute.name.name.startsWith('bind:')) {
         bindings.push(attribute);
       } else {
-        this.attribute(name, tag, attribute, live, svg);
+        this.attribute(name, tag, attribute, live, svg, scope);
       }
     }
+
+    // Without a class attribute the element still gets the class of its style; a ref has set it.
+    if (scope && !created && !hasClass(node)) this.scopeClass(name, scope, svg);
 
     if (tag !== null) {
       for (const attribute of bindings) this.binding(name, tag, attribute, live);

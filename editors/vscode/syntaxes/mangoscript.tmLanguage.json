@@ -9,6 +9,7 @@
       "patterns": [
         { "include": "#comments" },
         { "include": "#strings" },
+        { "include": "source.mango.css#style" },
         { "include": "#decorators" },
         { "include": "source.mango.markup#markup" },
         { "include": "#declarations" },

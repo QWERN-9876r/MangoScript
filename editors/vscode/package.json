@@ -38,6 +38,10 @@
       {
         "scopeName": "source.mango.markup",
         "path": "./syntaxes/mangoscript-markup.tmLanguage.json"
+      },
+      {
+        "scopeName": "source.mango.css",
+        "path": "./syntaxes/mangoscript-css.tmLanguage.json"
       }
     ],
     "configurationDefaults": {
