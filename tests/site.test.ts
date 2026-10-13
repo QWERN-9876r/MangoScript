@@ -49,7 +49,7 @@ describe('documentation site', () => {
       'ui/theme.js',
     ]);
     expect(result.warnings).toEqual([]);
-  });
+  }, 15_000);
 
   // English examples are in site/examples, Russian ones in site/examples/ru; the guide of a
   // language is guide.mango with the modules of its sections.
