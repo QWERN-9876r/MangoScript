@@ -1,6 +1,7 @@
 // The sections of the English guide about markup and components; guide.mango lists them all.
 
 import { example } from "../example.mango"
+import { highlight } from "../highlight.mango"
 
 export func markup() Node {
     return <>
@@ -181,6 +182,14 @@ export func refs() Node {
     </>
 }
 
+const CSS_MODULE = `import styles from "./button.module.css"
+
+type Kind "primary" | "ghost"
+
+export comp Button(kind Kind = "primary", children Content) {
+    return <button class={\`\${styles.button} \${styles[kind]}\`}>{children}</button>
+}`
+
 export func styles() Node {
     return <>
         <p>
@@ -209,6 +218,16 @@ export func styles() Node {
                 A decorator can have <code>style</code> too, for the markup of its wrapper.
             </li>
         </ul>
+        <p>
+            The main way to style components is a CSS module next to them, a plain
+            {" "}<code>.css</code> file. The compiler reads it: its classes get names of their own,
+            and <code>styles</code> is the object of those names, typed, so
+            {" "}<code>styles.buton</code> is a compile error and <code>styles[kind]</code> is
+            checked by the type of <code>kind</code>. The CSS gets onto the page with the module,
+            in <code>mango build</code> and in Vite alike; the playground has no files, so the
+            code is shown here:
+        </p>
+        <pre class="code">{highlight(CSS_MODULE, "mango")}</pre>
     </>
 }
 

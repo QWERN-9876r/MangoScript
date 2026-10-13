@@ -237,6 +237,9 @@ func show(value string | number) string {
 - Branches of `?:`, array items and the different `return`s of a function without a declared
   result give a union when their types differ: `[1, "a"]` is `[](number | string)`.
 - Unions and literal types have no zero value: `let f Filter` must be initialized.
+- **A field by a key whose value is known:** `point["x"]`, or `point[axis]` with
+  `axis "x" | "y"`, is the field (or the union of the fields) of the object. A key that is not a
+  field is an error.
 
 ### Generics
 
@@ -1112,6 +1115,14 @@ comp Badge(color string) {
   element the component returns, and again when what it reads changes.
 - **The CSS** is added to `<head>` once by the code of the module, with `$$style`. A selector that
   matches no element of the markup is a warning, which does not stop compilation.
+
+**CSS modules.** `import styles from "./button.module.css"` reads the file at compile time. Its
+classes get names of their own, `button_14zwdg2`, and `styles` is an object of them: its type has a
+`string` field for each class, so `styles.buton` is a compile error, and `styles[kind]` with
+`kind "primary" | "ghost"` is checked too. Tags, `:root` and `:global(...)` stay global. The
+import becomes the object, and the module adds the CSS to the page with `$$style`; the file is
+not imported at runtime, so this works with `mango build` and with Vite. A class that the module
+never names is a warning, unless it reads `styles` with a key that is not known.
 
 **Web components.** `@html-tag` before `comp` makes a component a custom element as well, so it
 works in plain HTML, in other frameworks and from JS. The tag is the component's name in kebab case,

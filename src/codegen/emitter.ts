@@ -7,6 +7,7 @@ import { type ImportedComponent, type LocalizedPackage, localize } from './impor
 import { assignedNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
 import type { Root } from '../refs.ts';
+import type { StyleModule } from '../style-modules.ts';
 import { forEachChild } from '../walk.ts';
 import { collectValueNames, type BindingKind } from './analysis.ts';
 import type { Helper } from './helpers.ts';
@@ -25,6 +26,8 @@ export interface JsOptions {
   components?: ReadonlyMap<string, ImportedComponent> | undefined;
   /** Components of the module that become functions, since inlining them adds too many lines. */
   functions?: ReadonlySet<string> | undefined;
+  /** The CSS modules the module imports, by their paths as written. */
+  styleModules?: ReadonlyMap<string, StyleModule> | undefined;
 }
 
 /** A decorator of another module, with the types of the expressions of that module. */

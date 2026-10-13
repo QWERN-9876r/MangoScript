@@ -1,12 +1,13 @@
 import type * as ast from './ast.ts';
-import { check, type ImportResult, type Library } from './checker/checker.ts';
-import type { Type } from './checker/types.ts';
+import { check, type ImportResult, type Library, type ModuleExports } from './checker/checker.ts';
+import { property, STRING, type Type } from './checker/types.ts';
 import type { ImportedDecorator } from './codegen/emitter.ts';
 import type { ImportedComponent } from './codegen/imported.ts';
 import { generateJs } from './codegen/js.ts';
 import { printDeclarations } from './declarations.ts';
 import type { Diagnostic } from './diagnostics.ts';
 import { parse } from './parser/parser.ts';
+import { isStyleModule, styleModule, unusedClasses, type StyleModule } from './style-modules.ts';
 
 // Compiling one module, without access to files: the browser uses this directly (src/browser.ts),
 // Node adds reading imported modules from disk (src/index.ts).
@@ -24,6 +25,8 @@ export interface CoreCompileOptions {
   library?: Library | undefined;
   /** Also write a TypeScript declaration file; needs type checking. */
   declarations?: boolean;
+  /** The text of an imported CSS module, `./button.module.css`, or null if it cannot be read. */
+  readStyleModule?: ((specifier: string) => string | null) | undefined;
 }
 
 export interface CompileResult {
@@ -32,7 +35,7 @@ export interface CompileResult {
   diagnostics: Diagnostic[];
   /** Problems that do not stop compilation, sorted by position. */
   warnings: Diagnostic[];
-  /** Relative paths of the `.mango` modules this file imports, as written in the imports. */
+  /** Relative paths of the `.mango` modules and CSS modules this file imports, as written. */
   dependencies: string[];
   /** The `.d.ts` for the module, with the `declarations` option. */
   declarations?: string;
@@ -43,7 +46,10 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
 
   if (diagnostics.length > 0) return { code: '', diagnostics, warnings: [], dependencies: [] };
 
-  const dependencies = mangoImports(program);
+  const dependencies = localImports(program);
+  const { styleModules, problems } = readStyleModules(program, options.readStyleModule);
+
+  if (problems.length > 0) return { code: '', diagnostics: problems, warnings: [], dependencies };
 
   let types: WeakMap<ast.Expression, Type> | undefined;
   let declarations: string | undefined;
@@ -51,13 +57,23 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
 
   if (options.typeCheck ?? true) {
     const { importModule, importDeclarations, library } = options;
+    // A CSS module has a default export: an object with a string for each of its classes.
+    const importStyles = (specifier: string): ImportResult => {
+      const module = styleModules.get(specifier);
+
+      return module
+        ? { exports: styleModuleExports(specifier, module) }
+        : importDeclarations?.(specifier);
+    };
     const checked = check(program, {
       ...(importModule ? { importModule } : {}),
-      ...(importDeclarations ? { importDeclarations } : {}),
+      importDeclarations: importStyles,
       ...(library ? { library } : {}),
     });
 
-    warnings = checked.warnings;
+    warnings = [...checked.warnings, ...unusedStyleClasses(program, styleModules)].sort(
+      (a, b) => a.start - b.start,
+    );
     if (checked.diagnostics.length > 0) {
       return { code: '', diagnostics: checked.diagnostics, warnings, dependencies };
     }
@@ -70,6 +86,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     source,
     rewriteImports: options.rewriteImports ?? true,
     types,
+    styleModules,
     ...importedCode(program, options.importModule),
   });
 
@@ -132,7 +149,76 @@ function importedCode(
   return { decorators: found, components };
 }
 
-function mangoImports(program: ast.Program): string[] {
+/** The CSS modules that the program imports, read and parsed, or what is wrong with them. */
+function readStyleModules(
+  program: ast.Program,
+  read: CoreCompileOptions['readStyleModule'],
+): { styleModules: Map<string, StyleModule>; problems: Diagnostic[] } {
+  const styleModules = new Map<string, StyleModule>();
+  const problems: Diagnostic[] = [];
+
+  for (const statement of program.body) {
+    if (statement.kind !== 'ImportDeclaration' || !isStyleModule(statement.source.value)) continue;
+
+    const { source } = statement;
+    const text = read?.(source.value) ?? null;
+    const problem = (message: string) =>
+      problems.push({ message, start: source.start, end: source.end });
+
+    if (text === null) {
+      problem(
+        read
+          ? `cannot read the CSS module "${source.value}"`
+          : 'CSS modules need files: build the program with mango build or Vite',
+      );
+      continue;
+    }
+
+    const module = styleModule(text);
+
+    for (const message of module.problems) problem(`${source.value}: ${message}`);
+    styleModules.set(source.value, module);
+  }
+
+  return { styleModules, problems };
+}
+
+function styleModuleExports(specifier: string, module: StyleModule): ModuleExports {
+  const members = new Map([...module.classes.keys()].map((name) => [name, property(STRING)]));
+  const name = specifier.split('/').at(-1)!;
+
+  return {
+    values: new Map([['default', { kind: 'object', name, members, call: null }]]),
+    types: new Map(),
+  };
+}
+
+function unusedStyleClasses(
+  program: ast.Program,
+  styleModules: ReadonlyMap<string, StyleModule>,
+): Diagnostic[] {
+  const found: Diagnostic[] = [];
+
+  for (const statement of program.body) {
+    if (statement.kind !== 'ImportDeclaration' || !statement.defaultImport) continue;
+
+    const module = styleModules.get(statement.source.value);
+
+    if (!module) continue;
+    for (const name of unusedClasses(program, statement.defaultImport.name, module)) {
+      found.push({
+        message: `class "${name}" of ${statement.source.value} is never used`,
+        start: statement.source.start,
+        end: statement.source.end,
+      });
+    }
+  }
+
+  return found;
+}
+
+/** The relative imports of `.mango` modules and CSS modules: what the module depends on. */
+function localImports(program: ast.Program): string[] {
   const specifiers = new Set<string>();
 
   for (const statement of program.body) {
@@ -140,7 +226,9 @@ function mangoImports(program: ast.Program): string[] {
 
     const path = statement.source.value;
 
-    if (/^\.{1,2}\//.test(path) && path.endsWith('.mango')) specifiers.add(path);
+    if (/^\.{1,2}\//.test(path) && (path.endsWith('.mango') || isStyleModule(path))) {
+      specifiers.add(path);
+    }
   }
 
   return [...specifiers];

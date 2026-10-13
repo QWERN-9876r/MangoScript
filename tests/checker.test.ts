@@ -281,6 +281,10 @@ describe('interfaces and objects', () => {
     ['classes as interfaces', `${point}class P {\n  x = 1\n  y = 2\n}\nconst p Point = new P()`],
     ['spread', `${point}const p Point = { x: 1, y: 2 }\nconst q Point = { ...p, x: 3 }`],
     ['anonymous object types', 'func f(opts { verbose bool }) {}\nf({ verbose: true })'],
+    [
+      'fields by literal keys',
+      `${point}const p Point = { x: 1, y: 2 }\nconst key "x" | "y" = "y"\nconst n number = p[key] + p["x"]`,
+    ],
   ]);
 
   invalid([
@@ -288,6 +292,7 @@ describe('interfaces and objects', () => {
     [`${point}const p Point = { x: 1, y: "2" }`, 'cannot use string as number for field "y"'],
     [`${point}const p Point = { x: 1, y: 2, z: 3 }`, 'Point has no field "z"'],
     ['const o = { a: 1, a: 2 }', 'duplicate field "a"'],
+    [`${point}const p Point = { x: 1, y: 2 }\nconst z = p["z"]`, 'Point has no member "z"'],
   ]);
 });
 

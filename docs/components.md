@@ -733,6 +733,42 @@ module comes first, so a component inlined into several modules has one copy on 
 component (`@html-tag`) renders into a shadow root, which the styles of the page do not reach, so
 it gets the CSS of its module there.
 
+### CSS modules
+
+The main way to style components is a CSS module next to them, a plain `.css` file:
+
+```css
+/* button.module.css */
+.button { padding: 6px 14px; border-radius: 999px; }
+.primary { background: var(--accent); color: white; }
+.ghost:hover { background: var(--accent-soft); }
+```
+
+```go
+import styles from "./button.module.css"
+
+type Kind "primary" | "ghost"
+
+export comp Button(kind Kind = "primary", children Content) {
+    return <button class={`${styles.button} ${styles[kind]}`}>{children}</button>
+}
+```
+
+- **The compiler reads the file.** Its classes get names of their own, `button_14zwdg2`, with the
+  hash of the CSS, and `styles` is the object of those names. Its type has a `string` field for
+  each class: `styles.buton` is a compile error, and `styles[kind]` is checked by the literal type
+  of `kind`. Tags, `:root` and `:global(...)` stay global, so a module can hold the tokens of a
+  theme.
+- **The import is not imported.** It becomes `const styles = { button: "button_14zwdg2", ... }`,
+  and the CSS is added to the page with `$$style`, like the styles of components. So CSS modules
+  work with `mango build` and with Vite alike, but not in the playground, which has no files.
+- **Warnings:** a class that the module never names is reported, unless it reads `styles` with a
+  key that is not known (`styles[name]` with a `string`).
+- **Several classes** are joined with a template string: there is no special syntax for it.
+
+`style { ... }` in the component is for small styles that need values from code; a CSS module is a
+file of its own, which editors and tools for CSS understand.
+
 ### Control flow in markup
 
 Inside `{...}` in markup you can write ordinary `if`, `for` and `switch`. The elements in their
@@ -1220,6 +1256,10 @@ body of `for`: the code of one row of the list is written there once, and no ext
     variables of the element the component returns. The module adds its CSS to the page with
     `$$style`, so styles work without a bundler and in the playground. A selector that matches no
     element is a warning: the compiler got warnings, which do not stop compilation, with styles.
+14. **The main way to style components is a CSS module,** `import styles from "./x.module.css"`,
+    which the compiler reads itself: typed classes with names of their own, and the CSS added to the
+    page by the module, so it works without a bundler. Several classes are joined with template
+    strings, without a syntax of their own.
 
 ## Not decided yet
 

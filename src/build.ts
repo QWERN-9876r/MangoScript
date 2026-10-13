@@ -82,7 +82,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
       // A missing module is reported by the type checker.
       const dependency = resolve(dirname(source), specifier);
 
-      if (!seen.has(dependency) && existsSync(dependency)) {
+      if (dependency.endsWith('.mango') && !seen.has(dependency) && existsSync(dependency)) {
         seen.add(dependency);
         queue.push(dependency);
       }

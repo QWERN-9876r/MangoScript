@@ -1,6 +1,7 @@
 // Разделы русского гайда о разметке и компонентах; все разделы перечислены в guide.mango.
 
 import { example } from "../example.mango"
+import { highlight } from "../highlight.mango"
 
 export func markup() Node {
     return <>
@@ -181,6 +182,14 @@ export func refs() Node {
     </>
 }
 
+const CSS_MODULE = `import styles from "./button.module.css"
+
+type Kind "primary" | "ghost"
+
+export comp Button(kind Kind = "primary", children Content) {
+    return <button class={\`\${styles.button} \${styles[kind]}\`}>{children}</button>
+}`
+
 export func styles() Node {
     return <>
         <p>
@@ -209,6 +218,16 @@ export func styles() Node {
                 <code>style</code> может быть и у декоратора — для разметки его обёртки.
             </li>
         </ul>
+        <p>
+            Основной способ стилизовать компоненты — CSS-модуль рядом с ними, обычный файл
+            {" "}<code>.css</code>. Компилятор читает его: классы получают собственные имена, а
+            {" "}<code>styles</code> — типизированный объект этих имён, поэтому
+            {" "}<code>styles.buton</code> — ошибка компиляции, а <code>styles[kind]</code>
+            проверяется по типу <code>kind</code>. CSS попадает на страницу вместе с модулем, и в
+            {" "}<code>mango build</code>, и в Vite; в песочнице файлов нет, поэтому здесь только
+            код:
+        </p>
+        <pre class="code">{highlight(CSS_MODULE, "mango")}</pre>
     </>
 }
 

@@ -1,6 +1,7 @@
 import { compileModule, type CompileResult } from './compile.ts';
 import { loadModuleExports } from './modules.ts';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { importDeclarations, libraryFor } from './typescript/importer.ts';
 
 export type { CompileResult } from './compile.ts';
@@ -35,7 +36,17 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
     importDeclarations: filename
       ? (specifier: string) => importDeclarations(filename, specifier)
       : undefined,
+    readStyleModule: filename ? (specifier: string) => readNear(filename, specifier) : undefined,
     // Without a file name, `@types` packages are looked up from the current directory.
     library: libraryFor(filename ?? join(process.cwd(), 'main.mango')),
   });
+}
+
+/** A file next to `filename`, or null if it cannot be read. */
+function readNear(filename: string, specifier: string): string | null {
+  try {
+    return readFileSync(resolve(dirname(filename), specifier), 'utf8');
+  } catch {
+    return null;
+  }
 }

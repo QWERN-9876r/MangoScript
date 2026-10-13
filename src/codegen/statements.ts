@@ -13,7 +13,12 @@ import { ARROW, POSTFIX } from './syntax.ts';
  */
 
 export abstract class StatementEmitter extends ControlStatementEmitter {
+  /** A CSS module: its object and CSS go with the styles (StyleEmitter), not to an import. */
+  protected abstract styleModuleImport(node: ast.ImportDeclaration): boolean;
+
   protected override importDeclaration(node: ast.ImportDeclaration): void {
+    if (this.styleModuleImport(node)) return;
+
     // Imports used only as types (e.g. interfaces) do not exist at runtime.
     const used = (name: ast.Identifier) => this.valueNames.has(name.name);
     const clauses: string[] = [];

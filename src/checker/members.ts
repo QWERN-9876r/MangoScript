@@ -9,7 +9,9 @@ import {
   isComparable,
   isNullable,
   isSubclass,
+  literal,
   literalBase,
+  memberNames,
   memberTypeOf,
   nonNull,
   NUMBER,
@@ -17,8 +19,11 @@ import {
   STRING,
   typeToString,
   union,
+  unionMembers,
   UNKNOWN,
+  type LiteralType,
   type Member,
+  type ObjectType,
   type Type,
 } from './types.ts';
 
@@ -107,6 +112,8 @@ export abstract class MemberChecker extends DecoratorMemberChecker {
    * an object with `[key: string]: T` from a `.d.ts`. `null` for arrays and strings.
    */
   protected override keyedIndex(object: Type, index: ast.Expression): Type | null {
+    if (object.kind === 'object' && !object.index) return this.fieldsByKey(object, index);
+
     const type = isUntyped(object) ? object : object.kind === 'object' ? object.index : undefined;
 
     if (!type) return null;
@@ -118,6 +125,34 @@ export abstract class MemberChecker extends DecoratorMemberChecker {
     }
 
     return type;
+  }
+
+  /**
+   * `styles["is-active"]`, or `styles[kind]` with `kind "primary" | "ghost"`: the fields of an
+   * object by keys whose values are known. `null` when they are not.
+   */
+  private fieldsByKey(object: ObjectType, index: ast.Expression): Type | null {
+    const names = [...memberNames(object.members)].filter(
+      (name) => object.members.get(name)?.method === false,
+    );
+
+    if (names.length === 0) return null;
+
+    // A string literal gets a literal type where one of the names is expected.
+    const key = this.checkValue(index, union(names.map((name) => literal(name))));
+    const keys = unionMembers(key);
+
+    if (!keys.every((each) => each.kind === 'literal' && typeof each.value === 'string')) {
+      return null;
+    }
+
+    return union(
+      keys.map((each) => {
+        const member = this.findMember(object, String((each as LiteralType).value), index);
+
+        return member === 'any' ? ANY : (member?.type ?? UNKNOWN);
+      }),
+    );
   }
 
   protected override expectIndex(node: ast.Expression): void {

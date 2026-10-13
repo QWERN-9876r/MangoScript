@@ -1,6 +1,7 @@
 import type * as ast from '../ast.ts';
 import type { CssDeclaration } from '../css/parse.ts';
 import { originOf } from '../decorator-copy.ts';
+import type { StyleModule } from '../style-modules.ts';
 import {
   componentStyle,
   ownElements,
@@ -39,6 +40,9 @@ export abstract class StyleEmitter extends RefEmitter {
   private owners: Map<ast.Node, Owner> | null = null;
   /** The styles whose elements the module creates, in the order of first use. */
   protected readonly usedStyles = new Set<Owner>();
+  /** The CSS modules the module imports: the objects of their classes, and their CSS. */
+  private readonly moduleObjects: string[] = [];
+  private readonly moduleStyles: StyleModule[] = [];
   /** The CSS variables of the component being written, and whether its updates are added. */
   private styleValues: { result: string; values: StyleValue[]; registered: boolean } | null = null;
 
@@ -52,13 +56,47 @@ export abstract class StyleEmitter extends RefEmitter {
     return owner.style.scope;
   }
 
-  /** `$$style(id, css)` for every style the module uses. */
-  protected styleRegistrations(): string[] {
-    return [...this.usedStyles].map(({ style }) => {
-      const css = scopedCss(style).replace(/[`\\]|\$\{/g, (match) => `\\${match}`);
+  /**
+   * `import styles from "./button.module.css"` becomes the object of its classes, and its CSS is
+   * added with the styles of the components.
+   */
+  protected override styleModuleImport(node: ast.ImportDeclaration): boolean {
+    const module = this.options.styleModules?.get(node.source.value);
 
-      return `$$style(${JSON.stringify(style.scope)}, \`${css}\`);`;
-    });
+    if (!module) return false;
+    if (node.defaultImport) {
+      const fields = [...module.classes].map(([name, local]) => {
+        const key = /^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name);
+
+        return `${key}: ${JSON.stringify(local)}`;
+      });
+
+      this.moduleObjects.push(
+        `const ${this.name(node.defaultImport.name)} = { ${fields.join(', ')} };`,
+      );
+    }
+
+    this.moduleStyles.push(module);
+
+    return true;
+  }
+
+  /**
+   * The objects of the CSS modules, and `$$style(id, css)` for them and for every style of a
+   * component the module uses: modules first, so that components can override them.
+   */
+  protected styleRegistrations(): string[] {
+    const register = (id: string, css: string) => {
+      const text = css.replace(/[`\\]|\$\{/g, (match) => `\\${match}`);
+
+      return `$$style(${JSON.stringify(id)}, \`${text}\`);`;
+    };
+
+    return [
+      ...this.moduleObjects,
+      ...this.moduleStyles.map((module) => register(`mango-module-${module.id}`, module.css)),
+      ...[...this.usedStyles].map(({ style }) => register(style.scope, scopedCss(style))),
+    ];
   }
 
   /** Writes the code of a component, whose result is `result`, with its CSS variables. */
