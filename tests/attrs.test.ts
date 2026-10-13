@@ -98,9 +98,9 @@ describe('generated code', () => {
       `${button}let n = 0\ndocument.body.append(<Button disabled onFocus={n++}>Go</Button>, <Button>No</Button>)`,
     );
 
-    expect(code).toContain(`const $$attrs2 = ($$element) => {
-  $$element.disabled = true;
-  $$element.addEventListener("focus", () => {
+    expect(code).toContain(`const $$attrs2 = ($$target) => {
+  $$target.disabled = true;
+  $$target.addEventListener("focus", () => {
     n++;
   });
 };`);
@@ -134,5 +134,17 @@ describe('running', () => {
     expect(element.type).toBe('submit');
     expect(element.className).toBe('ghost wide');
     expect(element.title).toBe('Save');
+  });
+
+  it('keeps the class passed on next to the class of the style', () => {
+    const { body } = mountWithDom(`comp Tag(...attrs) {
+    style {
+        span { color: red; }
+    }
+    return <span {...attrs}>x</span>
+}
+document.body.append(<Tag class="big" />)`);
+
+    expect(String(body.find('span').className)).toMatch(/^big mango-tag-\w+$/);
   });
 });

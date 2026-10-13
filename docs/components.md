@@ -175,6 +175,17 @@ func renderItem(todo Todo) HTMLLIElement {
 
 Before, the same function took 25 lines of `createElement` and `addEventListener` calls.
 
+A module whose code creates more than 20 elements creates them with a helper, `$$element`, which
+takes the attributes they have from the start: properties in the first object, attributes set with
+`setAttribute` in the second. Its five lines take less than the statements it saves. Handlers,
+`bind:`, styles, attributes that may be `null` and the attributes after a spread, which overrides
+those before it, stay statements. SVG elements get `$$svgElement`.
+
+```js
+const $$button3 = $$element("button", { type: "button", className: "close" }, { "aria-label": label });
+$$button3.addEventListener("click", onClose);
+```
+
 ### Lexical structure
 
 - Spaces and line breaks in text follow the JSX rules. A line of only spaces disappears; spaces with
@@ -1283,9 +1294,8 @@ body of `for`: the code of one row of the list is written there once, and no ext
     a ref inside `{if}`, `{for}`, `{switch}`, expressions or functions is an error.
     `<Card ref={card} />` points to the element at the top of what `Card` creates, which must be
     known in advance: an inlined `Card` fills it in, and a function gets it as `$$root`. Elements
-    are still created with `createElement` and a statement per attribute: the second argument of
-    `createElement` takes no attributes, and `Object.assign` or a helper were slower when measured
-    and no shorter after minification.
+    are created with `createElement` and a statement per attribute, unless the module has many of
+    them, see 15.
 13. **Styles are `style { ... }` blocks of CSS in the body, scoped as in Svelte:** a class on every
     element of the component's own markup and in every selector, with `:global(...)` to leave the
     scope. Values from code are `{expr}` in the values of declarations, as in markup, and become CSS
@@ -1296,6 +1306,12 @@ body of `for`: the code of one row of the list is written there once, and no ext
     which the compiler reads itself: typed classes with names of their own, and the CSS added to the
     page by the module, so it works without a bundler. Several classes are joined with template
     strings, without a syntax of their own.
+15. **A module whose code creates more than 20 elements creates them with `$$element`,** which
+    takes their attributes in two objects, properties and attributes for `setAttribute`. On the
+    site it saves 7.5% of the minified JS but less than 1% after gzip, which compresses repeated
+    statements well, and the call is a little slower than the statements; in a small module the
+    helper itself would take more than it saves. Below the threshold the code stays
+    `createElement` and a statement per attribute, which is easier to read.
 
 ## Not decided yet
 

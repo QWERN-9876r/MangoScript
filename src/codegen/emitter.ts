@@ -28,6 +28,8 @@ export interface JsOptions {
   functions?: ReadonlySet<string> | undefined;
   /** The CSS modules the module imports, by their paths as written. */
   styleModules?: ReadonlyMap<string, StyleModule> | undefined;
+  /** Create elements with their attributes by a helper, $$element; see creation.ts. */
+  elementHelper?: boolean | undefined;
 }
 
 /** A decorator of another module, with the types of the expressions of that module. */
@@ -62,8 +64,8 @@ interface FunctionContext {
  * current function. The generator is split into layers, each adding to the previous one:
  *
  *     Emitter → ExpressionEmitter → SimpleStatementEmitter → ControlStatementEmitter
- *       → StatementEmitter → UpdateEmitter → AttributeEmitter → ElementEmitter
- *       → ControlFlowEmitter → ComponentPropsEmitter → EarlyReturnEmitter → RefEmitter
+ *       → StatementEmitter → UpdateEmitter → AttributeEmitter → CreationEmitter
+ *       → ElementEmitter → ControlFlowEmitter → ComponentPropsEmitter → EarlyReturnEmitter → RefEmitter
  *       → StyleEmitter → ComponentEmitter → WebComponentEmitter → FunctionEmitter → JsGenerator
  */
 export abstract class Emitter {

@@ -267,7 +267,7 @@ export abstract class ComponentEmitter extends StyleEmitter {
 
   /**
    * The attributes of a use that are not properties of the component, as a function that sets them
-   * on the element `{...attrs}` is on: `($$element) => { $$element.disabled = true; }`. It is
+   * on the element `{...attrs}` is on: `($$target) => { $$target.disabled = true; }`. It is
    * written here, so their values see the names of the caller; when they depend on its state, the
    * element is kept for its updates. A class or a style is added to that of the element.
    */
@@ -289,12 +289,12 @@ export abstract class ComponentEmitter extends StyleEmitter {
         value.kind !== 'EventHandler' &&
         live.dependencies(value).size > 0,
     );
-    const element = reactive ? `$$attrsElement${id}` : '$$element';
+    const element = reactive ? `$$attrsElement${id}` : '$$target';
 
     if (reactive) this.line(`let ${element};`);
 
     const body = this.block(() => {
-      if (reactive) this.line(`${element} = $$element;`);
+      if (reactive) this.line(`${element} = $$target;`);
       for (const attribute of attributes) {
         const { name, value } = attribute;
 
@@ -313,7 +313,7 @@ export abstract class ComponentEmitter extends StyleEmitter {
     });
     const applier = `$$attrs${id}`;
 
-    this.line(`const ${applier} = ($$element) => ${body};`);
+    this.line(`const ${applier} = ($$target) => ${body};`);
 
     return applier;
   }

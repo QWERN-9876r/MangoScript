@@ -9,7 +9,9 @@ export type Helper =
   | 'list'
   | 'owner'
   | 'mount'
-  | 'style';
+  | 'style'
+  | 'element'
+  | 'svgElement';
 
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
@@ -261,6 +263,22 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '    for (const block of blocks) block.remove();',
     '  });',
     '  return [fragment, update];',
+    '}',
+  ],
+  /** Creates an element with its properties and the attributes that are set with setAttribute. */
+  element: [
+    'function $$element(tag, properties, attributes) {',
+    '  const element = Object.assign(document.createElement(tag), properties);',
+    '  for (const name in attributes) element.setAttribute(name, attributes[name]);',
+    '  return element;',
+    '}',
+  ],
+  /** Creates an SVG element with its attributes. */
+  svgElement: [
+    'function $$svgElement(tag, attributes) {',
+    '  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);',
+    '  for (const name in attributes) element.setAttribute(name, attributes[name]);',
+    '  return element;',
     '}',
   ],
   /** Sets an attribute whose value may be null: then the attribute is removed. */

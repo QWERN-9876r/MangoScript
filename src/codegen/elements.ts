@@ -4,7 +4,7 @@ import { constantAttributes } from '../refs.ts';
 import { hasClass } from '../styles.ts';
 import { childrenInSvg, isSvgElement } from '../svg.ts';
 import { isSimple, startsWithObjectLiteral } from './analysis.ts';
-import { AttributeEmitter } from './attributes.ts';
+import { CreationEmitter } from './creation.ts';
 import { contentKind, type Content, type ControlStatement } from './element-helpers.ts';
 import type { Live, Source } from './reactive.ts';
 import { ARROW, arrayPattern } from './syntax.ts';
@@ -22,7 +22,7 @@ export type { ControlStatement } from './element-helpers.ts';
  * appends elements, unless they depend on state; see ControlFlowEmitter.
  */
 
-export abstract class ElementEmitter extends AttributeEmitter {
+export abstract class ElementEmitter extends CreationEmitter {
   /** Inlines a component; implemented by ComponentEmitter. */
   protected abstract expand(
     node: ast.ElementExpression,
@@ -110,24 +110,46 @@ export abstract class ElementEmitter extends AttributeEmitter {
     // A ref created the element with its constant attributes, so the markup only fills it in.
     const created = preset?.created ? preset.name : null;
     const name = created ?? declaration?.split(' ').at(-1) ?? this.elementName(tag);
-    const create =
-      tag === null ? 'document.createDocumentFragment()' : this.createElement(tag, svg);
-    const constants = new Set<ast.JsxAttribute | ast.JsxSpreadAttribute>(
+    // Set by a ref, or by the helper that creates the element.
+    const covered = new Set<ast.JsxAttribute | ast.JsxSpreadAttribute>(
       created ? constantAttributes(node) : [],
     );
     const scope = tag === null ? null : this.scopeOf(node);
+    // A spread may set the class: the class of the style is added after it, so that both stay.
+    const spread = node.attributes.some((attribute) => attribute.kind === 'JsxSpreadAttribute');
+    const scopeClass = scope && !created && !hasClass(node) ? scope : null;
+    let scoped = false;
 
     if (created === null) {
-      const value = preset ? `${preset.name} ?? ${create}` : create;
+      const target = declaration ?? `const ${name}`;
 
-      this.line(`${declaration ?? `const ${name}`} = ${value};`);
+      if (tag === null) {
+        this.line(`${target} = document.createDocumentFragment();`);
+      } else if (preset) {
+        this.createdElements++;
+        this.line(`${target} = ${preset.name} ?? ${this.createElement(tag, svg)};`);
+      } else {
+        const creation = this.createWith(
+          target,
+          name,
+          tag,
+          svg,
+          node.attributes,
+          live,
+          scope,
+          spread ? null : scopeClass,
+        );
+
+        for (const attribute of creation.covered) covered.add(attribute);
+        scoped = creation.scoped;
+      }
     }
 
     // Bindings go last: `valueAsNumber` needs the `type` attribute to be set.
     const bindings: ast.JsxAttribute[] = [];
 
     for (const attribute of node.attributes) {
-      if (constants.has(attribute)) continue;
+      if (covered.has(attribute)) continue;
       if (attribute.kind === 'JsxAttribute' && attribute.name.name === 'ref') continue;
       if (attribute.kind === 'JsxAttribute' && attribute.name.name.startsWith('bind:')) {
         bindings.push(attribute);
@@ -137,7 +159,10 @@ export abstract class ElementEmitter extends AttributeEmitter {
     }
 
     // Without a class attribute the element still gets the class of its style; a ref has set it.
-    if (scope && !created && !hasClass(node)) this.scopeClass(name, scope, svg);
+    if (scopeClass !== null && !scoped) {
+      if (spread) this.line(`${name}.classList.add(${JSON.stringify(scopeClass)});`);
+      else this.scopeClass(name, scopeClass, svg);
+    }
 
     if (tag !== null) {
       for (const attribute of bindings) this.binding(name, tag, attribute, live);

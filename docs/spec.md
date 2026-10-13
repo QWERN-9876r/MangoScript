@@ -859,6 +859,11 @@ link.append("Link ", name);
   `<g>`...) are created in the SVG namespace, with `createElementNS`, and their attributes are set
   with `setAttribute`. `<a>`, `<title>` and the other tags HTML has too are SVG only inside `<svg>`;
   the children of `<foreignObject>` are HTML.
+- **Many elements:** a module whose code creates more than 20 elements creates them with a helper
+  that takes the attributes they have from the start,
+  `$$element("a", { href: "/", className: "nav" }, { "aria-label": label })`, instead of
+  `createElement` and a statement per attribute. Handlers, `bind:`, styles, attributes that may be
+  `null` and those after a spread stay statements.
 - **Events:** a function name, `obj.method` or a function literal is the handler. Anything else is
   code that runs on the event, with the variable `event`: `onClick={count++}`,
   `onSubmit={event.preventDefault(); send()}`. So `onClick={save()}` calls `save` on a click.

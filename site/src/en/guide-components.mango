@@ -39,7 +39,8 @@ export func components() Node {
             Components do not exist in JS: every use is replaced by the component's code. The
             {" "}<b>JavaScript</b> tab shows only the elements being created. When the copies of
             a component would add more than 100 lines to a function and its calls, the component
-            becomes a function instead.
+            becomes a function instead. A module that creates more than 20 elements creates them
+            with a small helper, <code>$$element</code>, which takes their attributes.
         </p>
         {example("components")}
         <p>

@@ -13,6 +13,7 @@ import {
 import { hasClass } from '../styles.ts';
 import { isSvgElement, svgElements } from '../svg.ts';
 import { forEachChild } from '../walk.ts';
+import type { Creation } from './creation.ts';
 import { EarlyReturnEmitter } from './early-returns.ts';
 
 /**
@@ -98,18 +99,34 @@ export abstract class RefEmitter extends EarlyReturnEmitter {
       const tag = element.tag.name;
       // The root of another component has no <svg> above it in its own markup.
       const svg = element === target ? this.svgTargets.has(target) : isSvgElement(tag, false);
-      const create = this.createElement(tag, svg);
-
-      this.line(`const ${name} = ${preset ? `${preset.name} ?? ${create}` : create};`);
-
       const scope = this.scopeOf(element);
+      const constants = constantAttributes(element);
+      // The class of the style is constant too, when the element has no class of its own.
+      const scopeClass = scope && !hasClass(element) ? scope : null;
+      let creation: Creation = { covered: new Set(), scoped: false };
 
-      for (const attribute of constantAttributes(element)) {
-        this.attribute(name, tag, attribute, null, svg, scope);
+      if (preset) {
+        this.createdElements++;
+        this.line(`const ${name} = ${preset.name} ?? ${this.createElement(tag, svg)};`);
+      } else {
+        creation = this.createWith(
+          `const ${name}`,
+          name,
+          tag,
+          svg,
+          constants,
+          null,
+          scope,
+          scopeClass,
+        );
       }
 
-      // The class of the style is constant too, when the element has no class of its own.
-      if (scope && !hasClass(element)) this.scopeClass(name, scope, svg);
+      for (const attribute of constants) {
+        if (!creation.covered.has(attribute))
+          this.attribute(name, tag, attribute, null, svg, scope);
+      }
+
+      if (scopeClass !== null && !creation.scoped) this.scopeClass(name, scopeClass, svg);
     }
   }
 

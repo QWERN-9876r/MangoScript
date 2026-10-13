@@ -10,13 +10,33 @@ export type { JsOptions } from './emitter.ts';
 export const INLINE_LIMIT = 100;
 
 /**
+ * A module whose code creates more elements than this creates them with $$element, which takes
+ * their attributes: its definition takes less than the statements it saves.
+ */
+export const ELEMENT_HELPER_LIMIT = 20;
+
+/**
  * Generates a readable ES module from a program that has parsed without errors. A component is
  * inlined where it is used, unless that adds more than INLINE_LIMIT lines compared to a function
  * and its calls. The module is generated again with each such candidate as a function, and the one
  * that saves the most goes first: that changes the sizes of the components inside it. A component
  * of another module is a candidate too; its function is in that module, and counts as one copy.
+ * Then, if the code creates more than ELEMENT_HELPER_LIMIT elements, it is generated again with
+ * the helper that creates them.
  */
 export function generateJs(program: ast.Program, options: JsOptions): string {
+  const { code, functions, elements } = chooseFunctions(program, options);
+
+  if (elements <= ELEMENT_HELPER_LIMIT) return code;
+
+  return new JsGenerator(program, { ...options, functions, elementHelper: true }).generate();
+}
+
+/** The code with the components that become functions; see generateJs. */
+function chooseFunctions(
+  program: ast.Program,
+  options: JsOptions,
+): { code: string; functions: ReadonlySet<string>; elements: number } {
   const functions = new Set<string>();
   const generate = (names: ReadonlySet<string>) => {
     const generator = new JsGenerator(program, { ...options, functions: names });
@@ -42,7 +62,10 @@ export function generateJs(program: ast.Program, options: JsOptions): string {
       if (saved > INLINE_LIMIT && (!best || saved > best.saved)) best = { ...trial, name, saved };
     }
 
-    if (!best) return current.code;
+    if (!best) {
+      return { code: current.code, functions, elements: current.generator.createdElements };
+    }
+
     functions.add(best.name);
     current = best;
   }
