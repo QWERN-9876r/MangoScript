@@ -1,0 +1,118 @@
+/* What running and compiling code shows: the JS, the errors, the result area and the console. The
+   programs of the examples add their own elements to the result area, so those rules are for any
+   such element. */
+
+.code {
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  max-height: 520px;
+  color: var(--mui-code-text);
+  font-family: var(--mui-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.errors {
+  margin: 0;
+  padding: 16px 18px 16px 36px;
+  color: var(--mui-danger);
+  font-family: var(--mui-mono);
+  font-size: 13.5px;
+}
+
+.loading {
+  margin: 0;
+  padding: 16px 18px;
+  color: var(--mui-muted);
+  font-size: 0.9rem;
+}
+
+.result {
+  padding: 16px 18px;
+}
+
+.console {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--mui-leaf);
+  border-radius: 6px;
+  background: var(--mui-surface);
+  font-family: var(--mui-mono);
+  font-size: 13.5px;
+  white-space: pre-wrap;
+}
+
+.empty {
+  margin: 12px 0 0;
+  color: var(--mui-muted);
+  font-size: 0.9rem;
+}
+
+/* The result area: the program adds elements here through document.body. */
+.preview {
+  padding: 14px;
+  border: 1px dashed var(--mui-line-strong);
+  border-radius: var(--mui-radius-sm);
+  background: var(--mui-surface);
+}
+
+.preview:empty::before {
+  content: attr(data-empty);
+  color: var(--mui-muted);
+  font-size: 0.9rem;
+}
+
+.preview button,
+.preview input:not([type]) {
+  padding: 4px 10px;
+  border: 1px solid var(--mui-line-strong);
+  border-radius: var(--mui-radius-sm);
+  background: var(--mui-bg);
+  color: var(--mui-text);
+  font: inherit;
+}
+
+.preview button {
+  cursor: pointer;
+}
+
+.preview :global(.card) {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-left: 4px solid var(--mui-leaf);
+  border-radius: var(--mui-radius-sm);
+  background: var(--mui-bg);
+}
+
+.preview :global(.card.warning) {
+  border-left-color: var(--mui-accent);
+}
+
+.preview :global(.card) h4 {
+  margin: 0 0 4px;
+}
+
+.preview :global(.tree),
+.preview :global(.tree) ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style: none;
+}
+
+.preview :global(.tree) {
+  padding-left: 0;
+}
+
+.preview :global(.tree) button {
+  width: 26px;
+  margin: 2px 0;
+  padding: 0;
+}
+
+.preview :global(.log) {
+  max-height: 160px;
+  margin: 0 0 8px;
+  overflow-y: auto;
+}

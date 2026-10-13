@@ -1,0 +1,9 @@
+// MangoUI badges: a short label, such as a version or "new".
+
+import styles from "./badge.module.css"
+
+export type BadgeKind "accent" | "leaf" | "muted"
+
+export comp Badge(kind BadgeKind = "accent", children Content) {
+    return <span class={`${styles.badge} ${styles[kind]}`}>{children}</span>
+}

@@ -1,0 +1,68 @@
+/* MangoUI prose: the typography of text, for elements written without classes. */
+
+.prose {
+  font-size: 1.02rem;
+}
+
+.prose h2 {
+  margin: 0 0 14px;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+
+.prose h3 {
+  margin: 28px 0 8px;
+  font-size: 1.15rem;
+}
+
+.prose p,
+.prose ul {
+  margin: 12px 0;
+}
+
+.prose li + li {
+  margin-top: 6px;
+}
+
+.prose code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--mui-inline-code);
+  font-family: var(--mui-mono);
+  font-size: 0.88em;
+}
+
+.prose pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.prose table {
+  width: 100%;
+  margin: 18px 0;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.prose th,
+.prose td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--mui-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--mui-surface-2);
+  color: var(--mui-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.prose tr:last-child td {
+  border-bottom: 0;
+}

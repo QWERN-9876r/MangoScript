@@ -1,0 +1,10 @@
+/* An example of the guide: tabs with its code, the JS and the result. */
+
+.example {
+  margin: 24px 0;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius-lg);
+  overflow: hidden;
+  background: var(--mui-code-bg);
+  box-shadow: var(--mui-shadow);
+}

@@ -5,6 +5,7 @@
 import { loadCompiler } from "./compiler.ts"
 import { highlight } from "./highlight.mango"
 import { text } from "./i18n.mango"
+import styles from "./sandbox.module.css"
 
 export interface Compiled {
     code string
@@ -190,24 +191,39 @@ export func compiledView(source string) Node {
 
 /** What a tab shows until the compiler is loaded. */
 export func loadingView() Node {
-    return <p class="compiler-loading">{text().loadingCompiler}</p>
+    return <p class={styles.loading}>{text().loadingCompiler}</p>
 }
 
 func compiledNode(compiled Compiled) Node {
     if compiled.errors.length > 0 {
-        return <ul class="errors">
+        return <ul class={styles.errors}>
             {for message in compiled.errors {
                 <li>{message}</li>
             }}
         </ul>
     }
-    return <pre class="code">{highlight(compiled.code, "js")}</pre>
+    return <pre class={styles.code}>{highlight(compiled.code, "js")}</pre>
 }
 
 /** What the program printed to the console. */
 export func consoleView(lines []string) Node {
     if lines.length == 0 {
-        return <p class="console-empty">{text().emptyConsole}</p>
+        return <p class={styles.empty}>{text().emptyConsole}</p>
     }
-    return <pre class="console">{lines.join("\n")}</pre>
+    return <pre class={styles.console}>{lines.join("\n")}</pre>
+}
+
+/** The area where a program shows what it adds to `document.body`. */
+export func previewArea() HTMLDivElement {
+    return <div class={styles.preview} data-empty={text().emptyPreview} />
+}
+
+/** The result tab: the result area and the console under it. */
+export func resultView(preview HTMLElement, lines []string) Node {
+    return <div class={styles.result}>{preview}{consoleView(lines)}</div>
+}
+
+/** Highlighted MangoScript code. */
+export func codeView(code string) Node {
+    return <pre class={styles.code}>{highlight(code, "mango")}</pre>
 }

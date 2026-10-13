@@ -1,9 +1,12 @@
 // The playground: an editor with highlighting, the generated JS and running the program. Under the
 // transparent text area lies a <pre> with the same text, highlighted.
 
-import { text } from "./i18n.mango"
+import { Button } from "../ui/button.mango"
+import { TabItem, Tabs } from "../ui/tabs.mango"
 import { highlight } from "./highlight.mango"
-import { compiledView, consoleView, loadingView, runProgram } from "./sandbox.mango"
+import { text } from "./i18n.mango"
+import styles from "./playground.module.css"
+import { compiledView, loadingView, previewArea, resultView, runProgram } from "./sandbox.mango"
 
 
 // Examples open in the playground through openInPlayground; the component sets the function.
@@ -18,7 +21,8 @@ comp Playground() {
     state source = t.playgroundStart
     state tab = "js"
     state lines []string = []
-    const preview = <div class="preview" data-empty={t.emptyPreview} />
+    const preview = previewArea()
+    const tabs []TabItem = [{ id: "js", label: "JavaScript" }, { id: "result", label: t.run }]
     // The JS tab needs the compiler, which is loaded only when the playground is about to come into
     // view or an example is opened in it: the guide is read without it.
     state shown = false
@@ -46,11 +50,13 @@ comp Playground() {
         document.getElementById("playground")?.scrollIntoView({ behavior: "smooth" })
     }
 
-    func run() {
-        runProgram(source, preview, output => {
-            lines = output
-        })
-        tab = "result"
+    func select(id string) {
+        if id == "result" {
+            runProgram(source, preview, output => {
+                lines = output
+            })
+        }
+        tab = id
     }
 
     // Tab inserts an indent instead of moving the focus out of the editor.
@@ -64,11 +70,11 @@ comp Playground() {
         source = input.value
     }
 
-    return <div class="playground">
-        <div class="editor">
-            <pre class="editor-code" aria-hidden="true">{highlight(source, "mango")} </pre>
+    return <div class={styles.playground}>
+        <div class={styles.editor}>
+            <pre class={styles.code} aria-hidden="true">{highlight(source, "mango")} </pre>
             <textarea
-                class="editor-input"
+                class={styles.input}
                 aria-label={t.editor}
                 bind:value={source}
                 rows={source.split("\n").length}
@@ -77,16 +83,14 @@ comp Playground() {
                 onKeyDown={indent(event)}
             />
         </div>
-        <div class="output">
-            <div class="tabs">
-                <button class={tab == "js" ? "tab active" : "tab"} onClick={tab = "js"}>JavaScript</button>
-                <button class={tab == "result" ? "tab active" : "tab"} onClick={run()}>{t.run}</button>
-                <button class="tab" onClick={source = t.playgroundStart}>{t.reset}</button>
-            </div>
+        <div class={styles.output}>
+            <Tabs items={tabs} active={tab} onSelect={select(event)}>
+                <Button kind="ghost" size="sm" onPress={source = t.playgroundStart}>{t.reset}</Button>
+            </Tabs>
             {if tab == "js" {
-                <div class="output-body">{shown ? compiledView(source) : loadingView()}</div>
+                <div>{shown ? compiledView(source) : loadingView()}</div>
             } else {
-                <div class="output-body result">{preview}{consoleView(lines)}</div>
+                <div>{resultView(preview, lines)}</div>
             }}
         </div>
     </div>

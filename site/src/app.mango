@@ -1,34 +1,69 @@
-// The MangoScript documentation page, itself written in MangoScript: the guide of each language is
-// in en/guide.mango and ru/guide.mango, examples with the "JavaScript" and "Run" tabs are in
-// example.mango, the playground in playground.mango. The compiler runs right in the browser.
+// The MangoScript documentation page, itself written in MangoScript with the MangoUI kit of
+// site/ui: the guide of each language is in en/guide.mango and ru/guide.mango, examples with the
+// "JavaScript" and "Run" tabs are in example.mango, the playground in playground.mango. The
+// compiler runs right in the browser.
 
+import { Button, IconButton } from "../ui/button.mango"
+import { Drawer } from "../ui/drawer.mango"
+import { NavGroup, NavList } from "../ui/nav-list.mango"
+import { Prose } from "../ui/prose.mango"
+import { ThemeToggle } from "../ui/theme.mango"
+import styles from "./app.module.css"
+import { hero } from "./hero.mango"
 import { REPOSITORY, Section, text } from "./i18n.mango"
 import { playground } from "./playground.mango"
 
-interface Link {
-    id string
-    title string
+/** The sections in the groups of the menu, in order; the playground ends the last group. */
+func navGroups(sections []Section, playgroundTitle string) []NavGroup {
+    const groups []NavGroup = []
+    for section in sections {
+        const last = groups.at(-1)
+        const link = { id: section.id, title: section.title }
+        if last != null && last.title == section.group {
+            last.links.push(link)
+        } else {
+            groups.push({ title: section.group, links: [link] })
+        }
+    }
+    groups.at(-1)?.links.push({ id: "playground", title: playgroundTitle })
+    return groups
 }
 
 comp DocsPage(sections []Section) {
     const t = text()
-    const nav []Link = [...sections, { id: "playground", title: t.playground }]
-    state active = nav[0].id
+    const groups = navGroups(sections, t.playground)
+    const ids = [...sections.map(section => section.id), "playground"]
+    state active = ids[0]
+    // How far the page is read, for the bar under the top bar.
+    state progress = 0
+    state menuOpen = false
+
+    style {
+        .progress {
+            position: absolute;
+            inset: auto auto -1px 0;
+            width: {progress}%;
+            height: 2px;
+            background: var(--mui-accent);
+        }
+    }
 
     // The menu highlights the section whose title was the last to go above the top of the screen,
     // and the last section at the very bottom of the page.
     func updateActive() {
-        let current = nav[0].id
-        for link in nav {
-            const element = document.getElementById(link.id)
+        let current = ids[0]
+        for id in ids {
+            const element = document.getElementById(id)
             if element != null && element.getBoundingClientRect().top < 120 {
-                current = link.id
+                current = id
             }
         }
-        if window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2 {
-            current = nav[nav.length - 1].id
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight
+        if window.scrollY >= scrollable - 2 {
+            current = ids[ids.length - 1]
         }
         active = current
+        progress = scrollable > 0 ? Math.min(100, Math.round(window.scrollY / scrollable * 100)) : 0
     }
 
     // The other language opens at the same section.
@@ -49,51 +84,61 @@ comp DocsPage(sections []Section) {
         }
     }
 
-    return <>
-        <header class="topbar">
-            <a class="brand" href="#intro"><span aria-hidden="true">🥭</span> MangoScript</a>
-            <span class="tagline">{t.tagline}</span>
-            <div class="topbar-links">
+    return <div>
+        <header class={styles.topbar}>
+            <span class={styles.menuButton}>
+                <IconButton icon="menu" label={t.menu} onPress={menuOpen = true} />
+            </span>
+            <a class={styles.brand} href="#intro"><span aria-hidden="true">🥭</span> MangoScript</a>
+            <span class={styles.tagline}>{t.tagline}</span>
+            <nav class={styles.links}>
                 <a
-                    class="language-link"
+                    class={styles.language}
                     href={t.otherHref}
                     hreflang={t.otherLanguageCode}
                     lang={t.otherLanguageCode}
                     onClick={switchLanguage(event)}
                 >
-                    <span class="language-name">{t.otherLanguage}</span>
-                    <span class="language-code">{t.otherLanguageCode.toUpperCase()}</span>
+                    <span class={styles.name}>{t.otherLanguage}</span>
+                    <span class={styles.code}>{t.otherLanguageCode.toUpperCase()}</span>
                 </a>
-                <a class="github-link" href={REPOSITORY} aria-label={t.repository}>
-                    <span>GitHub</span>
-                </a>
-                <a class="topbar-link" href="#playground">{t.playground}</a>
-            </div>
-        </header>
-        <div class="layout">
-            <nav class="sidebar" aria-label={t.sections}>
-                {for link in nav {
-                    <a href={`#${link.id}`} class={link.id == active ? "active" : ""}>{link.title}</a>
-                }}
+                <ThemeToggle labels={t.theme} />
+                <IconButton icon="github" label={t.repository} href={REPOSITORY} />
+                <span class={styles.playgroundLink}>
+                    <Button kind="primary" size="sm" href="#playground" icon="play">{t.playground}</Button>
+                </span>
             </nav>
-            <main class="content">
-                {for section in sections {
-                    <section id={section.id} class="doc-section">
-                        <h2>{section.title}</h2>
-                        {section.content()}
+            <div class="progress" />
+        </header>
+        {hero()}
+        <div class={styles.layout}>
+            <aside class={styles.sidebar}>
+                <NavList groups={groups} active={active} label={t.sections} />
+            </aside>
+            <main class={styles.content}>
+                <Prose>
+                    {for section in sections {
+                        <section id={section.id} class={styles.section}>
+                            <h2>{section.title}</h2>
+                            {section.content()}
+                        </section>
+                    }}
+                    <section id="playground" class={`${styles.section} ${styles.last}`}>
+                        <h2>{t.playground}</h2>
+                        <p>{t.playgroundIntro}</p>
+                        {playground()}
                     </section>
-                }}
-                <section id="playground" class="doc-section">
-                    <h2>{t.playground}</h2>
-                    <p>{t.playgroundIntro}</p>
-                    {playground()}
-                </section>
-                <footer class="footer">
-                    {t.footer}{" "}<a href={REPOSITORY}>{t.footerLink}</a>.
+                </Prose>
+                <footer class={styles.footer}>
+                    <span aria-hidden="true">🥭</span>
+                    <span>{t.footer}{" "}<a href={REPOSITORY}>{t.footerLink}</a>.</span>
                 </footer>
             </main>
         </div>
-    </>
+        <Drawer open={menuOpen} onClose={menuOpen = false} label={t.sections} closeLabel={t.closeMenu}>
+            <NavList groups={groups} active={active} label={t.sections} onNavigate={menuOpen = false} />
+        </Drawer>
+    </div>
 }
 
 /** Draws the page; the entry module of the language calls it after setLanguage(). */

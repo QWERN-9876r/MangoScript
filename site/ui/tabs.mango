@@ -1,0 +1,26 @@
+// MangoUI tabs: the parent keeps which one is selected and changes it in `onSelect`. The children
+// are actions at the end of the row.
+
+import styles from "./tabs.module.css"
+
+export interface TabItem {
+    id string
+    label string
+}
+
+export comp Tabs(items []TabItem, active string, onSelect func(string), children Content) {
+    return <div class={styles.tabs} role="tablist">
+        {for item in items {
+            <button
+                class={item.id == active ? `${styles.tab} ${styles.active}` : styles.tab}
+                type="button"
+                role="tab"
+                aria-selected={item.id == active ? "true" : "false"}
+                onClick={onSelect(item.id)}
+            >
+                {item.label}
+            </button>
+        }}
+        <div class={styles.actions}>{children}</div>
+    </div>
+}

@@ -1,0 +1,34 @@
+/* MangoUI code blocks: a header with a label and a copy button over the code. */
+
+.block {
+  margin: 20px 0;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius);
+  overflow: hidden;
+  background: var(--mui-code-bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 14px;
+  border-bottom: 1px solid var(--mui-line);
+  background: var(--mui-surface);
+  color: var(--mui-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.code {
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  max-height: 520px;
+  color: var(--mui-code-text);
+  font-family: var(--mui-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  tab-size: 4;
+}

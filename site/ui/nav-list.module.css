@@ -1,0 +1,54 @@
+/* MangoUI navigation: groups of links with headings, the current one highlighted. */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.heading {
+  margin: 0 0 6px;
+  padding: 0 12px;
+  color: var(--mui-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.link {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: var(--mui-radius-sm);
+  color: var(--mui-muted);
+  font-size: 0.925rem;
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.link:hover {
+  color: var(--mui-text);
+}
+
+.active {
+  background: var(--mui-accent-soft);
+  color: var(--mui-accent-strong);
+  font-weight: 600;
+}
+
+.active::before {
+  content: '';
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--mui-accent);
+}

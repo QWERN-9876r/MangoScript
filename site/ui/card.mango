@@ -1,0 +1,16 @@
+// MangoUI cards: a title, an optional icon and text; CardGrid lays them out in columns.
+
+import styles from "./card.module.css"
+import { Icon, IconName } from "./icon.mango"
+
+export comp Card(title string, icon ?IconName = null, children Content) {
+    return <article class={styles.card}>
+        {icon != null ? <span class={styles.icon}><Icon name={icon} size={20} /></span> : null}
+        <h3 class={styles.title}>{title}</h3>
+        <div class={styles.body}>{children}</div>
+    </article>
+}
+
+export comp CardGrid(children Content) {
+    return <div class={styles.grid}>{children}</div>
+}

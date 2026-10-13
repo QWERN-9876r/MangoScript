@@ -1,0 +1,38 @@
+/* MangoUI cards and the grid that lays them out. The parts are selected through .card, so that the
+   typography of text around (Prose) does not override them. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.card {
+  padding: 18px;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius-lg);
+  background: var(--mui-surface);
+  box-shadow: var(--mui-shadow);
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 10px;
+  border-radius: var(--mui-radius-sm);
+  background: var(--mui-accent-soft);
+  color: var(--mui-accent-strong);
+}
+
+.card .title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.card .body {
+  color: var(--mui-muted);
+  font-size: 0.925rem;
+}

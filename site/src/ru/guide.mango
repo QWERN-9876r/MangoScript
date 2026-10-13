@@ -2,55 +2,58 @@
 // function that returns its markup; the examples are files in site/examples/ru.
 
 import { example } from "../example.mango"
-import { REPOSITORY, Section } from "../i18n.mango"
+import { Callout } from "../../ui/callout.mango"
+import { Card, CardGrid } from "../../ui/card.mango"
+import { CodeBlock } from "../../ui/code-block.mango"
+import { REPOSITORY, Section, text } from "../i18n.mango"
 import { components, decorators, markup, mounting, reactivity, refs, styles, webComponents } from "./guide-components.mango"
 
 export const SECTIONS []Section = [
-    { id: "intro", title: "Что такое MangoScript", content: intro },
-    { id: "variables", title: "Переменные и типы", content: variables },
-    { id: "null", title: "null, union и сужение", content: nullSafety },
-    { id: "functions", title: "Функции", content: functions },
-    { id: "errors", title: "Ошибки и defer", content: errors },
-    { id: "control", title: "Условия и циклы", content: control },
-    { id: "classes", title: "Классы и интерфейсы", content: classes },
-    { id: "generics", title: "Дженерики", content: generics },
-    { id: "modules", title: "Модули", content: modules },
-    { id: "markup", title: "Разметка", content: markup },
-    { id: "components", title: "Компоненты", content: components },
-    { id: "state", title: "Состояние", content: reactivity },
-    { id: "mount", title: "Монтирование", content: mounting },
-    { id: "ref", title: "Ссылки на элементы", content: refs },
-    { id: "styles", title: "Стили", content: styles },
-    { id: "web-components", title: "Веб-компоненты", content: webComponents },
-    { id: "decorators", title: "Декораторы", content: decorators },
-    { id: "tools", title: "Инструменты", content: tools },
+    { id: "intro", title: "Что такое MangoScript", group: "Язык", content: intro },
+    { id: "variables", title: "Переменные и типы", group: "Язык", content: variables },
+    { id: "null", title: "null, union и сужение", group: "Язык", content: nullSafety },
+    { id: "functions", title: "Функции", group: "Язык", content: functions },
+    { id: "errors", title: "Ошибки и defer", group: "Язык", content: errors },
+    { id: "control", title: "Условия и циклы", group: "Язык", content: control },
+    { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: classes },
+    { id: "generics", title: "Дженерики", group: "Язык", content: generics },
+    { id: "modules", title: "Модули", group: "Язык", content: modules },
+    { id: "markup", title: "Разметка", group: "Разметка и компоненты", content: markup },
+    { id: "components", title: "Компоненты", group: "Разметка и компоненты", content: components },
+    { id: "state", title: "Состояние", group: "Разметка и компоненты", content: reactivity },
+    { id: "mount", title: "Монтирование", group: "Разметка и компоненты", content: mounting },
+    { id: "ref", title: "Ссылки на элементы", group: "Разметка и компоненты", content: refs },
+    { id: "styles", title: "Стили", group: "Разметка и компоненты", content: styles },
+    { id: "web-components", title: "Веб-компоненты", group: "Разметка и компоненты", content: webComponents },
+    { id: "decorators", title: "Декораторы", group: "Разметка и компоненты", content: decorators },
+    { id: "tools", title: "Инструменты", group: "Ещё", content: tools },
 ]
 
 func intro() Node {
     return <>
-        <p class="lead">
+        <p>
             MangoScript — язык с семантикой JavaScript, синтаксисом в духе Go и статической
             типизацией. Он компилируется в читаемый JavaScript без рантайма: что написано, то и
             выполняется.
         </p>
-        <ul>
-            <li>
-                <b>Как в JavaScript:</b> те же значения, объекты, массивы, классы и модули. Можно
-                использовать любые JS-библиотеки.
-            </li>
-            <li>
-                <b>Как в Go:</b> <code>func</code>, тип после имени, несколько результатов, ошибки
-                вторым значением, <code>defer</code> и один цикл <code>for</code>.
-            </li>
-            <li>
-                <b>Типы:</b> компилятор проверяет программу до запуска, включая <code>null</code>:
-                значение типа <code>?User</code> нельзя использовать без проверки.
-            </li>
-            <li>
-                <b>Разметка и компоненты:</b> <code>&lt;button&gt;</code> в коде создаёт настоящий
-                DOM-элемент, а компонент с <code>state</code> сам обновляет свою разметку.
-            </li>
-        </ul>
+        <CardGrid>
+            <Card title="Как в JavaScript" icon="layers">
+                Те же значения, объекты, массивы, классы и модули. Можно использовать любые
+                JS-библиотеки.
+            </Card>
+            <Card title="Как в Go" icon="code">
+                <code>func</code>, тип после имени, несколько результатов, ошибки вторым значением,
+                {" "}<code>defer</code> и один цикл <code>for</code>.
+            </Card>
+            <Card title="Типы" icon="shield">
+                Компилятор проверяет программу до запуска, включая <code>null</code>: значение типа
+                {" "}<code>?User</code> нельзя использовать без проверки.
+            </Card>
+            <Card title="Разметка и компоненты" icon="zap">
+                <code>&lt;button&gt;</code> в коде создаёт настоящий DOM-элемент, а компонент с
+                {" "}<code>state</code> сам обновляет свою разметку.
+            </Card>
+        </CardGrid>
         <p>
             У каждого примера есть вкладка <b>JavaScript</b> — это код, который генерирует
             компилятор, запущенный прямо на этой странице. <b>Запустить</b> выполняет пример,
@@ -221,8 +224,10 @@ func modules() Node {
             которые он импортирует, и заменяет в путях <code>.mango</code> на <code>.js</code>.
             Рядом с каждым <code>.js</code> он пишет <code>.d.ts</code>, так что модуль можно
             импортировать из TypeScript с типами.
-            Песочница на этой странице модулей не загружает, поэтому пример ниже не запускается.
         </p>
+        <Callout kind="note">
+            Песочница на этой странице модулей не загружает, поэтому пример ниже не запускается.
+        </Callout>
         {example("modules")}
     </>
 }
@@ -240,7 +245,14 @@ func tools() Node {
         <p>
             Компилятор — npm-пакет <code>mangoscript</code>, он работает в Node.js 24:
         </p>
-        <pre class="code">{COMMANDS}</pre>
+        <CodeBlock
+            code={COMMANDS}
+            label={text().terminal}
+            copyLabel={text().copy}
+            copiedLabel={text().copied}
+        >
+            {COMMANDS}
+        </CodeBlock>
         <p>
             Для проектов на Vite есть плагин <code>mangoscript/vite</code>: с ним
             {" "}<code>.mango</code>-модули импортируются как обычные, а ошибки типов показываются
@@ -254,6 +266,13 @@ func tools() Node {
             код — в <code>site/src</code>, а сервер — <code>site/server.mango</code>. Из корня
             репозитория:
         </p>
-        <pre class="code">{REPOSITORY_COMMANDS}</pre>
+        <CodeBlock
+            code={REPOSITORY_COMMANDS}
+            label={text().terminal}
+            copyLabel={text().copy}
+            copiedLabel={text().copied}
+        >
+            {REPOSITORY_COMMANDS}
+        </CodeBlock>
     </>
 }

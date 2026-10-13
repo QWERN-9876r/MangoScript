@@ -1,0 +1,48 @@
+/* MangoUI callouts: a note, a tip or a warning beside the text. */
+
+.callout {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--mui-radius);
+  background: var(--tone-soft);
+}
+
+.callout > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--tone);
+}
+
+.note {
+  --tone: var(--mui-info);
+  --tone-soft: var(--mui-info-soft);
+  --tone-line: color-mix(in srgb, var(--mui-info) 25%, transparent);
+}
+
+.tip {
+  --tone: var(--mui-leaf);
+  --tone-soft: var(--mui-leaf-soft);
+  --tone-line: color-mix(in srgb, var(--mui-leaf) 25%, transparent);
+}
+
+.warning {
+  --tone: var(--mui-accent);
+  --tone-soft: var(--mui-accent-soft);
+  --tone-line: color-mix(in srgb, var(--mui-accent) 30%, transparent);
+}
+
+.body > :first-child {
+  margin-top: 0;
+}
+
+.body > :last-child {
+  margin-bottom: 0;
+}
+
+.title {
+  display: block;
+  margin-bottom: 2px;
+}

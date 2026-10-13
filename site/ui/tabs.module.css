@@ -1,0 +1,43 @@
+/* MangoUI tabs: a row of buttons, the selected one filled, with actions at the end. */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--mui-line);
+  background: var(--mui-surface);
+}
+
+.tab {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--mui-radius-sm);
+  background: transparent;
+  color: var(--mui-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.tab:hover {
+  background: var(--mui-accent-soft);
+  color: var(--mui-text);
+}
+
+.active,
+.active:hover {
+  background: var(--mui-accent-soft);
+  color: var(--mui-accent-strong);
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}

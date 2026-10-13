@@ -1,0 +1,52 @@
+// MangoUI buttons: a <button>, or a link that looks like one when it has `href`. A component takes
+// only the attributes it declares, so the common ones are properties here.
+
+import styles from "./button.module.css"
+import { Icon, IconName } from "./icon.mango"
+
+export type ButtonKind "primary" | "secondary" | "ghost"
+
+export type ButtonSize "sm" | "md" | "lg"
+
+export comp Button(
+    kind ButtonKind = "secondary",
+    size ButtonSize = "md",
+    href ?string = null,
+    icon ?IconName = null,
+    /** For screen readers when the button shows only an icon. */
+    label ?string = null,
+    onPress func() = func() {},
+    children Content,
+) {
+    derived classes = `${styles.button} ${styles[kind]} ${styles[size]}`
+    if href != null {
+        return <a class={classes} href={href} aria-label={label}>
+            {icon != null ? <Icon name={icon} /> : null}
+            {children}
+        </a>
+    }
+    return <button class={classes} type="button" aria-label={label} onClick={onPress}>
+        {icon != null ? <Icon name={icon} /> : null}
+        {children}
+    </button>
+}
+
+/** A round button with an icon and a label for screen readers, shown as a tooltip too. */
+export comp IconButton(
+    icon IconName,
+    label string,
+    kind ButtonKind = "ghost",
+    size ButtonSize = "md",
+    href ?string = null,
+    onPress func() = func() {},
+) {
+    derived classes = `${styles.button} ${styles.icon} ${styles[kind]} ${styles[size]}`
+    if href != null {
+        return <a class={classes} href={href} aria-label={label} title={label}>
+            <Icon name={icon} />
+        </a>
+    }
+    return <button class={classes} type="button" aria-label={label} title={label} onClick={onPress}>
+        <Icon name={icon} />
+    </button>
+}

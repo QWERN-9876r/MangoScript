@@ -1,0 +1,83 @@
+/* MangoUI buttons and links that look like buttons. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+}
+
+.md {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 0.95rem;
+}
+
+.lg {
+  height: 46px;
+  padding: 0 22px;
+  font-size: 1.05rem;
+}
+
+.primary {
+  background: var(--mui-accent);
+  color: var(--mui-on-accent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--mui-accent) 30%, transparent);
+}
+
+.primary:hover {
+  background: var(--mui-accent-strong);
+}
+
+.secondary {
+  border-color: var(--mui-line-strong);
+  background: var(--mui-surface);
+  color: var(--mui-text);
+}
+
+.secondary:hover {
+  border-color: var(--mui-accent);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--mui-muted);
+}
+
+.ghost:hover {
+  background: var(--mui-accent-soft);
+  color: var(--mui-text);
+}
+
+/* A button with only an icon is round. */
+.icon {
+  width: 38px;
+  padding: 0;
+}
+
+.icon.sm {
+  width: 32px;
+}

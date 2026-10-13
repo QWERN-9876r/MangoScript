@@ -1,0 +1,47 @@
+/* The colors of highlighted code. highlight.mango marks tokens with these classes, so they are
+   global; the tokens of the theme are in site/ui/theme.module.css. */
+
+:root {
+  --hl-kw: light-dark(#a626a4, #d7a1f2);
+  --hl-type: light-dark(#0f7b8a, #63d2df);
+  --hl-fn: light-dark(#b05a00, #ffc66d);
+  --hl-str: light-dark(#3f8f3a, #a5d67f);
+  --hl-num: light-dark(#c2410c, #f9a35e);
+  --hl-com: light-dark(#9a8a78, #8c7d6b);
+  --hl-tag: light-dark(#c2185b, #f48fb1);
+  --hl-attr: light-dark(#8a6500, #e6c07b);
+}
+
+:global(.kw) {
+  color: var(--hl-kw);
+}
+
+:global(.type) {
+  color: var(--hl-type);
+}
+
+:global(.fn) {
+  color: var(--hl-fn);
+}
+
+:global(.str) {
+  color: var(--hl-str);
+}
+
+:global(.num),
+:global(.lit) {
+  color: var(--hl-num);
+}
+
+:global(.com) {
+  color: var(--hl-com);
+  font-style: italic;
+}
+
+:global(.tag) {
+  color: var(--hl-tag);
+}
+
+:global(.attr) {
+  color: var(--hl-attr);
+}

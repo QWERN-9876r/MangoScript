@@ -6,6 +6,7 @@
 import { tokenize } from "../../src/lexer/lexer.ts"
 import { KEYWORDS } from "../../src/lexer/token.ts"
 import { highlightCss } from "./highlight-css.mango"
+import "./highlight.module.css"
 
 // In the compiler, KEYWORDS is an array of literal types ("func" | "comp" | ...), and here it is
 // compared with any strings.

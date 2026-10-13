@@ -1,0 +1,29 @@
+// MangoUI drawer: a panel over the page, for a menu on narrow screens. The parent keeps whether it
+// is open; Escape, the close button and a click beside the panel call `onClose`.
+
+import styles from "./drawer.module.css"
+import { IconButton } from "./button.mango"
+
+export comp Drawer(open bool, onClose func(), label string, closeLabel string, children Content) {
+    effect {
+        if open {
+            const close = (event KeyboardEvent) => {
+                if event.key == "Escape" {
+                    onClose()
+                }
+            }
+            window.addEventListener("keydown", close)
+            defer window.removeEventListener("keydown", close)
+        }
+    }
+
+    return <div class={open ? `${styles.drawer} ${styles.open}` : styles.drawer}>
+        <div class={styles.backdrop} onClick={onClose()} />
+        <div class={styles.panel} role="dialog" aria-modal="true" aria-label={label}>
+            <div class={styles.top}>
+                <IconButton icon="close" label={closeLabel} onPress={onClose()} />
+            </div>
+            {children}
+        </div>
+    </div>
+}

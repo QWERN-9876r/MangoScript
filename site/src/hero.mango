@@ -1,0 +1,62 @@
+// The first screen of the page: what MangoScript is, buttons to the guide, the playground and the
+// repository, and a component next to the JavaScript it compiles to.
+
+import { Badge } from "../ui/badge.mango"
+import { Button } from "../ui/button.mango"
+import { Icon } from "../ui/icon.mango"
+import styles from "./hero.module.css"
+import { highlight } from "./highlight.mango"
+import { REPOSITORY, text } from "./i18n.mango"
+
+const MANGO = `comp Counter() {
+    state count = 0
+    return <button onClick={count++}>
+        Clicked {count} times
+    </button>
+}`
+
+const JS = `let count = 0;
+const $$button = document.createElement("button");
+$$button.addEventListener("click", () => {
+  count++;
+  $$text.data = count;
+});
+const $$text = document.createTextNode(count);
+$$button.append("Clicked ", $$text, " times");`
+
+comp Hero() {
+    const t = text()
+    return <section class={styles.hero}>
+        <div class={styles.inner}>
+            <div>
+                <Badge>{t.heroBadge}</Badge>
+                <h1 class={styles.title}>
+                    <span class={styles.mango} aria-hidden="true">🥭</span>
+                    MangoScript
+                </h1>
+                <p class={styles.tagline}>{t.tagline}</p>
+                <p class={styles.lead}>{t.heroLead}</p>
+                <div class={styles.actions}>
+                    <Button kind="primary" size="lg" href="#intro" icon="arrow-right">{t.heroStart}</Button>
+                    <Button size="lg" href="#playground" icon="play">{t.playground}</Button>
+                    <Button kind="ghost" size="lg" href={REPOSITORY} icon="github">GitHub</Button>
+                </div>
+            </div>
+            <div class={styles.panels}>
+                <figure class={styles.panel}>
+                    <figcaption class={styles.label}>MangoScript</figcaption>
+                    <pre class={styles.code}>{highlight(MANGO, "mango")}</pre>
+                </figure>
+                <span class={styles.arrow}><Icon name="arrow-right" size={16} /></span>
+                <figure class={styles.panel}>
+                    <figcaption class={styles.label}>JavaScript</figcaption>
+                    <pre class={styles.code}>{highlight(JS, "js")}</pre>
+                </figure>
+            </div>
+        </div>
+    </section>
+}
+
+export func hero() Node {
+    return <Hero />
+}

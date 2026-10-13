@@ -3,41 +3,50 @@
 // example compiles. It gets into the page at build time (virtual:examples in vite.config.ts), so
 // the example has its full height when the page is first drawn.
 
+import { Button } from "../ui/button.mango"
+import { CopyButton } from "../ui/code-block.mango"
+import { TabItem, Tabs } from "../ui/tabs.mango"
+import styles from "./example.module.css"
 import { exampleCode, text } from "./i18n.mango"
-import { highlight } from "./highlight.mango"
 import { openInPlayground } from "./playground.mango"
-import { compiledView, consoleView, runProgram } from "./sandbox.mango"
+import { codeView, compiledView, previewArea, resultView, runProgram } from "./sandbox.mango"
 
 comp Example(name string) {
     const t = text()
     const code = exampleCode(name)
+    // An example that imports modules cannot run on the page.
+    const tabs []TabItem = [
+        { id: "code", label: "MangoScript" },
+        { id: "js", label: "JavaScript" },
+        ...(code.includes("import ") ? [] : [{ id: "result", label: t.run }]),
+    ]
     state tab = "code"
     state lines []string = []
-    const preview = <div class="preview" data-empty={t.emptyPreview} />
+    const preview = previewArea()
 
-    func run() {
-        runProgram(code, preview, output => {
-            lines = output
-        })
-        tab = "result"
+    func select(id string) {
+        if id == "result" {
+            runProgram(code, preview, output => {
+                lines = output
+            })
+        }
+        tab = id
     }
 
-    return <figure class="example">
-        <div class="tabs">
-            <button class={tab == "code" ? "tab active" : "tab"} onClick={tab = "code"}>MangoScript</button>
-            <button class={tab == "js" ? "tab active" : "tab"} onClick={tab = "js"}>JavaScript</button>
-            {if !code.includes("import ") {
-                <button class={tab == "result" ? "tab active" : "tab"} onClick={run()}>{t.run}</button>
-            }}
-            <button class="tab open" onClick={openInPlayground(code)}>{t.openInPlayground}</button>
-        </div>
+    return <figure class={styles.example}>
+        <Tabs items={tabs} active={tab} onSelect={select(event)}>
+            <CopyButton text={code} label={t.copy} doneLabel={t.copied} />
+            <Button kind="ghost" size="sm" icon="external" onPress={openInPlayground(code)}>
+                {t.openInPlayground}
+            </Button>
+        </Tabs>
         {switch tab {
         case "code":
-            <pre class="code">{highlight(code, "mango")}</pre>
+            <div>{codeView(code)}</div>
         case "js":
-            <div class="output-body">{compiledView(code)}</div>
+            <div>{compiledView(code)}</div>
         default:
-            <div class="output-body result">{preview}{consoleView(lines)}</div>
+            <div>{resultView(preview, lines)}</div>
         }}
     </figure>
 }

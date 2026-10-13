@@ -1,0 +1,22 @@
+// MangoUI callouts: something to notice next to the text, with an icon of its kind.
+
+import styles from "./callout.module.css"
+import { Icon, IconName } from "./icon.mango"
+
+export type CalloutKind "note" | "tip" | "warning"
+
+const ICONS { note IconName; tip IconName; warning IconName } = {
+    note: "info",
+    tip: "lightbulb",
+    warning: "alert",
+}
+
+export comp Callout(kind CalloutKind = "note", title string = "", children Content) {
+    return <aside class={`${styles.callout} ${styles[kind]}`}>
+        <Icon name={ICONS[kind]} size={20} />
+        <div class={styles.body}>
+            {title != "" ? <strong class={styles.title}>{title}</strong> : null}
+            {children}
+        </div>
+    </aside>
+}

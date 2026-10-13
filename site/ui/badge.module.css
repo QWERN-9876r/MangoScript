@@ -1,0 +1,28 @@
+/* MangoUI badges: a short label. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.accent {
+  background: var(--mui-accent-soft);
+  color: var(--mui-accent-strong);
+}
+
+.leaf {
+  background: var(--mui-leaf-soft);
+  color: var(--mui-leaf);
+}
+
+.muted {
+  background: var(--mui-surface-2);
+  color: var(--mui-muted);
+}

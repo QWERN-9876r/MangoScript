@@ -1,0 +1,115 @@
+/* The first screen: what MangoScript is, where to go, and a component next to the JS it becomes. */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--mui-line);
+  background:
+    radial-gradient(60% 80% at 85% 0%, var(--mui-bg-glow), transparent 70%),
+    radial-gradient(
+      50% 60% at 0% 100%,
+      color-mix(in srgb, var(--mui-leaf-soft) 70%, transparent),
+      transparent 70%
+    );
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 48px;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 72px 24px 64px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 10px;
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.mango {
+  font-size: 0.9em;
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--mui-accent) 35%, transparent));
+}
+
+.tagline {
+  margin: 0 0 14px;
+  color: var(--mui-accent-strong);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  max-width: 34em;
+  margin: 0 0 28px;
+  color: var(--mui-muted);
+  font-size: 1.08rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.panels {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.panel {
+  width: 100%;
+  margin: 0;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius-lg);
+  overflow: hidden;
+  background: var(--mui-code-bg);
+  box-shadow: var(--mui-shadow);
+}
+
+.label {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--mui-line);
+  background: var(--mui-surface);
+  color: var(--mui-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.code {
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  color: var(--mui-code-text);
+  font-family: var(--mui-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--mui-accent-soft);
+  color: var(--mui-accent-strong);
+  transform: rotate(90deg);
+}
+
+@media (max-width: 900px) {
+  .inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    padding: 48px 16px 40px;
+  }
+}

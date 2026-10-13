@@ -1,0 +1,75 @@
+/* MangoUI: the tokens of the theme and the base of the page. Colors are light-dark() pairs: the
+   page follows the system unless [data-theme] on <html> chooses light or dark (ThemeToggle). */
+
+:root {
+  color-scheme: light dark;
+
+  --mui-bg: light-dark(#fffaf1, #17130f);
+  --mui-bg-glow: light-dark(#ffe7bf, #3a2810);
+  --mui-surface: light-dark(#ffffff, #211b16);
+  --mui-surface-2: light-dark(#fbf4e8, #1b1611);
+  --mui-text: light-dark(#2b2118, #f3eadf);
+  --mui-muted: light-dark(#7d6d5e, #a8998a);
+  --mui-line: light-dark(#f0e3cb, #3a3128);
+  --mui-line-strong: light-dark(#e4cfa9, #4d4135);
+
+  --mui-accent: light-dark(#e07b00, #ffad42);
+  --mui-accent-strong: light-dark(#bf6700, #ffc070);
+  --mui-accent-soft: light-dark(#fff0d4, #3a2a14);
+  --mui-on-accent: light-dark(#ffffff, #241505);
+  --mui-leaf: light-dark(#3f8f3a, #8fcf6f);
+  --mui-leaf-soft: light-dark(#e9f6e4, #1f2e1a);
+  --mui-info: light-dark(#2f6fb0, #8cbcf0);
+  --mui-info-soft: light-dark(#e8f1fb, #1a2433);
+  --mui-danger: light-dark(#c0392b, #ff8a7a);
+  --mui-danger-soft: light-dark(#fdecea, #3a1d1a);
+
+  --mui-code-bg: light-dark(#fbf6ec, #120f0c);
+  --mui-code-text: light-dark(#3b2f25, #eadfd1);
+  --mui-inline-code: light-dark(#f6ecda, #2e2720);
+
+  --mui-radius-sm: 8px;
+  --mui-radius: 12px;
+  --mui-radius-lg: 18px;
+  --mui-shadow:
+    0 1px 2px light-dark(rgb(43 33 24 / 6%), rgb(0 0 0 / 30%)),
+    0 10px 30px light-dark(rgb(43 33 24 / 7%), rgb(0 0 0 / 35%));
+
+  --mui-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mui-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  font-family: var(--mui-font);
+  color: var(--mui-text);
+  background: var(--mui-bg);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--mui-accent-strong);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--mui-accent) 30%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mui-accent);
+  outline-offset: 2px;
+}

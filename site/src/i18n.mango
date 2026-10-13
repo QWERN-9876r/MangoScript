@@ -2,12 +2,15 @@
 // ru/main.mango for ru/index.html. It sets the texts and the examples of its language before the
 // page is drawn, and the shared code (app, example, playground, sandbox) reads them here.
 
+import { ThemeLabels } from "../ui/theme.mango"
+
 export const REPOSITORY = "https://github.com/QWERN-9876r/MangoScript"
 
-/** A section of the guide: its anchor, its title in the menu and its content. */
+/** A section of the guide: its anchor, its title in the menu, its group there and its content. */
 export interface Section {
     id string
     title string
+    group string
     content func() Node
 }
 
@@ -41,6 +44,17 @@ export interface Strings {
     compilerFailed string
     /** The program the playground starts with. */
     playgroundStart string
+    /** The first screen: what the language is and where to go. */
+    heroBadge string
+    heroLead string
+    heroStart string
+    copy string
+    copied string
+    menu string
+    closeMenu string
+    /** The label of the commands in "Tools". */
+    terminal string
+    theme ThemeLabels
 }
 
 let strings ?Strings = null

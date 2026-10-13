@@ -25,6 +25,7 @@ describe('documentation site', () => {
       'src/en/main.js',
       'src/en/strings.js',
       'src/example.js',
+      'src/hero.js',
       'src/highlight-css.js',
       'src/highlight.js',
       'src/i18n.js',
@@ -34,7 +35,20 @@ describe('documentation site', () => {
       'src/ru/main.js',
       'src/ru/strings.js',
       'src/sandbox.js',
+      // The MangoUI kit, which the pages import.
+      'ui/badge.js',
+      'ui/button.js',
+      'ui/callout.js',
+      'ui/card.js',
+      'ui/code-block.js',
+      'ui/drawer.js',
+      'ui/icon.js',
+      'ui/nav-list.js',
+      'ui/prose.js',
+      'ui/tabs.js',
+      'ui/theme.js',
     ]);
+    expect(result.warnings).toEqual([]);
   });
 
   // English examples are in site/examples, Russian ones in site/examples/ru; the guide of a
