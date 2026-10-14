@@ -36,8 +36,15 @@ import type {
 /** `<a href="/">Link {name}</a>`: creates a DOM element. `tag` is `null` for a fragment `<>...</>`. */
 export interface ElementExpression extends NodeBase {
   kind: 'ElementExpression';
-  /** The tag name as written: `div`, `my-widget`. */
+  /** The tag name as written: `div`, `my-widget`, `section.content`. */
   tag: Identifier | null;
+  /**
+   * A tag with a dot takes its component from a value: `section.content` in
+   * `<section.content />`. A capitalized tag, `<Page />`, does so when `Page` is a variable rather
+   * than a component; that depends on the scope, so this is `null` for it unless the code was
+   * copied from another module and the variable renamed.
+   */
+  value: Expression | null;
   attributes: (JsxAttribute | JsxSpreadAttribute)[];
   children: JsxChild[];
 }
@@ -97,7 +104,14 @@ export interface EventHandler extends NodeBase {
 // ─── Types ───────────────────────────────────────────────────────────────────────────────────────
 
 export type TypeNode =
-  TypeReference | ArrayType | NullableType | FuncType | ObjectType | UnionType | LiteralType;
+  | TypeReference
+  | ArrayType
+  | NullableType
+  | FuncType
+  | ComponentType
+  | ObjectType
+  | UnionType
+  | LiteralType;
 
 /** A named type: `number`, `User`, `Point`, `Box[number]`. */
 export interface TypeReference extends NodeBase {
@@ -124,6 +138,12 @@ export interface FuncType extends NodeBase {
   kind: 'FuncType';
   params: TypeNode[];
   results: TypeNode[];
+}
+
+/** `comp(title string, kind ?Kind)`: a component as a value, used as a tag: `<section.content />`. */
+export interface ComponentType extends NodeBase {
+  kind: 'ComponentType';
+  params: Parameter[];
 }
 
 /** `string | number`; a member may be in parentheses: `[](string | number)`. */

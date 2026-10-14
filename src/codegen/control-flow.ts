@@ -110,15 +110,20 @@ export abstract class ControlFlowEmitter extends ElementEmitter {
   /**
    * The function that creates a block of markup control flow:
    * `(item, index) => { ...; return [fragment, update]; }`. Parts of the block that depend on
-   * state go into its update.
+   * state go into its update. The block of `<Page />` gets the component, `($$component3) => ...`.
    */
-  private blockCreator(
+  protected blockCreator(
     statements: readonly ast.Statement[],
     parent: Live,
     loop?: ast.ForInStatement,
+    component?: ast.Identifier,
   ): string {
     const block = new Block(parent);
-    const params = loop ? [loop.value, ...(loop.key ? [loop.key] : [])].map(parameter) : [];
+    const params = loop
+      ? [loop.value, ...(loop.key ? [loop.key] : [])].map(parameter)
+      : component
+        ? [parameter(component)]
+        : [];
 
     return this.withFunction('none', params, () =>
       this.withRendering(this.rendering + 1, () => {

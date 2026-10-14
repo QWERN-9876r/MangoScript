@@ -24,7 +24,7 @@ $$button.addEventListener("click", () => {
 const $$text = document.createTextNode(count);
 $$button.append("Clicked ", $$text, " times");`
 
-comp Hero() {
+export comp Hero() {
     const t = text()
     return <section class={styles.hero}>
         <div class={styles.inner}>
@@ -57,8 +57,4 @@ comp Hero() {
             </div>
         </div>
     </section>
-}
-
-export func hero() Node {
-    return <Hero />
 }

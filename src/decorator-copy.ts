@@ -27,6 +27,7 @@ const TYPE_NODES: ReadonlySet<string> = new Set([
   'ArrayType',
   'NullableType',
   'FuncType',
+  'ComponentType',
   'ObjectType',
   'UnionType',
   'LiteralType',
@@ -123,11 +124,22 @@ export function renamer(
 
       case 'ElementExpression': {
         const name = node.tag && other.tags?.get(node.tag.name);
+        // `<Page />` with a variable `Page`: a renamed variable becomes the value of the tag.
+        const variable =
+          node.tag && name === undefined && /^[A-Z]/.test(node.tag.name)
+            ? copy(node.tag, hidden)
+            : null;
+        const value = node.value
+          ? copy(node.value, hidden)
+          : variable !== node.tag
+            ? variable
+            : null;
 
         return done(
           {
             ...node,
             tag: name ? { ...node.tag!, name } : node.tag,
+            value,
             attributes: node.attributes.map((attribute) => copy(attribute, hidden)),
             children: node.children.map((child) => copy(child, hidden)),
           } as T,

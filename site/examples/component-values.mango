@@ -1,0 +1,36 @@
+interface Tab {
+    title string
+    content comp(name string)
+}
+
+comp Greeting(name string) {
+    return <p>Hello, {name}!</p>
+}
+
+comp Farewell(name string) {
+    mount() {
+        console.log("Farewell is shown")
+        return () => console.log("Farewell is removed")
+    }
+    return <p>Goodbye, {name}.</p>
+}
+
+// Components in data: a tag takes one from a value
+const TABS []Tab = [
+    { title: "Hello", content: Greeting },
+    { title: "Goodbye", content: Farewell },
+]
+
+comp Tabs() {
+    state name = "Ann"
+    state Current comp(name string) = Greeting
+    return <div>
+        <input bind:value={name} />
+        {for tab in TABS {
+            <button onClick={Current = tab.content}>{tab.title}</button>
+        }}
+        <Current name={name} />
+    </div>
+}
+
+document.body.append(<Tabs />)

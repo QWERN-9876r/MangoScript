@@ -3,7 +3,7 @@
 import { example } from "../example.mango"
 import { highlight } from "../highlight.mango"
 
-export func markup() Node {
+export comp Markup() {
     return <>
         <p>
             Разметка — обычное выражение: <code>&lt;a href="/"&gt;</code> создаёт настоящий
@@ -26,7 +26,7 @@ export func markup() Node {
     </>
 }
 
-export func components() Node {
+export comp Components() {
     return <>
         <p>
             Компонент объявляется через <code>comp</code> и используется как тег с заглавной буквы.
@@ -64,10 +64,20 @@ export func components() Node {
             модуль компилирует его в функцию, которую другие модули вызывают, а если он небольшой,
             встраивают, по тем же 100 строкам.
         </p>
+        <p>
+            Компонент — это ещё и значение: его можно положить в массив, свойство или
+            {" "}<code>state</code>. Его тип перечисляет свойства с именами,
+            {" "}<code>comp(name string)</code>, а тег берёт компонент из значения: тег с точкой,
+            {" "}<code>{"<tab.content />"}</code>, или переменная с заглавной буквы,
+            {" "}<code>{"<Current />"}</code>. Тег передаёт свойства в порядке типа, поэтому
+            компонент подходит к нему с теми же именами в том же порядке. Такой компонент
+            становится функцией; когда значение меняется, он создаётся заново.
+        </p>
+        {example("component-values")}
     </>
 }
 
-export func reactivity() Node {
+export comp Reactivity() {
     return <>
         <p>
             <code>state</code> объявляет переменную, от которой зависит разметка. Компилятор знает,
@@ -98,7 +108,7 @@ export func reactivity() Node {
     </>
 }
 
-export func mounting() Node {
+export comp Mounting() {
     return <>
         <p>
             <code>{"mount() { ... }"}</code> в теле компонента — код, которому нужна разметка на
@@ -155,7 +165,7 @@ export func mounting() Node {
     </>
 }
 
-export func refs() Node {
+export comp Refs() {
     return <>
         <p>
             <code>ref log</code> даёт имя элементу внутри разметки,
@@ -199,7 +209,7 @@ export comp Button(kind Kind = "primary", children Content) {
     return <button class={\`\${styles.button} \${styles[kind]}\`}>{children}</button>
 }`
 
-export func styles() Node {
+export comp Styles() {
     return <>
         <p>
             <code>{"style { ... }"}</code> в теле компонента — CSS для его собственной разметки.
@@ -240,7 +250,7 @@ export func styles() Node {
     </>
 }
 
-export func webComponents() Node {
+export comp WebComponents() {
     return <>
         <p>
             <code>@html-tag</code> перед <code>comp</code> делает компонент ещё и веб-компонентом:
@@ -292,7 +302,7 @@ export func webComponents() Node {
     </>
 }
 
-export func decorators() Node {
+export comp Decorators() {
     return <>
         <p>
             Декоратор добавляет компонентам логику: состояние, функции и <code>mount()</code>. Он

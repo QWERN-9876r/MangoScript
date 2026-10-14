@@ -86,14 +86,19 @@ export abstract class ComponentPropsEmitter extends ControlFlowEmitter {
     });
   }
 
-  /** `title, kind = "info"`: parameters with their default values, each name with a prefix. */
+  /**
+   * `title, kind = "info"`: parameters with their default values, each name with a prefix. A tag
+   * that takes the component from a value may leave out `children`: they are empty then.
+   */
   protected parameters(params: readonly ast.Parameter[], prefix: string): string {
     return params
       .map((param) => {
         const name = `${prefix}${prefix ? param.name.name : this.name(param.name.name)}`;
 
-        return param.defaultValue
-          ? `${name} = ${this.expression(param.defaultValue, ARROW)}`
+        if (param.defaultValue) return `${name} = ${this.expression(param.defaultValue, ARROW)}`;
+
+        return param.name.name === 'children' && !param.rest
+          ? `${name} = document.createDocumentFragment()`
           : name;
       })
       .join(', ');

@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { componentRoot, isComponentUse, refBindings, type Repeated, type Root } from '../refs.ts';
-import { ComponentChecker } from './components.ts';
+import { ComponentValueChecker } from './component-values.ts';
 import type { ComponentInfo } from './context.ts';
 import { lookupIn } from './helpers.ts';
 import { UNKNOWN, type Type } from './types.ts';
@@ -28,7 +28,7 @@ interface Bound {
   mentioned: Set<string>;
 }
 
-export abstract class RefChecker extends ComponentChecker {
+export abstract class RefChecker extends ComponentValueChecker {
   /** The refs of the body of the component or decorator being checked. */
   private refs: Bound | null = null;
 

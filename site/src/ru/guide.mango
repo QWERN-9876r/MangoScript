@@ -1,35 +1,36 @@
 // The Russian guide; the English one, en/guide.mango, has the same sections. Each section is a
-// function that returns its markup; the examples are files in site/examples/ru.
+// component, which the page shows with <section.content />; the examples are files in
+// site/examples/ru.
 
 import { example } from "../example.mango"
 import { Callout } from "../../ui/callout.mango"
 import { Card, CardGrid } from "../../ui/card.mango"
 import { CodeBlock } from "../../ui/code-block.mango"
 import { REPOSITORY, Section, text } from "../i18n.mango"
-import { components, decorators, markup, mounting, reactivity, refs, styles, webComponents } from "./guide-components.mango"
+import { Components, Decorators, Markup, Mounting, Reactivity, Refs, Styles, WebComponents } from "./guide-components.mango"
 
 export const SECTIONS []Section = [
-    { id: "intro", title: "Что такое MangoScript", group: "Язык", content: intro },
-    { id: "variables", title: "Переменные и типы", group: "Язык", content: variables },
-    { id: "null", title: "null, union и сужение", group: "Язык", content: nullSafety },
-    { id: "functions", title: "Функции", group: "Язык", content: functions },
-    { id: "errors", title: "Ошибки и defer", group: "Язык", content: errors },
-    { id: "control", title: "Условия и циклы", group: "Язык", content: control },
-    { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: classes },
-    { id: "generics", title: "Дженерики", group: "Язык", content: generics },
-    { id: "modules", title: "Модули", group: "Язык", content: modules },
-    { id: "markup", title: "Разметка", group: "Разметка и компоненты", content: markup },
-    { id: "components", title: "Компоненты", group: "Разметка и компоненты", content: components },
-    { id: "state", title: "Состояние", group: "Разметка и компоненты", content: reactivity },
-    { id: "mount", title: "Монтирование", group: "Разметка и компоненты", content: mounting },
-    { id: "ref", title: "Ссылки на элементы", group: "Разметка и компоненты", content: refs },
-    { id: "styles", title: "Стили", group: "Разметка и компоненты", content: styles },
-    { id: "web-components", title: "Веб-компоненты", group: "Разметка и компоненты", content: webComponents },
-    { id: "decorators", title: "Декораторы", group: "Разметка и компоненты", content: decorators },
-    { id: "tools", title: "Инструменты", group: "Ещё", content: tools },
+    { id: "intro", title: "Что такое MangoScript", group: "Язык", content: Intro },
+    { id: "variables", title: "Переменные и типы", group: "Язык", content: Variables },
+    { id: "null", title: "null, union и сужение", group: "Язык", content: NullSafety },
+    { id: "functions", title: "Функции", group: "Язык", content: Functions },
+    { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
+    { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
+    { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
+    { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
+    { id: "modules", title: "Модули", group: "Язык", content: Modules },
+    { id: "markup", title: "Разметка", group: "Разметка и компоненты", content: Markup },
+    { id: "components", title: "Компоненты", group: "Разметка и компоненты", content: Components },
+    { id: "state", title: "Состояние", group: "Разметка и компоненты", content: Reactivity },
+    { id: "mount", title: "Монтирование", group: "Разметка и компоненты", content: Mounting },
+    { id: "ref", title: "Ссылки на элементы", group: "Разметка и компоненты", content: Refs },
+    { id: "styles", title: "Стили", group: "Разметка и компоненты", content: Styles },
+    { id: "web-components", title: "Веб-компоненты", group: "Разметка и компоненты", content: WebComponents },
+    { id: "decorators", title: "Декораторы", group: "Разметка и компоненты", content: Decorators },
+    { id: "tools", title: "Инструменты", group: "Ещё", content: Tools },
 ]
 
-func intro() Node {
+comp Intro() {
     return <>
         <p>
             MangoScript — язык с семантикой JavaScript, синтаксисом в духе Go и статической
@@ -63,7 +64,7 @@ func intro() Node {
     </>
 }
 
-func variables() Node {
+comp Variables() {
     return <>
         <p>
             Переменные объявляются как в JavaScript — через <code>let</code> и <code>const</code>,
@@ -118,7 +119,7 @@ func variables() Node {
     </>
 }
 
-func nullSafety() Node {
+comp NullSafety() {
     return <>
         <p>
             Значение типа <code>?T</code> может быть <code>null</code>, а значение типа
@@ -141,7 +142,7 @@ func nullSafety() Node {
     </>
 }
 
-func functions() Node {
+comp Functions() {
     return <>
         <p>
             Функция объявляется через <code>func</code>. Параметры одного типа можно перечислить
@@ -161,7 +162,7 @@ func functions() Node {
     </>
 }
 
-func errors() Node {
+comp Errors() {
     return <>
         <p>
             Для обычных ошибок исключения не нужны: функция возвращает ошибку вторым значением, а
@@ -177,7 +178,7 @@ func errors() Node {
     </>
 }
 
-func control() Node {
+comp Control() {
     return <>
         <p>
             Условия и циклы — как в Go: без скобок вокруг условия и всегда с фигурными скобками.
@@ -189,7 +190,7 @@ func control() Node {
     </>
 }
 
-func classes() Node {
+comp Classes() {
     return <>
         <p>
             Классы — как в TypeScript: поля с типами, <code>constructor</code>,
@@ -204,7 +205,7 @@ func classes() Node {
     </>
 }
 
-func generics() Node {
+comp Generics() {
     return <>
         <p>
             Параметры типа пишутся в квадратных скобках, как в Go:
@@ -221,7 +222,7 @@ func generics() Node {
     </>
 }
 
-func modules() Node {
+comp Modules() {
     return <>
         <p>
             Модули — это ES-модули: <code>import</code> и <code>export</code> как в JS. Импорт
@@ -256,7 +257,7 @@ npx mango run app.mango              # скомпилировать и запу�
 const REPOSITORY_COMMANDS = `npm run site:dev         # этот сайт на сервере разработки Vite
 npm run vscode:install   # подсветка синтаксиса в VS Code`
 
-func tools() Node {
+comp Tools() {
     return <>
         <p>
             Компилятор — npm-пакет <code>mangoscript</code>, он работает в Node.js 24:

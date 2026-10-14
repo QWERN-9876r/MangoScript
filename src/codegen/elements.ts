@@ -3,7 +3,7 @@ import { widenLiterals } from '../checker/types.ts';
 import { constantAttributes } from '../refs.ts';
 import { hasClass } from '../styles.ts';
 import { childrenInSvg, isSvgElement } from '../svg.ts';
-import { isSimple, startsWithObjectLiteral } from './analysis.ts';
+import { isSimple } from './analysis.ts';
 import { CreationEmitter } from './creation.ts';
 import { contentKind, type Content, type ControlStatement } from './element-helpers.ts';
 import type { Live, Source } from './reactive.ts';
@@ -23,6 +23,13 @@ export type { ControlStatement } from './element-helpers.ts';
  */
 
 export abstract class ElementEmitter extends CreationEmitter {
+  /** A tag that takes its component from a value; implemented by ComponentValueEmitter. */
+  protected abstract valueTag(
+    node: ast.ElementExpression,
+    value: ast.Expression,
+    live: Live | null,
+  ): string;
+
   /** Inlines a component; implemented by ComponentEmitter. */
   protected abstract expand(
     node: ast.ElementExpression,
@@ -61,8 +68,10 @@ export abstract class ElementEmitter extends CreationEmitter {
   protected override elementDeclaration(declaration: string, node: ast.ElementExpression): void {
     const live = this.declaredLive(node);
     const component = this.componentOf(node);
+    const value = this.tagValue(node);
 
     if (component) this.line(`${declaration} = ${this.expand(node, component, live)};`);
+    else if (value) this.line(`${declaration} = ${this.valueTag(node, value, live)};`);
     else this.build(node, declaration, live);
   }
 
@@ -87,12 +96,27 @@ export abstract class ElementEmitter extends CreationEmitter {
   /** Writes the code for an element or a component and returns the variable with the result. */
   protected create(node: ast.ElementExpression, live: Live | null): string {
     const component = this.componentOf(node);
+    const value = this.tagValue(node);
 
-    return component ? this.expand(node, component, live) : this.build(node, null, live);
+    if (component) return this.expand(node, component, live);
+
+    return value ? this.valueTag(node, value, live) : this.build(node, null, live);
   }
 
   protected componentOf(node: ast.ElementExpression): ast.ComponentDeclaration | undefined {
-    return node.tag ? this.components.get(node.tag.name) : undefined;
+    return node.tag && node.value === null ? this.componentNamed(node.tag.name) : undefined;
+  }
+
+  /** `section.content` of `<section.content />`, or `Page` of `<Page />` with a variable `Page`. */
+  protected tagValue(node: ast.ElementExpression): ast.Expression | null {
+    if (node.value || !node.tag || !/^[A-Z]/.test(node.tag.name)) return node.value;
+
+    return this.componentNamed(node.tag.name) ? null : node.tag;
+  }
+
+  /** Markup that creates an element or a fragment, not a component. */
+  protected isElement(node: ast.ElementExpression): boolean {
+    return !this.componentOf(node) && !this.tagValue(node);
   }
 
   /**
@@ -297,23 +321,6 @@ export abstract class ElementEmitter extends CreationEmitter {
     } finally {
       this.contentTarget = saved;
     }
-  }
-
-  /** `() => value`, evaluated by a helper when the markup is created and on updates. */
-  protected liveFunction(node: ast.Expression): string {
-    const text = this.liveExpression(node);
-
-    return `() => ${startsWithObjectLiteral(node) ? `(${text})` : text}`;
-  }
-
-  /**
-   * An expression that is evaluated again on updates: elements inside it are created in place,
-   * so that each evaluation creates new ones.
-   */
-  protected override liveExpression(node: ast.Expression, precedence = ARROW): string {
-    return this.withRendering(this.rendering + 1, () =>
-      this.withHoisting(false, () => this.expression(node, precedence)),
-    );
   }
 
   /**

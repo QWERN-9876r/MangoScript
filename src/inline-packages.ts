@@ -1,6 +1,6 @@
 import type * as ast from './ast.ts';
 import { decorate, type DecoratorSource, moduleNamesOf } from './decorators.ts';
-import { freeNames, topLevelNames } from './names.ts';
+import { assignedNames, componentValues, freeNames, topLevelNames } from './names.ts';
 import { recursiveComponents } from './recursion.ts';
 import { forEachChild } from './walk.ts';
 
@@ -37,7 +37,9 @@ export interface ModulePackages {
 /**
  * The packages of the exported components and decorators of a module. A component that is
  * recursive or a web component cannot be inlined, and neither can one that reaches components or
- * decorators the module imports: those would bring the names of a third module.
+ * decorators the module imports: those would bring the names of a third module. Nor can code that
+ * uses a component of the module as a value, which is the function in the module, or that assigns
+ * a variable of the module: another module could only read it.
  */
 export function inlinePackages(program: ast.Program): ModulePackages {
   const components = new Map<string, ast.ComponentDeclaration>();
@@ -64,6 +66,13 @@ export function inlinePackages(program: ast.Program): ModulePackages {
     return node.htmlTag !== null || node.exported || recursive.has(expanded.get(name)!);
   };
   const topLevel = topLevelNames(program);
+  const usesComponentValues = (node: ast.Node) =>
+    componentValues(node, (name) => components.has(name)).length > 0;
+  const assignsModuleNames = (node: ast.ComponentDeclaration) => {
+    const assigned = assignedNames(node);
+
+    return [...freeNames(node)].some((name) => topLevel.has(name) && assigned.has(name));
+  };
 
   /** The package of a component, or of the tags in the code of a decorator. */
   const build = (root: string | null, tags: Iterable<string>): InlinePackage | null => {
@@ -96,6 +105,8 @@ export function inlinePackages(program: ast.Program): ModulePackages {
       const component = components.get(current)!;
 
       found.components.set(current, component);
+      if (usesComponentValues(expanded.get(current)!)) return false;
+      if (assignsModuleNames(expanded.get(current)!)) return false;
       for (const use of component.decorators) {
         const source = sources.get(use.name.name);
 
@@ -127,7 +138,11 @@ export function inlinePackages(program: ast.Program): ModulePackages {
   }
 
   for (const [name, node] of decorators) {
-    if (node.exported) packages.decorators.set(name, build(null, tagsIn(node.body)));
+    if (!node.exported) continue;
+    packages.decorators.set(
+      name,
+      usesComponentValues(node) ? null : build(null, tagsIn(node.body)),
+    );
   }
 
   return packages;

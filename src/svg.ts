@@ -64,7 +64,11 @@ export function childrenInSvg(tag: string | null, svg: boolean, inSvg: boolean):
 export function svgElements(root: ast.Node): Set<ast.ElementExpression> {
   const found = new Set<ast.ElementExpression>();
   const visit = (node: ast.Node, inSvg: boolean): void => {
-    if (node.kind !== 'ElementExpression' || (node.tag && /^[A-Z]/.test(node.tag.name))) {
+    if (
+      node.kind !== 'ElementExpression' ||
+      node.value !== null ||
+      (node.tag && /^[A-Z]/.test(node.tag.name))
+    ) {
       forEachChild(node, (child) => visit(child, inSvg));
 
       return;

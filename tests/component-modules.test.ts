@@ -140,7 +140,9 @@ describe('generated code', () => {
 
     expect(exporter.diagnostics).toEqual([]);
     // `$$root` is the element that `<Card ref={card} />` created in advance.
-    expect(exporter.code).toContain('export function $$Card(title, count = 0, children, $$root) {');
+    expect(exporter.code).toContain(
+      'export function $$Card(title, count = 0, children = document.createDocumentFragment(), $$root) {',
+    );
     // A component that is not exported is inlined into the function, in its module.
     expect(exporter.code).not.toContain('$$Icon');
     expect(exporter.code).toContain(
@@ -174,6 +176,45 @@ document.body.append(<App />)
 
     expect(user.code).toMatch(/^import \{ \$\$Card as \$\$Box \} from "\.\/card\.js";$/m);
     expect(user.code).not.toContain('// <Card>');
+  });
+
+  it('calls a component that assigns a variable of its module: other modules can only read it', () => {
+    const dir = project({
+      'box.mango': `let handler = func() {}
+
+export func fire() {
+    handler()
+}
+
+comp Inner() {
+    handler = func() {
+        console.log("inner")
+    }
+    return <i />
+}
+
+export comp Box() {
+    handler = func() {
+        console.log("box")
+    }
+    return <div>box</div>
+}
+
+export comp Outer() {
+    return <p><Inner /></p>
+}
+`,
+      'main.mango': `import { Box, Outer, fire } from "./box.mango"
+document.body.append(<Box />, <Outer />)
+fire()
+`,
+    });
+    const user = compileIn(dir, 'main.mango');
+
+    expect(user.diagnostics).toEqual([]);
+    // Neither is inlined, not even Outer, whose component Inner assigns the variable.
+    expect(user.code).toMatch(/^import \{ fire, \$\$Box, \$\$Outer \} from "\.\/box\.js";$/m);
+    expect(user.code).not.toContain('$$handler');
   });
 
   it('keeps the components of the other module apart from those here', () => {

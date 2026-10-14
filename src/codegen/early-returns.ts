@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { isWrappedContent } from '../decorators.ts';
-import { ComponentPropsEmitter } from './component-props.ts';
+import { ComponentValueEmitter } from './component-values.ts';
 import type { Live, Reactive } from './reactive.ts';
 import { effectReads } from './mutations.ts';
 import { Block, updatesOf } from './reactive.ts';
@@ -17,7 +17,7 @@ interface Effect {
   cleanups: string | null;
 }
 
-export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
+export abstract class EarlyReturnEmitter extends ComponentValueEmitter {
   /** The CSS variables of the component's style, once its markup exists; by StyleEmitter. */
   protected abstract setStyleValues(result: string): void;
 
@@ -157,7 +157,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
     const { result, reactive, view } = early;
 
     if (reactive.sources.size === 0) {
-      if (value.kind === 'ElementExpression' && !this.componentOf(value)) {
+      if (value.kind === 'ElementExpression' && this.isElement(value)) {
         this.build(value, result, null);
       } else {
         this.line(`${result} = ${this.expression(value, ARROW)};`);
@@ -273,7 +273,7 @@ export abstract class EarlyReturnEmitter extends ComponentPropsEmitter {
     ending: Ending,
   ): void {
     if (reactive.sources.size === 0) {
-      if (value.kind === 'ElementExpression' && !this.componentOf(value)) {
+      if (value.kind === 'ElementExpression' && this.isElement(value)) {
         this.build(value, result, null);
       } else {
         this.line(`${result} = ${this.expression(value, ARROW)};`);

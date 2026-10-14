@@ -401,7 +401,7 @@ This is how it was implemented in stage 3.
 
 ### When a component becomes a function
 
-Inlining is not always possible. In three cases the compiler makes a function of a component:
+Inlining is not always possible. In four cases the compiler makes a function of a component:
 
 1. **The component is recursive** (a tree, nested comments), directly or through other components.
    This is implemented, see below.
@@ -422,7 +422,13 @@ Inlining is not always possible. In three cases the compiler makes a function of
    (`$$Box$visible$shown`). The components of the other module that are functions there are
    called. The function of an inlined component is in the other module, and the threshold counts
    it as one copy. A component that uses components or decorators that its module imports is
-   always called: their code would need the names of a third module.
+   always called: their code would need the names of a third module. So is a component whose
+   code, or that of the components it uses, assigns a variable of its module: another module can
+   only read it.
+4. **The component is used as a value** (`content: Intro`, see "Components as values").
+   Implemented: the value is the function, `$$Intro`, which the tags that take the component from
+   the value call. A component whose code uses components of its module as values is called from
+   other modules, not inlined: the values are the functions of its module.
 
 Such a function is a detail of compilation: its name is internal (`$$Tree`), and only an exported
 component's is among the module's exports. It gets the properties as arguments and returns the
@@ -892,6 +898,72 @@ comp TodoItem(todo Todo, onToggle func(), onRemove func()) {
 Properties are read-only: a parameter cannot be assigned inside the component. To change the
 parent's state, it is passed through a function property, like `onToggle` above.
 
+### Components as values
+
+A component can be passed like any value: put into an array or an object, given as a property,
+kept in `state`. Its type lists the properties with their names, `comp(title string, kind ?Kind)`;
+a component without properties is `comp()`. A tag takes the component from a value: a tag with a
+dot, `<section.content />`, or the capitalized name of a variable, `<Page />`.
+
+```go
+interface Section {
+    title string
+    content comp()
+}
+
+comp Intro() {
+    return <p>MangoScript compiles to JavaScript.</p>
+}
+
+const SECTIONS []Section = [{ title: "Introduction", content: Intro }]
+
+comp Guide() {
+    return <main>
+        {for section in SECTIONS {
+            <h2>{section.title}</h2>
+            <section.content />
+        }}
+    </main>
+}
+```
+
+- **The names are those of the attributes,** so the type writes them, unlike a function type. A
+  property of type `?T` may be left out, and so may `children Content`.
+- **A component fits a type** whose properties it has in the same order and with the same names,
+  taking the types the type gives. It may have more at the end, if they may be left out. A
+  property with a default value fits `?T`: null gives it the default value. So
+  `Card(title string, kind Kind = "info")` fits `comp(title string)` and
+  `comp(title string, kind ?Kind)`, but not `comp(heading string)` or
+  `comp(kind ?Kind, title string)`.
+- **The tag is checked against the type:** the properties it needs, their types, children. `ref`,
+  a spread `{...object}` and attributes passed on with `...attrs` are not possible, since the
+  component is not known at compile time. A value of type `?comp()` is shown with `{if}`, which
+  narrows variables: `{if Page != null { <Page /> }}`.
+- **A capitalized tag** is a component when a component has that name, and a value when a variable
+  does: the property `Header comp()` of a component hides a component `Header` of the module. A
+  tag with a small letter and no dot is always an element.
+- **When the value changes,** the component is created again: the old one is removed with what its
+  `mount` returned, like a branch of `{if}`. When only the properties change, the component stays
+  and gets them, as a component used by its name does.
+
+A component used as a value is a function in its module, like an exported one (see "When a
+component becomes a function"). The value is that function, and the tag calls it with the
+properties in the order of the type; a property that is not given is `undefined`, so that its
+default value applies, and so is a null given for a property of type `?T`:
+
+```js
+const SECTIONS = [{ title: "Introduction", content: $$Intro }];
+// ...in the {for} of Guide:
+const [$$sectionContent6] = section.content();
+```
+
+The function returns the node and, for a component with properties, the function that sets them
+again, which the parent calls when its state changes. A value that changes is kept between two
+markers by `$$dynamic`, which creates the component again when the value is another component and
+otherwise updates it. The order of the properties comes from the type, so a module with such tags
+is compiled with type checking: with `--no-check` it is an error. An exported decorator cannot use
+a component of its module as a value yet.
+
 ### Attributes passed on: `...attrs`
 
 A component that wraps an element usually needs the attributes of that element too: `disabled`,
@@ -1312,6 +1384,12 @@ body of `for`: the code of one row of the list is written there once, and no ext
     statements well, and the call is a little slower than the statements; in a small module the
     helper itself would take more than it saves. Below the threshold the code stays
     `createElement` and a statement per attribute, which is easier to read.
+16. **Components are values of type `comp(title string)`, used as tags:** `<section.content />`,
+    or `<Page />` with a variable `Page`. The type writes the names of the properties, which are
+    those of the attributes, and the tag passes them by position, so a component fits a type with
+    the same names in the same order. Such a component becomes a function, like an exported one;
+    when the value changes, the component is created again, and when only the properties change,
+    it gets them.
 
 ## Not decided yet
 

@@ -190,6 +190,7 @@ only reports at compile time what would fail at run time.
 | `?T`              | a value of type `T` or `null`                | a value or `null` |
 | `func(A, B) R`    | a function                                   | a function        |
 | `(a A) => R`      | the same function type, written as an arrow  | a function        |
+| `comp(a A)`       | a component, which a tag takes from a value  | a function        |
 | `A \| B`          | a value of type `A` or of type `B`           | a value           |
 | `"all"`, `42`     | exactly that value                           | a value           |
 | `{ x number }`    | an object with these fields                  | an object         |
@@ -829,7 +830,8 @@ export declare class Stack<T> {
 - Parameter names come from the code and types from the checking, so inferred types
   (`const n = 1`) get into the declarations too.
 - Interfaces, `type`s and classes are declared even when not exported: exported functions may use
-  them. Components do not exist in JS, nor in the declarations.
+  them. Components do not exist in JS, nor in the declarations; a value of type `comp(title string)`
+  is the function of a component, `(title: string) => [Node, ...unknown[]]`.
 - Imports are repeated with `.js` instead of `.mango`, so that the imported names can be used in
   types.
 
@@ -915,8 +917,8 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
   checked as if they were written on that element. A class or a style is added to the element's.
 - **There is no component in JS:** its code is inlined as a block where it is used, and the values
   of the attributes are computed before that block. The exceptions are recursive and exported
-  components, see below, and large ones: a component whose copies would add more than 100 lines
-  compared to a function and its calls is compiled to a function.
+  components and components used as values, see below, and large ones: a component whose copies
+  would add more than 100 lines compared to a function and its calls is compiled to a function.
 - **Recursive components** (a tree, nested comments) are not inlined but compiled to a function.
   Some use on the cycle must be under a condition (`if`, `for`, a branch of `?:`), or the recursion
   never ends: that is a compile error.
@@ -924,7 +926,29 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
   `import { Card } from "./card.mango"`, and used as tags. Their module compiles them to functions,
   `export function $$Card(...)`. The module that uses one calls it, or inlines it by the same
   100-line threshold, with the components of its module that it uses; the names of that module
-  come through hidden exports, `export { PREFIX as $$Card$PREFIX }`.
+  come through hidden exports, `export { PREFIX as $$Card$PREFIX }`. A component that assigns a
+  variable of its module is always called, since another module can only read it.
+- **Components as values.** `content: Intro` is a value of type `comp()`, and
+  `comp(title string, kind ?Kind)` lists the properties with their names. A tag takes the
+  component from a value: `<section.content />`, or `<Page />` with a variable `Page`. It passes
+  the properties in the order of the type, so a component fits a type with the same names in the
+  same order; it may have more at the end if they may be left out, and a property with a default
+  value fits `?T`. Such a component is a function, `$$Intro`, and the tag calls it. When the value
+  depends on state and changes, the component is created again; `ref` and spread are not possible
+  on such a tag.
+
+  ```go
+  interface Section {
+      title string
+      content comp()
+  }
+
+  const SECTIONS []Section = [{ title: "Introduction", content: Intro }]
+
+  comp Guide() {
+      return <main>{for section in SECTIONS { <section.content /> }}</main>
+  }
+  ```
 
 **State.** `state` declares a variable that the markup depends on. It is declared like `let`, but
 only at the top level of a component's body:

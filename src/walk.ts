@@ -244,6 +244,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
 
     case 'ElementExpression':
       optional(node.tag);
+      optional(node.value);
       each(node.attributes);
       each(node.children);
       break;
@@ -294,6 +295,10 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'FuncType':
       each(node.params);
       each(node.results);
+      break;
+
+    case 'ComponentType':
+      each(node.params);
       break;
 
     case 'ObjectType':

@@ -62,6 +62,15 @@ export function tsType(type: Type, expand = false): string {
     case 'function':
       return functionType(type);
 
+    // The function of the component: it returns the node and a function that sets the properties.
+    case 'component': {
+      const params = type.params.map(
+        (param) => `${param.name}${param.optional ? '?' : ''}: ${tsType(param.type)}`,
+      );
+
+      return `(${params.join(', ')}) => [Node, ...unknown[]]`;
+    }
+
     case 'object':
       return objectType(type);
 
@@ -129,7 +138,9 @@ function objectType(type: ObjectType): string {
 function grouped(type: Type): string {
   const text = tsType(type);
 
-  return type.kind === 'function' || (type.kind === 'union' && type.name === undefined)
+  return type.kind === 'function' ||
+    type.kind === 'component' ||
+    (type.kind === 'union' && type.name === undefined)
     ? `(${text})`
     : text;
 }
@@ -139,6 +150,7 @@ function element(type: Type): string {
   const text = tsType(type);
 
   return type.kind === 'function' ||
+    type.kind === 'component' ||
     type.kind === 'nullable' ||
     (type.kind === 'union' && type.name === undefined)
     ? `(${text})`

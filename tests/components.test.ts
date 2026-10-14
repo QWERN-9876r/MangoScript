@@ -102,9 +102,11 @@ describe('types', () => {
       `comp A(children string) {\n    return <p>{children}</p>\n}`,
       'the "children" property has the type Content',
     ],
-    [`comp A() {\n    return <p />\n}\nconst a = A`, 'components are used as tags: <A />'],
     ['const a = <Missing />', 'unknown component <Missing>'],
-    ['const Box = 1\nconst b = <Box />', '"Box" is not a component'],
+    [
+      'const Box = 1\nconst b = <Box />',
+      '<Box> is number, not a component: give it a type like comp(title string)',
+    ],
     [
       `comp A() {\n    return <A />\n}`,
       'endless recursion: A → A always creates itself again; put the use inside if or for',

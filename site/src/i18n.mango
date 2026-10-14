@@ -11,7 +11,7 @@ export interface Section {
     id string
     title string
     group string
-    content func() Node
+    content comp()
 }
 
 /** Texts of the page around the guide itself. */

@@ -3,7 +3,7 @@
 import { example } from "../example.mango"
 import { highlight } from "../highlight.mango"
 
-export func markup() Node {
+export comp Markup() {
     return <>
         <p>
             Markup is an ordinary expression: <code>&lt;a href="/"&gt;</code> creates a real
@@ -26,7 +26,7 @@ export func markup() Node {
     </>
 }
 
-export func components() Node {
+export comp Components() {
     return <>
         <p>
             A component is declared with <code>comp</code> and used as a tag with a capital letter.
@@ -65,10 +65,20 @@ export func components() Node {
             compiles it to a function, which other modules call, or inline it when it is small,
             by the same 100 lines.
         </p>
+        <p>
+            A component is also a value: it can go into an array, a property or
+            {" "}<code>state</code>. Its type lists the properties with their names,
+            {" "}<code>comp(name string)</code>, and a tag takes the component from a value: a tag
+            with a dot, <code>{"<tab.content />"}</code>, or a variable with a capital letter,
+            {" "}<code>{"<Current />"}</code>. The tag passes the properties in the order of the
+            type, so a component fits it with the same names in the same order. Such a component
+            becomes a function; when the value changes, it is created again.
+        </p>
+        {example("component-values")}
     </>
 }
 
-export func reactivity() Node {
+export comp Reactivity() {
     return <>
         <p>
             <code>state</code> declares a variable that the markup depends on. The compiler knows
@@ -98,7 +108,7 @@ export func reactivity() Node {
     </>
 }
 
-export func mounting() Node {
+export comp Mounting() {
     return <>
         <p>
             <code>{"mount() { ... }"}</code> in a component's body is code that needs the markup on
@@ -153,7 +163,7 @@ export func mounting() Node {
     </>
 }
 
-export func refs() Node {
+export comp Refs() {
     return <>
         <p>
             <code>ref log</code> gives a name to an element inside the markup,
@@ -198,7 +208,7 @@ export comp Button(kind Kind = "primary", children Content) {
     return <button class={\`\${styles.button} \${styles[kind]}\`}>{children}</button>
 }`
 
-export func styles() Node {
+export comp Styles() {
     return <>
         <p>
             <code>{"style { ... }"}</code> in a component's body is CSS for its own markup. The
@@ -239,7 +249,7 @@ export func styles() Node {
     </>
 }
 
-export func webComponents() Node {
+export comp WebComponents() {
     return <>
         <p>
             <code>@html-tag</code> before <code>comp</code> makes a component a web component as
@@ -292,7 +302,7 @@ export func webComponents() Node {
     </>
 }
 
-export func decorators() Node {
+export comp Decorators() {
     return <>
         <p>
             A decorator adds logic to components: state, functions and <code>mount()</code>. It is

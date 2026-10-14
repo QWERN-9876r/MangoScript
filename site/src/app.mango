@@ -9,9 +9,9 @@ import { NavGroup, NavList } from "../ui/nav-list.mango"
 import { Prose } from "../ui/prose.mango"
 import { ThemeToggle } from "../ui/theme.mango"
 import styles from "./app.module.css"
-import { hero } from "./hero.mango"
+import { Hero } from "./hero.mango"
 import { REPOSITORY, Section, text } from "./i18n.mango"
-import { playground } from "./playground.mango"
+import { Playground } from "./playground.mango"
 
 /** The sections in the groups of the menu, in order; the playground ends the last group. */
 func navGroups(sections []Section, playgroundTitle string) []NavGroup {
@@ -113,7 +113,7 @@ comp DocsPage(sections []Section) {
             </nav>
             <div class="progress" />
         </header>
-        {hero()}
+        <Hero />
         <div class={styles.layout}>
             <aside class={styles.sidebar}>
                 <NavList groups={groups} active={active} label={t.sections} />
@@ -123,13 +123,13 @@ comp DocsPage(sections []Section) {
                     {for section in sections {
                         <section id={section.id} class={styles.section}>
                             <h2>{section.title}</h2>
-                            {section.content()}
+                            <section.content />
                         </section>
                     }}
                     <section id="playground" class={`${styles.section} ${styles.last}`}>
                         <h2>{t.playground}</h2>
                         <p>{t.playgroundIntro}</p>
-                        {playground()}
+                        <Playground />
                     </section>
                 </Prose>
                 <footer class={styles.footer}>

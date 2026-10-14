@@ -6,6 +6,7 @@ export type Helper =
   | 'attribute'
   | 'content'
   | 'branches'
+  | 'dynamic'
   | 'list'
   | 'owner'
   | 'mount'
@@ -19,6 +20,7 @@ export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> 
   mount: ['owner'],
   content: ['owner'],
   branches: ['owner'],
+  dynamic: ['owner'],
   list: ['owner'],
 };
 
@@ -192,6 +194,38 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
     '      update = blockUpdate;',
     '      remove = removeBlock;',
     '    }',
+    '  };',
+    '  render();',
+    '  $$onRemove(() => remove?.());',
+    '  return [fragment, render];',
+    '}',
+  ],
+  /**
+   * `<Page />` whose component is a value that changes: when it does, the block that `create`
+   * makes with it is created again between two markers; otherwise the block is updated.
+   */
+  dynamic: [
+    'function $$dynamic(component, create) {',
+    '  const start = document.createTextNode("");',
+    '  const end = document.createTextNode("");',
+    '  const fragment = document.createDocumentFragment();',
+    '  fragment.append(start, end);',
+    '  let current;',
+    '  let update;',
+    '  let remove;',
+    '  const render = () => {',
+    '    const next = component();',
+    '    if (remove && next === current) {',
+    '      update?.();',
+    '      return;',
+    '    }',
+    '    current = next;',
+    '    remove?.();',
+    '    while (start.nextSibling !== end) start.nextSibling.remove();',
+    '    const [[content, blockUpdate], removeBlock] = $$owned(() => create(next));',
+    '    end.before(content);',
+    '    update = blockUpdate;',
+    '    remove = removeBlock;',
     '  };',
     '  render();',
     '  $$onRemove(() => remove?.());',

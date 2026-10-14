@@ -12,8 +12,6 @@ import { UpdateEmitter } from './updates.ts';
 export abstract class AttributeEmitter extends UpdateEmitter {
   // Implemented by later layers: the checking of statements, expressions and markup calls each other.
 
-  protected abstract liveExpression(node: ast.Expression, precedence?: number): string;
-
   protected abstract nextId(): number;
 
   protected abstract once(node: ast.Expression): string;

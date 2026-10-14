@@ -57,6 +57,11 @@
     "markup-tag-name": {
       "patterns": [
         { "name": "support.class.component.mango", "match": "[A-Z][\\w$.]*" },
+        {
+          "comment": "<section.content />: a component taken from a value.",
+          "name": "support.class.component.mango",
+          "match": "[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)+(?![\\w$\\-:])"
+        },
         { "name": "entity.name.tag.mango", "match": "[A-Za-z_$][\\w$\\-:.]*" }
       ]
     },

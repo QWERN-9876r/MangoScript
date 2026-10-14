@@ -2,7 +2,7 @@ import type * as ast from '../ast.ts';
 import { ClassParser } from './classes.ts';
 import { describe } from './syntax.ts';
 
-// Types: `?T`, `[]T`, unions, literal types, function and object types, type arguments.
+// Types: `?T`, `[]T`, unions, literal types, function, component and object types, type arguments.
 
 export abstract class TypeParser extends ClassParser {
   /** `[number, string]` after the name of a generic type; `[]` would be an array type. */
@@ -19,6 +19,7 @@ export abstract class TypeParser extends ClassParser {
       case '[':
       case '?':
       case 'func':
+      case 'comp':
       case '{':
       case '(':
       case 'String':
@@ -92,6 +93,15 @@ export abstract class TypeParser extends ClassParser {
         const results = this.parseResults();
 
         return { kind: 'FuncType', params, results, ...this.span(start) };
+      }
+
+      // `comp(title string)`: the names are those of the attributes, so they are required.
+      case 'comp': {
+        this.next();
+
+        const params = this.parseParams(false);
+
+        return { kind: 'ComponentType', params, ...this.span(start) };
       }
 
       case '{': {

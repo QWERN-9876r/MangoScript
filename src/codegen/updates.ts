@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import { widenLiterals, type Type } from '../checker/types.ts';
 import type { Reactive, Source, Write } from './reactive.ts';
 import { StatementEmitter } from './statements.ts';
+import { startsWithObjectLiteral } from './analysis.ts';
 import { ARROW } from './syntax.ts';
 
 /**
@@ -142,6 +143,23 @@ export abstract class UpdateEmitter extends StatementEmitter {
 
       return { kind: 'ExpressionStatement', expression, start: position, end: position };
     });
+  }
+
+  /** `() => value`, evaluated by a helper when the markup is created and on updates. */
+  protected liveFunction(node: ast.Expression): string {
+    const text = this.liveExpression(node);
+
+    return `() => ${startsWithObjectLiteral(node) ? `(${text})` : text}`;
+  }
+
+  /**
+   * An expression that is evaluated again on updates: elements inside it are created in place,
+   * so that each evaluation creates new ones.
+   */
+  protected liveExpression(node: ast.Expression, precedence = ARROW): string {
+    return this.withRendering(this.rendering + 1, () =>
+      this.withHoisting(false, () => this.expression(node, precedence)),
+    );
   }
 }
 

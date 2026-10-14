@@ -1,5 +1,5 @@
 import { moduleNamesOf } from '../decorators.ts';
-import { assignedNames } from '../names.ts';
+import { assignedNames, componentValues } from '../names.ts';
 import type { DecoratorInfo } from './context.ts';
 import { DecoratorWrapperChecker } from './decorator-wrappers.ts';
 
@@ -39,9 +39,20 @@ export abstract class DecoratorExportChecker extends DecoratorWrapperChecker {
 
     // Its code goes into components elsewhere with the components of this module that it uses.
     info.inline = this.modulePackages().decorators.get(name) ?? null;
-    if (info.inline === null) {
+
+    const [value] = componentValues(
+      node,
+      (other) => this.lookupValue(other)?.component !== undefined,
+    );
+
+    if (value !== undefined) {
       this.error(
-        `@${name} is exported, so its code and the components it uses cannot use components or decorators that this module imports yet`,
+        `@${name} is exported, so its code cannot use the component ${value} of its module as a value yet: use it as a tag, <${value} />`,
+        node.name,
+      );
+    } else if (info.inline === null) {
+      this.error(
+        `@${name} is exported, so its code goes into other modules with the components it uses: they cannot use components or decorators that this module imports yet, nor assign variables of this module`,
         node.name,
       );
     }

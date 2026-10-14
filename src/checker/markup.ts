@@ -10,6 +10,13 @@ import { BOOL, func, STRING, typeToString, type Type } from './types.ts';
 // Markup: elements, their children and attributes, `bind:` and event handlers.
 
 export abstract class MarkupChecker extends OperatorChecker {
+  /** A tag that takes its component from a value; implemented by ComponentValueChecker. */
+  protected abstract checkValueTagUse(
+    node: ast.ElementExpression,
+    tag: ast.Identifier,
+    value: ast.Expression,
+  ): Type;
+
   /** Whether the markup being checked is inside `<svg>`: its elements are SVG then. */
   private inSvg = false;
 
@@ -21,7 +28,15 @@ export abstract class MarkupChecker extends OperatorChecker {
   }
 
   protected override checkElement(node: ast.ElementExpression): Type {
-    if (node.tag && /^[A-Z]/.test(node.tag.name)) return this.checkComponentUse(node, node.tag);
+    if (node.tag && node.value) return this.checkValueTagUse(node, node.tag, node.value);
+    if (node.tag && /^[A-Z]/.test(node.tag.name)) {
+      const binding = this.lookupValue(node.tag.name);
+
+      // `<Page />` with a variable `Page` takes the component from its value.
+      return binding && !binding.component
+        ? this.checkValueTagUse(node, node.tag, node.tag)
+        : this.checkComponentUse(node, node.tag);
+    }
 
     const tag = node.tag?.name ?? null;
     const svg = tag !== null && isSvgElement(tag, this.inSvg);

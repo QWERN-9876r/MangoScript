@@ -262,6 +262,13 @@ describe('VS Code grammar', () => {
     const item = '<TodoItem todo={todo} onToggle={todos.toggle(todo.id)} />';
 
     expect(scopeOf(item, 'TodoItem')).toBe('support.class.component');
+    // A component taken from a value, and its type.
+    expect(scopesOf('<section.content></section.content>', 'section.content')).toEqual([
+      'support.class.component',
+      'support.class.component',
+    ]);
+    expect(scopeOf('content comp(title string)', 'comp')).toBe('storage.type.component');
+    expect(scopeOf('content comp(title string)', 'string')).toBe('support.type.primitive');
     expect(scopeOf('<input bind:value={title} />', 'bind')).toBe(
       'entity.other.attribute-name.namespace',
     );

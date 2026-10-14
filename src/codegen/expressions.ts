@@ -39,11 +39,36 @@ export abstract class ExpressionEmitter extends Emitter {
     return node.kind === 'NumberLiteral' ? `(${text})` : text;
   }
 
+  /** Whether `error` refers to the predeclared function rather than to a declared name. */
+  protected isBuiltinError(node: ast.Expression): boolean {
+    return (
+      node.kind === 'Identifier' && node.name === 'error' && this.lookup('error') === undefined
+    );
+  }
+
+  /**
+   * The component a capitalized name refers to here: not a variable that hides it, as the
+   * property `Header` of an inlined component does.
+   */
+  protected componentNamed(name: string): ast.ComponentDeclaration | undefined {
+    const binding = this.lookup(name);
+
+    return binding === undefined || binding === 'import' ? this.components.get(name) : undefined;
+  }
+
   private expressionWithPrecedence(node: ast.Expression): [string, number] {
     switch (node.kind) {
-      case 'Identifier':
+      case 'Identifier': {
+        const component = this.componentNamed(node.name);
+
+        // A component as a value is its function.
+        if (component) {
+          return [this.functionNames.get(component) ?? `$$${component.name.name}`, PRIMARY];
+        }
+
         // The predeclared `error` used as a value is JS's `Error`, which also works without `new`.
         return [this.isBuiltinError(node) ? 'Error' : this.name(node.name), PRIMARY];
+      }
 
       case 'NumberLiteral':
       case 'StringLiteral':

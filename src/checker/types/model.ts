@@ -8,6 +8,7 @@ export type Type =
   | ArrayType
   | NullableType
   | FunctionType
+  | ComponentType
   | ObjectType
   | ClassType
   | ClassValueType
@@ -57,6 +58,22 @@ export interface FunctionType {
   typeParams: TypeParam[];
   /** The other signatures of an overloaded function from a `.d.ts`; a call uses the first that fits. */
   overloads?: FunctionType[];
+}
+
+/**
+ * `comp(title string, kind ?Kind)`: a component as a value, which a tag uses,
+ * `<section.content />`. A tag passes the properties in this order.
+ */
+export interface ComponentType {
+  kind: 'component';
+  params: ComponentParam[];
+}
+
+export interface ComponentParam {
+  name: string;
+  type: Type;
+  /** May be left out: the type is nullable, the property has a default value, or is `children`. */
+  optional: boolean;
 }
 
 export interface Member {

@@ -252,8 +252,9 @@ export function ownRoot(component: ast.ComponentDeclaration): Root {
   return value.tag === null ? 'returns a fragment, which is empty once inserted' : value;
 }
 
+/** `<Card />`, or a component from a value: `<section.content />`, `<Page />`. */
 export function isComponentUse(node: ast.ElementExpression): boolean {
-  return node.tag !== null && /^[A-Z]/.test(node.tag.name);
+  return node.value !== null || (node.tag !== null && /^[A-Z]/.test(node.tag.name));
 }
 
 /**

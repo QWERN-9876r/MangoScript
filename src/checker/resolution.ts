@@ -1,6 +1,7 @@
 import type * as ast from '../ast.ts';
 import { ClassChecker } from './classes.ts';
 import type { AliasEntry } from './context.ts';
+import { CONTENT } from './dom.ts';
 import {
   arrayOf,
   bindParams,
@@ -8,12 +9,14 @@ import {
   func,
   instantiate,
   isAssignable,
+  isNullable,
   literal,
   nullable,
   substitute,
   typeToString,
   union,
   UNKNOWN,
+  type ComponentParam,
   type ObjectType,
   type Type,
 } from './types.ts';
@@ -38,6 +41,9 @@ export abstract class TypeResolver extends ClassChecker {
           node.results.map((result) => this.resolveType(result)),
         );
 
+      case 'ComponentType':
+        return this.resolveComponentType(node);
+
       case 'ObjectType': {
         const object: ObjectType = { kind: 'object', name: null, members: new Map(), call: null };
 
@@ -52,6 +58,28 @@ export abstract class TypeResolver extends ClassChecker {
       case 'LiteralType':
         return literal(node.value.value);
     }
+  }
+
+  /** `comp(title string, children Content)`: properties of type `?T` and `children` may be left out. */
+  private resolveComponentType(node: ast.ComponentType): Type {
+    const params: ComponentParam[] = [];
+
+    for (const param of node.params) {
+      const name = param.name.name;
+      const type = param.type ? this.resolveType(param.type) : UNKNOWN;
+
+      if (name === 'children' && type !== CONTENT && type.kind !== 'unknown') {
+        this.error('the "children" property has the type Content', param.type ?? param);
+      }
+
+      if (params.some((other) => other.name === name)) {
+        this.error(`duplicate property "${name}"`, param.name);
+      }
+
+      params.push({ name, type, optional: isNullable(type) || name === 'children' });
+    }
+
+    return { kind: 'component', params };
   }
 
   protected override resolveTypeName(

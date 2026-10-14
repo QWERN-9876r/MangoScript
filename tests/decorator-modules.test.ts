@@ -131,7 +131,15 @@ describe('types', () => {
         'a.mango',
       ),
     ).toEqual([
-      '@a is exported, so its code and the components it uses cannot use components or decorators that this module imports yet',
+      '@a is exported, so its code goes into other modules with the components it uses: they cannot use components or decorators that this module imports yet, nor assign variables of this module',
+    ]);
+    // Nor can its components assign the variables of its module.
+    expect(
+      errors(
+        'let count = 0\ncomp Badge() {\n    count++\n    return <b />\n}\nexport dec a() {\n    return (c Element) => <div>{c}<Badge /></div>\n}',
+      ),
+    ).toEqual([
+      '@a is exported, so its code goes into other modules with the components it uses: they cannot use components or decorators that this module imports yet, nor assign variables of this module',
     ]);
   });
 });

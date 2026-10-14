@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { decorate, decoratorNames } from '../decorators.ts';
+import { collectValueNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
 import { type Binding, type ComponentInfo, type DecoratorInfo, Scope } from './context.ts';
 import { ImportChecker } from './imports.ts';
@@ -191,10 +192,18 @@ export abstract class DeclarationChecker extends ImportChecker {
       new Map(components.map((info) => [info.node.name.name, info.expanded])),
     );
 
+    // A component used as a value is called by tags that take it from there.
+    const names = new Set(components.map((info) => info.node.name.name));
+    const values = new Set<string>();
+
+    collectValueNames(this.program, values, (name) => names.has(name));
     for (const info of components) {
       // Other modules call an exported component, so it is a function in its own module too.
       info.isFunction =
-        recursive.has(info.expanded) || info.node.htmlTag !== null || info.node.exported;
+        recursive.has(info.expanded) ||
+        info.node.htmlTag !== null ||
+        info.node.exported ||
+        values.has(info.node.name.name);
     }
 
     for (const [node, info] of classes) {

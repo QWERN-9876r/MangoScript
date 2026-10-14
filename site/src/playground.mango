@@ -16,7 +16,7 @@ export func openInPlayground(code string) {
     openHandler(code)
 }
 
-comp Playground() {
+export comp Playground() {
     const t = text()
     state source = t.playgroundStart
     state tab = "js"
@@ -94,8 +94,4 @@ comp Playground() {
             }}
         </div>
     </div>
-}
-
-export func playground() Node {
-    return <Playground />
 }

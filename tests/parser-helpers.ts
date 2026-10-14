@@ -117,7 +117,7 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
       return `(${node.optional ? '?[]' : '[]'} ${sx(node.object)} ${sx(node.index)})`;
 
     case 'ElementExpression':
-      return `<${node.tag?.name ?? ''}>`;
+      return node.value ? `<${sx(node.value)}>` : `<${node.tag?.name ?? ''}>`;
 
     case 'DecoratorMember':
       return `@${node.decorator.name}.${node.member.name}`;
@@ -141,6 +141,9 @@ export function ty(node: ast.TypeNode): string {
 
     case 'FuncType':
       return `func(${node.params.map(ty).join(', ')})${results(node.results)}`;
+
+    case 'ComponentType':
+      return `comp(${node.params.map(param).join(', ')})`;
 
     case 'ObjectType':
       return `{ ${node.members.map(member).join('; ')} }`;

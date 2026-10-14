@@ -1,35 +1,36 @@
 // The English guide; the Russian one, ru/guide.mango, has the same sections. Each section is a
-// function that returns its markup; the examples are files in site/examples.
+// component, which the page shows with <section.content />; the examples are files in
+// site/examples.
 
 import { example } from "../example.mango"
 import { Callout } from "../../ui/callout.mango"
 import { Card, CardGrid } from "../../ui/card.mango"
 import { CodeBlock } from "../../ui/code-block.mango"
 import { REPOSITORY, Section, text } from "../i18n.mango"
-import { components, decorators, markup, mounting, reactivity, refs, styles, webComponents } from "./guide-components.mango"
+import { Components, Decorators, Markup, Mounting, Reactivity, Refs, Styles, WebComponents } from "./guide-components.mango"
 
 export const SECTIONS []Section = [
-    { id: "intro", title: "What is MangoScript", group: "Language", content: intro },
-    { id: "variables", title: "Variables and types", group: "Language", content: variables },
-    { id: "null", title: "null, unions and narrowing", group: "Language", content: nullSafety },
-    { id: "functions", title: "Functions", group: "Language", content: functions },
-    { id: "errors", title: "Errors and defer", group: "Language", content: errors },
-    { id: "control", title: "Conditions and loops", group: "Language", content: control },
-    { id: "classes", title: "Classes and interfaces", group: "Language", content: classes },
-    { id: "generics", title: "Generics", group: "Language", content: generics },
-    { id: "modules", title: "Modules", group: "Language", content: modules },
-    { id: "markup", title: "Markup", group: "Markup and components", content: markup },
-    { id: "components", title: "Components", group: "Markup and components", content: components },
-    { id: "state", title: "State", group: "Markup and components", content: reactivity },
-    { id: "mount", title: "Mounting", group: "Markup and components", content: mounting },
-    { id: "ref", title: "Refs", group: "Markup and components", content: refs },
-    { id: "styles", title: "Styles", group: "Markup and components", content: styles },
-    { id: "web-components", title: "Web components", group: "Markup and components", content: webComponents },
-    { id: "decorators", title: "Decorators", group: "Markup and components", content: decorators },
-    { id: "tools", title: "Tools", group: "More", content: tools },
+    { id: "intro", title: "What is MangoScript", group: "Language", content: Intro },
+    { id: "variables", title: "Variables and types", group: "Language", content: Variables },
+    { id: "null", title: "null, unions and narrowing", group: "Language", content: NullSafety },
+    { id: "functions", title: "Functions", group: "Language", content: Functions },
+    { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
+    { id: "control", title: "Conditions and loops", group: "Language", content: Control },
+    { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
+    { id: "generics", title: "Generics", group: "Language", content: Generics },
+    { id: "modules", title: "Modules", group: "Language", content: Modules },
+    { id: "markup", title: "Markup", group: "Markup and components", content: Markup },
+    { id: "components", title: "Components", group: "Markup and components", content: Components },
+    { id: "state", title: "State", group: "Markup and components", content: Reactivity },
+    { id: "mount", title: "Mounting", group: "Markup and components", content: Mounting },
+    { id: "ref", title: "Refs", group: "Markup and components", content: Refs },
+    { id: "styles", title: "Styles", group: "Markup and components", content: Styles },
+    { id: "web-components", title: "Web components", group: "Markup and components", content: WebComponents },
+    { id: "decorators", title: "Decorators", group: "Markup and components", content: Decorators },
+    { id: "tools", title: "Tools", group: "More", content: Tools },
 ]
 
-func intro() Node {
+comp Intro() {
     return <>
         <p>
             MangoScript is a language with the semantics of JavaScript, Go-style syntax and static
@@ -62,7 +63,7 @@ func intro() Node {
     </>
 }
 
-func variables() Node {
+comp Variables() {
     return <>
         <p>
             Variables are declared as in JavaScript, with <code>let</code> and <code>const</code>,
@@ -117,7 +118,7 @@ func variables() Node {
     </>
 }
 
-func nullSafety() Node {
+comp NullSafety() {
     return <>
         <p>
             A value of type <code>?T</code> may be <code>null</code>, and a value of type
@@ -140,7 +141,7 @@ func nullSafety() Node {
     </>
 }
 
-func functions() Node {
+comp Functions() {
     return <>
         <p>
             A function is declared with <code>func</code>. Parameters of the same type can be listed
@@ -158,7 +159,7 @@ func functions() Node {
     </>
 }
 
-func errors() Node {
+comp Errors() {
     return <>
         <p>
             Ordinary errors need no exceptions: a function returns an error as its second value, and
@@ -174,7 +175,7 @@ func errors() Node {
     </>
 }
 
-func control() Node {
+comp Control() {
     return <>
         <p>
             Conditions and loops are as in Go: no parentheses around the condition and always braces.
@@ -185,7 +186,7 @@ func control() Node {
     </>
 }
 
-func classes() Node {
+comp Classes() {
     return <>
         <p>
             Classes are as in TypeScript: typed fields, <code>constructor</code>,
@@ -200,7 +201,7 @@ func classes() Node {
     </>
 }
 
-func generics() Node {
+comp Generics() {
     return <>
         <p>
             Type parameters go in square brackets, as in Go:
@@ -218,7 +219,7 @@ func generics() Node {
     </>
 }
 
-func modules() Node {
+comp Modules() {
     return <>
         <p>
             Modules are ES modules: <code>import</code> and <code>export</code> as in JS. Imports of
@@ -254,7 +255,7 @@ npx mango run app.mango              # compile and run`
 const REPOSITORY_COMMANDS = `npm run site:dev         # this site on the Vite dev server
 npm run vscode:install   # syntax highlighting in VS Code`
 
-func tools() Node {
+comp Tools() {
     return <>
         <p>
             The compiler is the npm package <code>mangoscript</code>, and it runs on Node.js 24:

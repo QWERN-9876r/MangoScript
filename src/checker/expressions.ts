@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import type { ComponentInfo } from './context.ts';
 import { FunctionChecker } from './functions.ts';
 import { expectsLiteral, callName, isUntyped } from './helpers.ts';
 import {
@@ -18,6 +19,7 @@ import {
   STRING,
   typeToString,
   UNKNOWN,
+  type ComponentType,
   type Member,
   type Type,
 } from './types.ts';
@@ -25,6 +27,9 @@ import {
 // Expressions: names, `this`, literals of arrays and objects; the operators are in operators.ts.
 
 export abstract class ExpressionChecker extends FunctionChecker {
+  /** The type of a component used as a value; implemented by ComponentValueChecker. */
+  protected abstract componentValue(info: ComponentInfo): ComponentType;
+
   /** The type of an expression that must be a single value (not `void` or several results). */
   protected override checkValue(node: ast.Expression, expected: Type | null = null): Type {
     return this.single(this.checkExpression(node, expected), node);
@@ -155,11 +160,8 @@ export abstract class ExpressionChecker extends FunctionChecker {
       return UNKNOWN;
     }
 
-    if (binding.kind === 'component') {
-      this.error(`components are used as tags: <${node.name} />`, node);
-
-      return UNKNOWN;
-    }
+    // A component as a value: a tag can take it from there, `<section.content />`.
+    if (binding.component) return this.componentValue(binding.component);
 
     const initializerError = this.initializerError(binding);
 

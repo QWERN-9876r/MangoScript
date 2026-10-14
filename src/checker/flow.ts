@@ -31,6 +31,7 @@ export function typeofTag(type: Type): string | null {
       return typeof type.value;
 
     case 'function':
+    case 'component':
     case 'classValue':
       return 'function';
 

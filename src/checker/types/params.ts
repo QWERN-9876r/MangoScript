@@ -52,6 +52,9 @@ export function containsTypeParam(
     case 'function':
       return [...type.params, ...type.results].some(contains);
 
+    case 'component':
+      return type.params.some((param) => contains(param.type));
+
     default:
       return false;
   }
@@ -111,6 +114,15 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
 
       return result;
     }
+
+    case 'component':
+      return {
+        kind: 'component',
+        params: type.params.map((param) => ({
+          ...param,
+          type: substitute(param.type, bindings, fallback),
+        })),
+      };
 
     default:
       return type;

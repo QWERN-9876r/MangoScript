@@ -252,6 +252,7 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
         return '[]';
 
       case 'FuncType':
+      case 'ComponentType':
       case 'ObjectType':
       case 'UnionType':
       case 'LiteralType':

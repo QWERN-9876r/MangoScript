@@ -105,7 +105,8 @@ func tokenClass(tokens any, i number, language string) string {
     case "JsxName":
         const previous string = tokens[i - 1].kind
         if previous == "JsxTagOpen" || previous == "JsxCloseTagOpen" {
-            return isCapitalized(text) ? "type" : "tag"
+            // <section.content /> takes a component from a value
+            return isCapitalized(text) || text.includes(".") ? "type" : "tag"
         }
         return "attr"
     case "Identifier":

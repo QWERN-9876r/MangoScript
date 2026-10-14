@@ -15,8 +15,17 @@ export abstract class MarkupParser extends LiteralParser {
       attributes.push(this.parseJsxAttribute());
     }
 
+    const value = tag && this.tagValue(tag);
+
     if (tag && this.accept('JsxSelfClose')) {
-      return { kind: 'ElementExpression', tag, attributes, children: [], ...this.span(start) };
+      return {
+        kind: 'ElementExpression',
+        tag,
+        value,
+        attributes,
+        children: [],
+        ...this.span(start),
+      };
     }
 
     this.expect('JsxTagEnd', tag ? '">" or "/>"' : '">"');
@@ -58,7 +67,48 @@ export abstract class MarkupParser extends LiteralParser {
 
     this.expect('JsxTagEnd');
 
-    return { kind: 'ElementExpression', tag, attributes, children, ...this.span(start) };
+    return { kind: 'ElementExpression', tag, value, attributes, children, ...this.span(start) };
+  }
+
+  /** `<section.content />`: a tag with a dot is the value `section.content`. */
+  private tagValue(tag: ast.Identifier): ast.Expression | null {
+    const parts = tag.name.split('.');
+
+    if (parts.length === 1) return null;
+    if (!parts.every((part) => /^[\p{ID_Start}$_][\p{ID_Continue}$]*$/u.test(part))) {
+      this.error(
+        `"${tag.name}" is not a value: a tag with a dot is written like <section.content />`,
+        tag.start,
+        tag.end,
+      );
+
+      return null;
+    }
+
+    let end = tag.start - 1;
+    const identifier = (name: string): ast.Identifier => {
+      const start = end + 1;
+
+      end = start + name.length;
+
+      return { kind: 'Identifier', name, start, end };
+    };
+    let value: ast.Expression = identifier(parts[0]!);
+
+    for (const part of parts.slice(1)) {
+      const property = identifier(part);
+
+      value = {
+        kind: 'MemberExpression',
+        object: value,
+        property,
+        optional: false,
+        start: tag.start,
+        end,
+      };
+    }
+
+    return value;
   }
 
   protected parseJsxName(what: string): ast.Identifier {

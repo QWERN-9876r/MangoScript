@@ -19,8 +19,10 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
   protected override importDeclaration(node: ast.ImportDeclaration): void {
     if (this.styleModuleImport(node)) return;
 
-    // Imports used only as types (e.g. interfaces) do not exist at runtime.
-    const used = (name: ast.Identifier) => this.valueNames.has(name.name);
+    // Imports used only as types (e.g. interfaces) do not exist at runtime, and neither do
+    // components: a component used as a value is its function, imported below.
+    const used = (name: ast.Identifier) =>
+      this.valueNames.has(name.name) && !this.options.components?.has(name.name);
     const clauses: string[] = [];
 
     if (node.defaultImport && used(node.defaultImport)) {

@@ -159,6 +159,7 @@ export function freeNames(component: {
       case 'ArrayType':
       case 'NullableType':
       case 'FuncType':
+      case 'ComponentType':
       case 'ObjectType':
       case 'UnionType':
       case 'LiteralType':
@@ -205,4 +206,132 @@ export function topLevelNames(program: ast.Program): Set<string> {
   }
 
   return names;
+}
+
+/**
+ * Names used as values, as opposed to declared names, property names and types. A capitalized tag
+ * is a value unless `isComponent` says it names a component: `<Page />` with a variable `Page`.
+ */
+export function collectValueNames(
+  node: ast.Node,
+  names: Set<string>,
+  isComponent: (name: string) => boolean = () => true,
+): void {
+  const visit = (child: ast.Node | null) => {
+    if (child) collectValueNames(child, names, isComponent);
+  };
+
+  switch (node.kind) {
+    case 'Identifier':
+      names.add(node.name);
+
+      return;
+
+    case 'MemberExpression':
+      visit(node.object);
+
+      return;
+
+    case 'Property':
+      visit(node.value);
+
+      return;
+
+    case 'VariableDeclaration':
+      node.values.forEach(visit);
+
+      return;
+
+    case 'FuncDeclaration':
+    case 'MethodDeclaration':
+    case 'ConstructorDeclaration':
+    case 'FuncExpression':
+    case 'ArrowFunction':
+      visit(node.body);
+
+      return;
+
+    case 'ComponentDeclaration':
+      node.decorators.forEach(visit);
+      node.params.forEach(visit);
+      visit(node.body);
+
+      return;
+
+    case 'DecoratorDeclaration':
+      node.params.forEach(visit);
+      visit(node.body);
+
+      return;
+
+    case 'ElementExpression':
+      // Tags are not values, except those that take a component from one.
+      visit(node.value);
+      if (node.value === null && node.tag && /^[A-Z]/.test(node.tag.name)) {
+        if (!isComponent(node.tag.name)) names.add(node.tag.name);
+      }
+
+      node.attributes.forEach(visit);
+      node.children.forEach(visit);
+
+      return;
+
+    case 'JsxAttribute':
+      visit(node.value);
+
+      return;
+
+    case 'Parameter':
+      visit(node.defaultValue);
+
+      return;
+
+    case 'ClassDeclaration':
+      visit(node.superClass);
+      node.members.forEach(visit);
+
+      return;
+
+    case 'FieldDeclaration':
+      visit(node.value);
+
+      return;
+
+    case 'ForInStatement':
+      visit(node.iterable);
+      visit(node.body);
+
+      return;
+
+    case 'CatchClause':
+      visit(node.body);
+
+      return;
+
+    case 'ImportDeclaration':
+    case 'InterfaceDeclaration':
+    case 'TypeAliasDeclaration':
+    case 'TypeReference':
+    case 'ArrayType':
+    case 'NullableType':
+    case 'FuncType':
+    case 'ComponentType':
+    case 'ObjectType':
+    case 'UnionType':
+    case 'LiteralType':
+    case 'TypeParameter':
+      return;
+
+    default:
+      forEachChild(node, visit);
+  }
+}
+
+/** The components that the code in `node` uses as values: `content: Intro`. */
+export function componentValues(node: ast.Node, isComponent: (name: string) => boolean): string[] {
+  const values = new Set<string>();
+
+  collectValueNames(node, values, isComponent);
+
+  return [...values].filter(isComponent);
 }

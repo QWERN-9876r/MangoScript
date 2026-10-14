@@ -4,12 +4,12 @@ import { decorate, type DecoratorSource } from '../decorators.ts';
 import { htmlTagName } from '../html-tag.ts';
 import type { InlinePackage } from '../inline-packages.ts';
 import { type ImportedComponent, type LocalizedPackage, localize } from './imported.ts';
-import { assignedNames } from '../names.ts';
+import { assignedNames, collectValueNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
 import type { Root } from '../refs.ts';
 import type { StyleModule } from '../style-modules.ts';
 import { forEachChild } from '../walk.ts';
-import { collectValueNames, type BindingKind } from './analysis.ts';
+import type { BindingKind } from './analysis.ts';
 import type { Helper } from './helpers.ts';
 import { JS_RESERVED, JS_UNDECLARABLE } from './syntax.ts';
 
@@ -65,7 +65,8 @@ interface FunctionContext {
  *
  *     Emitter → ExpressionEmitter → SimpleStatementEmitter → ControlStatementEmitter
  *       → StatementEmitter → UpdateEmitter → AttributeEmitter → CreationEmitter
- *       → ElementEmitter → ControlFlowEmitter → ComponentPropsEmitter → EarlyReturnEmitter → RefEmitter
+ *       → ElementEmitter → ControlFlowEmitter → ComponentPropsEmitter → ComponentValueEmitter
+ *       → EarlyReturnEmitter → RefEmitter
  *       → StyleEmitter → ComponentEmitter → WebComponentEmitter → FunctionEmitter → JsGenerator
  */
 export abstract class Emitter {
@@ -186,9 +187,16 @@ export abstract class Emitter {
       }
     }
 
+    // A component used as a value is a function, which tags that take it from there call.
+    collectValueNames(
+      program,
+      this.valueNames,
+      (name) => this.components.has(name) || options.components?.has(name) === true,
+    );
+
     // A small component of another module is inlined, unless generateJs chose to call it.
     for (const [name, component] of options.components ?? []) {
-      if (!component.inline || options.functions?.has(name)) continue;
+      if (!component.inline || options.functions?.has(name) || this.valueNames.has(name)) continue;
 
       const localized = localize(name, component.node.name.name, component.inline, keepType);
 
@@ -218,13 +226,12 @@ export abstract class Emitter {
 
     this.assigned = assignedNames(program);
     for (const component of this.components.values()) assignedNames(component, this.assigned);
-    collectValueNames(program, this.valueNames);
 
     const functionComponents = recursiveComponents(this.components);
 
-    for (const component of this.components.values()) {
+    for (const [name, component] of this.components) {
       // Other modules call an exported component, so it is a function here too.
-      if (component.exported) functionComponents.add(component);
+      if (component.exported || this.valueNames.has(name)) functionComponents.add(component);
       if (!component.htmlTag) continue;
       functionComponents.add(component);
       this.webComponents.set(htmlTagName(component), component);
@@ -333,13 +340,6 @@ export abstract class Emitter {
       JS_RESERVED.has(name) || (JS_UNDECLARABLE.has(name) && this.lookup(name) !== undefined);
 
     return rename ? `${name}$` : name;
-  }
-
-  /** Whether `error` refers to the predeclared function rather than to a declared name. */
-  protected isBuiltinError(node: ast.Expression): boolean {
-    return (
-      node.kind === 'Identifier' && node.name === 'error' && this.lookup('error') === undefined
-    );
   }
 
   protected params(params: ast.Parameter[]): string {

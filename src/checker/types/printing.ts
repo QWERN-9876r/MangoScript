@@ -40,6 +40,16 @@ export function typeToString(type: Type): string {
       return `func(${params.join(', ')})${resultsToString(type.results)}`;
     }
 
+    // A property that may be left out is printed as nullable, as it is written in the type.
+    case 'component': {
+      const params = type.params.map(
+        (param) =>
+          `${param.name} ${typeToString(param.optional && param.name !== 'children' ? nullable(param.type) : param.type)}`,
+      );
+
+      return `comp(${params.join(', ')})`;
+    }
+
     case 'object': {
       if (type.instanceOf && type.name !== null) {
         return `${type.name}[${type.instanceOf.args.map(typeToString).join(', ')}]`;

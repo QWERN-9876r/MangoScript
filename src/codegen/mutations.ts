@@ -52,6 +52,9 @@ export function readNames(node: ast.Node, names: Set<string>): void {
       return;
 
     case 'ElementExpression':
+      // `<section.content />` and `<Page />` read the value they take the component from.
+      if (node.value) readNames(node.value, names);
+      else if (node.tag && /^[A-Z]/.test(node.tag.name)) names.add(node.tag.name);
       for (const attribute of node.attributes) readNames(attribute, names);
       for (const child of node.children) readNames(child, names);
 

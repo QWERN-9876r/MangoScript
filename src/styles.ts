@@ -131,7 +131,12 @@ export function ownElements(body: ast.Node): ast.ElementExpression[] {
   const found: ast.ElementExpression[] = [];
   const visit = (node: ast.Node): void => {
     // The use of a component is not an element, but what is passed to it is the markup here.
-    if (node.kind === 'ElementExpression' && node.tag && !/^[A-Z]/.test(node.tag.name)) {
+    if (
+      node.kind === 'ElementExpression' &&
+      node.tag &&
+      node.value === null &&
+      !/^[A-Z]/.test(node.tag.name)
+    ) {
       found.push(node);
     }
 

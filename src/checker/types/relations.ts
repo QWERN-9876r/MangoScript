@@ -1,7 +1,14 @@
 import { instanceMembers, isSubclass, publicMembers } from './classes.ts';
 import { memberNames } from './lazy.ts';
 import { isNullable, literalBase, nonNull, union } from './constructors.ts';
-import { UNKNOWN, VOID, type FunctionType, type Member, type Type } from './model.ts';
+import {
+  UNKNOWN,
+  VOID,
+  type ComponentType,
+  type FunctionType,
+  type Member,
+  type Type,
+} from './model.ts';
 import { typeToString } from './printing.ts';
 
 // Relations between types: assignability, comparison, equality, common types.
@@ -66,6 +73,9 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
 
     case 'function':
       return source.kind === 'function' && functionAssignable(source, target, nested);
+
+    case 'component':
+      return source.kind === 'component' && componentAssignable(source, target, nested);
 
     case 'classValue':
       return source.kind === 'classValue' && isSubclass(source.info, target.info);
@@ -136,6 +146,33 @@ function functionAssignable(source: FunctionType, target: FunctionType, assuming
   return (
     source.results.length === target.results.length &&
     source.results.every((type, i) => assignable(type, target.results[i]!, assuming))
+  );
+}
+
+/**
+ * A tag passes the properties of `target` by position, so `source` must have the same names in
+ * the same order, and may have more only if they can be left out. A property with a default
+ * value takes a nullable one: null gives it the default value.
+ */
+function componentAssignable(
+  source: ComponentType,
+  target: ComponentType,
+  assuming: [Type, Type][],
+): boolean {
+  return (
+    source.params.every((param, i) => i < target.params.length || param.optional) &&
+    target.params.every((expected, i) => {
+      const param = source.params[i];
+
+      if (!param || param.name !== expected.name || (expected.optional && !param.optional)) {
+        return false;
+      }
+
+      return (
+        assignable(expected.type, param.type, assuming) ||
+        (param.optional && assignable(nonNull(expected.type), param.type, assuming))
+      );
+    })
   );
 }
 
@@ -231,6 +268,21 @@ export function typesEqual(a: Type, b: Type): boolean {
     return (
       a.instanceOf.template === b.instanceOf.template &&
       a.instanceOf.args.every((arg, i) => typesEqual(arg, b.instanceOf!.args[i]!))
+    );
+  }
+
+  if (a.kind === 'component' && b.kind === 'component') {
+    return (
+      a.params.length === b.params.length &&
+      a.params.every((param, i) => {
+        const other = b.params[i]!;
+
+        return (
+          param.name === other.name &&
+          param.optional === other.optional &&
+          typesEqual(param.type, other.type)
+        );
+      })
     );
   }
 
