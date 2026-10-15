@@ -3,6 +3,7 @@ import { decoratedName } from '../decorators.ts';
 import { goCaptures, goParams, goTarget } from '../goroutines.ts';
 import { containsElement, hasOptionalLink, startsWithObjectLiteral } from './analysis.ts';
 import { Emitter } from './emitter.ts';
+import { PREDECLARED } from './helpers.ts';
 import { ARROW, BINARY, CONDITIONAL, POSTFIX, PRIMARY, UNARY } from './syntax.ts';
 
 /** Expressions, with the parentheses that JS operator precedence requires. */
@@ -87,17 +88,13 @@ export abstract class ExpressionEmitter extends Emitter {
           return [this.functionNames.get(component) ?? `$$${component.name.name}`, PRIMARY];
         }
 
-        // `close(ch)` is predeclared too; JS has a `close` of its own, the window's.
-        if (node.name === 'close' && this.lookup('close') === undefined) {
-          this.helpers.add('chan');
+        // `close(ch)` and the like are predeclared; JS has a `close` of its own, the window's.
+        const helper = Object.hasOwn(PREDECLARED, node.name) ? PREDECLARED[node.name] : undefined;
 
-          return ['$$close', PRIMARY];
-        }
+        if (helper && this.lookup(node.name) === undefined) {
+          this.helpers.add(helper);
 
-        if (node.name === 'transfer' && this.lookup('transfer') === undefined) {
-          this.helpers.add('threads');
-
-          return ['$$transfer', PRIMARY];
+          return [`$$${node.name}`, PRIMARY];
         }
 
         // The predeclared `error` used as a value is JS's `Error`, which also works without `new`.

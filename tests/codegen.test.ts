@@ -133,7 +133,7 @@ describe('statements', () => {
     break
 }
 for running {
-    tick()
+    step()
 }
 for let i = 0; i < 3; i++ {
     f(i)
@@ -148,7 +148,7 @@ for i, x in xs {
   break;
 }
 while (running) {
-  tick();
+  step();
 }
 for (let i = 0; i < 3; i++) {
   f(i);

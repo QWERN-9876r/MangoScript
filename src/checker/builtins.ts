@@ -350,6 +350,11 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['close', func([chanOf(ANY)], [])],
   // `transfer(buffer)`: the buffer moves to the thread it goes to (what it takes: channels.ts).
   ['transfer', func([MOVED], [MOVED], { typeParams: [MOVED] })],
+  // Channels of time, as in Go: the time once after `ms`, or every `ms` until `close(ticks)`.
+  ['after', func([NUMBER], [chanOf(NUMBER, 'receive')])],
+  ['tick', func([NUMBER], [chanOf(NUMBER)])],
+  // `cancel(task)` stops a goroutine: it takes the Promise of `go` (channels.ts).
+  ['cancel', func([ANY], [])],
   ...[...UNTYPED_GLOBALS, ...BUFFERS].map((name): [string, Type] => [name, ANY]),
 ]);
 

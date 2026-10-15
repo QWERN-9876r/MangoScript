@@ -1,11 +1,5 @@
-// select waits for the first of several operations on channels
-func after(ms number) <-chan bool {
-    const ch = chan<bool>(1)
-    setTimeout(async () => {
-        ch <- true
-    }, ms)
-    return ch
-}
+// select waits for the first of several operations on channels;
+// after(ms) is a channel that gets the time once, after ms
 
 // out chan<- string only sends: search cannot receive from it
 async func search(query string, ms number, out chan<- string) {

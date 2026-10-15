@@ -692,6 +692,47 @@ as in Go. A case receives, `case v = <-ch:` or `case <-ch:`, or sends, `case ch 
 - `select` waits, so it is allowed where `await` is. It is a keyword only before `{`: elsewhere
   `select` is an ordinary name.
 
+### Timers and cancel
+
+```go
+const ticks = tick(100)
+const done = chan<number>(1)
+const task = go async func() {
+    done <- countPrimes(100_000_000)
+}()
+
+select {
+case n = <-done:
+    console.log(n)
+case <-after(500):
+    cancel(task)
+}
+close(ticks)
+```
+
+```js
+const ticks = $$tick(100);
+// ...
+const [$$case, $$received, $$ok] = await $$select([{ channel: done }, { channel: $$after(500) }], false);
+// ...
+$$cancel(task);
+```
+
+- **`after(ms)`** is a `<-chan number` that gets the time (`Date.now()`) once, after `ms`, as
+  `time.After` in Go: `case <-after(500):` is a timeout.
+- **`tick(ms)`** is a `chan number` that gets the time every `ms`, as `time.Tick`. A tick that
+  finds the last one not received yet is dropped. `close(ticks)` stops it; until then, in Node, it
+  keeps the program running.
+- **`cancel(task)`** stops a goroutine, given the Promise of `go`: a call that waits for a worker
+  leaves the queue, and a running one stops with its worker (`terminate()`), even in the middle of
+  a loop. Its Promise fails with "goroutine cancelled", and nothing else fails because of it if
+  nobody waits for it. The other calls that wait in that worker in `await` fail too, and the
+  channels that the worker made are gone. Inside a goroutine, `go` runs in the same worker, so
+  `cancel` makes its Promise fail, but code that has started goes on. A Promise that is not of
+  `go`, or of one that has finished, is left as it is.
+- `after`, `tick` and `cancel` are predeclared, like `close`: a declaration with one of these names
+  hides them.
+
 ## 5. Conditions and loops
 
 ### if

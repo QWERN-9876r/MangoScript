@@ -2,7 +2,7 @@
 // channel (thread-helpers.ts), and the queues of a channel. Receiving from a closed channel gives
 // the zero value of its type, as in Go.
 
-export type ChanHelper = 'chan';
+export type ChanHelper = 'chan' | 'timers';
 
 export const CHAN_HELPERS: Readonly<Record<ChanHelper, readonly string[]>> = {
   chan: [
@@ -111,7 +111,7 @@ export const CHAN_HELPERS: Readonly<Record<ChanHelper, readonly string[]>> = {
     '        value: data.value,',
     '      });',
     '    case "cancel":',
-    '      return $$cancel(select, data.channels);',
+    '      return $$unwait(select, data.channels);',
     '    case "lock":',
     '      return answer($$lock(data.sid));',
     '    case "unlock":',
@@ -232,6 +232,25 @@ export const CHAN_HELPERS: Readonly<Record<ChanHelper, readonly string[]>> = {
     '  if (!select) return;',
     '  if (select.key === $$registry().key) $$unlock(select.sid);',
     '  else $$post(select.key, { op: "unlock", sid: select.sid });',
+    '}',
+  ],
+  timers: [
+    '// `after(ms)`: a channel that gets the time once, after `ms`. `tick(ms)`: one that gets it every',
+    '// `ms` until it is closed; a tick that finds the last one still there is dropped, as in Go.',
+    'function $$after(ms) {',
+    '  const channel = $$chan(1, 0);',
+    '  setTimeout(() => $$send(channel, Date.now()), ms);',
+    '  return channel;',
+    '}',
+    '',
+    'function $$tick(ms) {',
+    '  const channel = $$chan(1, 0);',
+    '  const timer = setInterval(() => {',
+    '    const state = $$registry().states.get(channel.$$chan);',
+    '    if (!state || state.closed) clearInterval(timer);',
+    '    else $$try(channel.$$chan, true, Date.now());',
+    '  }, ms);',
+    '  return channel;',
     '}',
   ],
 };

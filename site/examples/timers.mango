@@ -1,0 +1,47 @@
+// tick(ms) gets the time every ms until it is closed; cancel(task) stops a goroutine
+func countPrimes(limit number) number {
+    let count = 0
+    for let n = 2; n < limit; n++ {
+        let prime = true
+        for let d = 2; d * d <= n; d++ {
+            if n % d == 0 {
+                prime = false
+                break
+            }
+        }
+        if prime {
+            count++
+        }
+    }
+    return count
+}
+
+const ticks = tick(100)
+const done = chan<number>(1)
+const task = go async func() {
+    done <- countPrimes(100_000_000)
+}()
+const timeout = after(450)
+
+let waiting = true
+for waiting {
+    select {
+    case n = <-done:
+        console.log("primes:", n)
+        waiting = false
+    case <-ticks:
+        console.log("still counting")
+    case <-timeout:
+        // The worker stops at once, even in the middle of a loop
+        cancel(task)
+        console.log("too slow: cancelled")
+        waiting = false
+    }
+}
+close(ticks)
+
+try {
+    await task
+} catch e {
+    console.log(e.message)
+}

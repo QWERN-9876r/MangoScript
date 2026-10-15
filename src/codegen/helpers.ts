@@ -24,12 +24,23 @@ export type Helper =
   | 'element'
   | 'svgElement';
 
+/** Predeclared functions of goroutines and channels, by the helpers that define them. */
+export const PREDECLARED: Readonly<Record<string, Helper>> = {
+  close: 'chan',
+  transfer: 'threads',
+  after: 'timers',
+  tick: 'timers',
+  cancel: 'cancel',
+};
+
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
   go: ['threads'],
   goLocal: ['threads'],
   serve: ['threads'],
   chan: ['threads', 'select'],
+  timers: ['chan'],
+  cancel: ['threads'],
   select: ['chan'],
   owner: ['runDeferred'],
   mount: ['owner'],

@@ -26,6 +26,7 @@ export const THREAD_HELPERS: Readonly<Record<ThreadHelper, readonly string[]>> =
     '    asks: 0,',
     '    selects: new Map(),',
     '    moved: new WeakSet(),',
+    '    cancels: new WeakMap(),',
     '    handle: null,',
     '  });',
     '}',

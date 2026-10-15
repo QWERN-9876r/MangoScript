@@ -3,6 +3,7 @@ import { assignedNames } from '../names.ts';
 import { chanDirection, chanOf, elementOf, isChan } from './channel.ts';
 import { GoroutineChecker } from './goroutines.ts';
 import { isUntyped } from './helpers.ts';
+import { isPromise } from './promise.ts';
 import { BUFFERS } from './transfer.ts';
 import { BOOL, isNullable, nonNull, NUMBER, typeToString, type Type } from './types.ts';
 
@@ -60,7 +61,8 @@ export abstract class ChannelChecker extends GoroutineChecker {
   }
 
   // `close(ch)` takes any channel, but a channel is closed by its sender, so not a `<-chan T`;
-  // `transfer(x)` takes what postMessage can move: a buffer, or a view of one.
+  // `cancel(task)` takes the Promise of `go`; `transfer(x)` takes what postMessage can move: a
+  // buffer, or a view of one.
   protected override checkCall(
     node: ast.CallExpression,
     callee: Type,
@@ -79,6 +81,13 @@ export abstract class ChannelChecker extends GoroutineChecker {
     if (builtin === 'close' && isChan(type) && chanDirection(type) === 'receive') {
       this.error(
         `cannot close ${typeToString(type)}: it only receives, and a channel is closed by its sender`,
+        argument,
+      );
+    }
+
+    if (builtin === 'cancel' && !isUntyped(type) && !isPromise(type)) {
+      this.error(
+        `cancel() stops a goroutine: give it the Promise of "go", not ${typeToString(type)}, e.g. "const task = go work(x)" and "cancel(task)"`,
         argument,
       );
     }

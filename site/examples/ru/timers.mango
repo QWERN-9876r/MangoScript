@@ -1,0 +1,47 @@
+// tick(ms) присылает время каждые ms, пока его не закроют; cancel(task) останавливает горутину
+func countPrimes(limit number) number {
+    let count = 0
+    for let n = 2; n < limit; n++ {
+        let prime = true
+        for let d = 2; d * d <= n; d++ {
+            if n % d == 0 {
+                prime = false
+                break
+            }
+        }
+        if prime {
+            count++
+        }
+    }
+    return count
+}
+
+const ticks = tick(100)
+const done = chan<number>(1)
+const task = go async func() {
+    done <- countPrimes(100_000_000)
+}()
+const timeout = after(450)
+
+let waiting = true
+for waiting {
+    select {
+    case n = <-done:
+        console.log("простых:", n)
+        waiting = false
+    case <-ticks:
+        console.log("всё ещё считаем")
+    case <-timeout:
+        // Воркер останавливается сразу, даже посреди цикла
+        cancel(task)
+        console.log("слишком долго: отменено")
+        waiting = false
+    }
+}
+close(ticks)
+
+try {
+    await task
+} catch e {
+    console.log(e.message)
+}
