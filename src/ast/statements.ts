@@ -41,7 +41,8 @@ export type Statement =
   | EffectStatement
   | StyleStatement
   | DeleteStatement
-  | JsxElementStatement;
+  | JsxElementStatement
+  | SendStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
 export type SimpleStatement =
@@ -49,7 +50,15 @@ export type SimpleStatement =
   | ExpressionStatement
   | AssignmentStatement
   | IncDecStatement
-  | DeleteStatement;
+  | DeleteStatement
+  | SendStatement;
+
+/** `ch <- value`: waits until the channel takes the value, so only in async functions. */
+export interface SendStatement extends NodeBase {
+  kind: 'SendStatement';
+  channel: Expression;
+  value: Expression;
+}
 
 export interface BlockStatement extends NodeBase {
   kind: 'BlockStatement';

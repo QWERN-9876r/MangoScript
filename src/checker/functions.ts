@@ -49,6 +49,7 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       returns: [],
       isConstructor: options.isConstructor ?? false,
       isComponent: options.isComponent ?? false,
+      isAsync: async,
     };
     try {
       // A generic function: its type parameters are types in its body.

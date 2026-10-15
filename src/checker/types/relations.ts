@@ -96,6 +96,22 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
     }
 
     case 'object': {
+      // A channel both takes and gives values, so `chan number` is not a `chan ?number`, as in Go;
+      // `chan any` is any channel, for `close(ch)`.
+      if (target.instanceOf?.template.name === 'chan') {
+        const element = target.instanceOf.args[0]!;
+        const given =
+          source.kind === 'object' && source.instanceOf?.template === target.instanceOf.template
+            ? source.instanceOf.args[0]!
+            : null;
+
+        return (
+          given !== null &&
+          (element.kind === 'any' ||
+            (assignable(given, element, nested) && assignable(element, given, nested)))
+        );
+      }
+
       // A callable interface from a `.d.ts`: `interface Listener { (event: Event): void }`.
       if (target.call) {
         const call =

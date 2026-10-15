@@ -7,10 +7,10 @@ import { compileFile } from './compile-file.ts';
 // `mango run` imports this module first (`node --import`): Node then imports `.mango` files,
 // compiled when they load, and `app.mango?worker` is the worker module of `go` in app.mango. The
 // worker threads of `go` import it too, since they get the `--import` of the process; the main
-// thread has checked the types and printed the warnings already. MANGO_NO_CHECK turns type
-// checking off.
+// thread has printed the warnings already. They check the types again, since the code depends on
+// them (`for v in ch` over a channel). MANGO_NO_CHECK turns type checking off.
 
-const typeCheck = isMainThread && process.env['MANGO_NO_CHECK'] === undefined;
+const typeCheck = process.env['MANGO_NO_CHECK'] === undefined;
 
 registerHooks({
   load(url, context, nextLoad) {

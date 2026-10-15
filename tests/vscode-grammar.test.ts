@@ -215,6 +215,17 @@ describe('VS Code grammar', () => {
     expect(scopeOf('const n = task.await', 'await')).not.toBe('keyword.control.flow');
   });
 
+  it('colours channels', () => {
+    const source = 'async func f(jobs chan number) {\n    results <- <-jobs\n}';
+
+    expect(scopeOf(source, 'chan')).toBe('storage.type');
+    expect(scopesOf(source, '<-')).toEqual([
+      'keyword.operator.channel',
+      'keyword.operator.channel',
+    ]);
+    expect(scopeOf('const c = chan[number](10)', 'chan')).toBe('storage.type');
+  });
+
   it('colours go', () => {
     expect(scopeOf('const n = await go count(1, 2)', 'go')).toBe('keyword.control.flow');
     expect(scopeOf('go count(1, 2)', 'go')).toBe('keyword.control.flow');

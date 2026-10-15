@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import { ExpressionChecker } from './expressions.ts';
 import { withNarrowing } from './flow.ts';
 import { isUntyped, isNumeric, instanceTypeOf } from './helpers.ts';
+import { elementOf, isChan, received } from './channel.ts';
 import { awaited } from './promise.ts';
 import {
   ANY,
@@ -33,6 +34,14 @@ export abstract class OperatorChecker extends ExpressionChecker {
       // What the Promise gives; the results of an async function are unpacked from it.
       case 'await':
         return awaited(type);
+
+      case '<-':
+        if (isChan(type)) return received(elementOf(type));
+        if (!isUntyped(type)) {
+          this.error(`"<-" receives from a channel, not from ${typeToString(type)}`, node.argument);
+        }
+
+        return type.kind === 'any' ? ANY : UNKNOWN;
 
       case '!':
         this.expectBool(type, node.argument, '"!"');

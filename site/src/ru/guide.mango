@@ -17,6 +17,7 @@ export const SECTIONS []Section = [
     { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
     { id: "async", title: "Асинхронные функции", group: "Язык", content: Async },
     { id: "goroutines", title: "Горутины", group: "Язык", content: Goroutines },
+    { id: "channels", title: "Каналы", group: "Язык", content: Channels },
     { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
     { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
     { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
@@ -205,6 +206,20 @@ comp Goroutines() {
             Компилятор проверяет и то, и другое.
         </p>
         {example("goroutines")}
+    </>
+}
+
+comp Channels() {
+    return <>
+        <p>
+            Каналы передают значения между горутинами, как в Go: <code>chan[number](10)</code>
+            создаёт канал с местом на десять чисел, <code>{"ch <- v"}</code> отправляет значение и
+            ждёт, пока канал его примет, <code>{"<-ch"}</code> получает значение, а
+            {" "}<code>for v in ch</code> получает их до <code>close(ch)</code>. Обе стороны ждут,
+            поэтому работают в async-функциях. Канал можно передать горутинам в разных воркерах:
+            то, что через него проходит, копируется.
+        </p>
+        {example("channels")}
     </>
 }
 

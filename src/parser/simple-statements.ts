@@ -6,6 +6,18 @@ import { isAssignmentOperator, describe, plural } from './syntax.ts';
 // and calls.
 
 export abstract class SimpleStatementParser extends ParserBase {
+  /** `await`, `<-ch` and `ch <- v` wait: only in async functions and at the top level. */
+  protected requireAsync(what: string, start: number, end: number): void {
+    if (this.context.inAsync) return;
+    this.error(
+      this.context.inDefer
+        ? `"${what}" is not allowed inside "defer": deferred code runs when the function ends`
+        : `"${what}" is allowed only in async functions and at the top level of a module; mark the function, e.g. "async func load() { ... }"`,
+      start,
+      end,
+    );
+  }
+
   /** `x := 1` is a common habit from Go. */
   protected rejectColonEquals(): void {
     const colon = this.peek();
@@ -58,6 +70,17 @@ export abstract class SimpleStatementParser extends ParserBase {
       return { kind: 'AssignmentStatement', operator, targets, values, ...this.span(start) };
     }
 
+    // `ch <- value`: the value goes into the channel.
+    if (this.check('<-')) {
+      const arrow = this.next();
+
+      this.requireAsync('<-', arrow.start, arrow.end);
+
+      const value = this.parseExpression();
+
+      return { kind: 'SendStatement', channel: first, value, ...this.span(start) };
+    }
+
     if (this.check('++') || this.check('--')) {
       const operator = this.next().kind === '++' ? '++' : '--';
 
@@ -83,12 +106,15 @@ export abstract class SimpleStatementParser extends ParserBase {
 
   /**
    * `a, b = 1, 2, 3`: the counts must match, unless a single call returns all the values, or
-   * `await` of a call or of `go` gives them.
+   * `await` of a call or of `go` gives them. `v, ok = <-ch` tells whether the channel is closed.
    */
   protected checkArity(targets: number, values: ast.Expression[], start: number): void {
     if (values.length === 0 || values.length === targets) return;
 
     const [value] = values;
+
+    if (targets === 2 && value?.kind === 'UnaryExpression' && value.operator === '<-') return;
+
     const awaited =
       value?.kind === 'UnaryExpression' && value.operator === 'await' ? value.argument : value;
     const call = awaited?.kind === 'GoExpression' ? awaited.call : awaited;

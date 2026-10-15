@@ -69,7 +69,7 @@ const point = {
 ```
 func  comp  return  let  const  type  interface  class  extends  new  this  super
 if  else  for  in  break  continue  switch  case  default  defer
-try  catch  finally  throw  import  export  async  await  go
+try  catch  finally  throw  import  export  async  await  go  chan
 null  true  false  typeof  instanceof
 ```
 
@@ -85,7 +85,7 @@ After `.` and in object keys, keywords can be used as ordinary names: `xs.map(f)
 `{ default: 1 }`.
 
 Predeclared identifiers (not keywords, they can be redeclared): the types `number`, `string`,
-`bool`, `any`, `error` and the function `error()`.
+`bool`, `any`, `error` and the functions `error()` and `close()` (of channels).
 
 Names that start with `$$` are reserved for generated code (`$$defer`, `$$0`). Names that are valid
 in MangoScript but not in JS (`delete`, `static`, `function`…) get a `$` suffix in the output:
@@ -559,6 +559,57 @@ calls run at once, on different processors, and the program goes on without wait
 
 The worker module goes next to the module: `mango build app.mango` writes `app.js` and
 `app.worker.js`, and `mango run` compiles it on the fly.
+
+### Channels
+
+```go
+async func worker(jobs chan number, results chan number) {
+    for n in jobs {
+        results <- n * n
+    }
+}
+
+const jobs = chan[number](10)          // room for 10 values
+const results = chan[number]()          // no room: a send waits for a receiver
+go worker(jobs, results)
+go worker(jobs, results)
+for let n = 1; n <= 4; n++ {
+    jobs <- n
+}
+close(jobs)
+for let i = 0; i < 4; i++ {
+    console.log(<-results)
+}
+```
+
+```js
+const jobs = $$chan(10, 0);
+const results = $$chan(0, 0);
+// ...
+await $$send(jobs, n);
+// ...
+console.log(await $$receive(results));
+```
+
+Channels pass values between goroutines, as in Go. `chan T` is the type of a channel of `T`, and
+`chan[T](size)` makes one with room for `size` values; `chan[T]()` has none.
+
+- **`ch <- v` sends a value** and waits until the channel takes it: while the channel has room,
+  at once, and otherwise until a receiver comes. **`<-ch` receives a value**, waiting until there
+  is one. Both wait, so they are allowed where `await` is, in async functions and at the top
+  level of a module, and compile to `await`.
+- **`for v in ch`** receives values until the channel is closed and empty.
+- **`close(ch)`** closes the channel: nothing more goes in, and a send to a closed channel or a
+  second `close` throws. A closed, empty channel gives the zero value of its type at once, as in
+  Go, and `const v, ok = <-ch` tells it: `ok` is `false`. A type without a zero value (an
+  interface, a class) gives `null`, so `<-ch` of a `chan Point` is a `?Point`.
+- **Between threads:** a channel goes to a worker as its id, so goroutines in different workers
+  and the main thread share it, and what goes through it between threads is copied. So `go`
+  checks that the values of a channel can be copied, as it does for arguments. Within one thread
+  a value is passed itself. The main thread keeps what channels hold; a worker asks it for each
+  operation.
+- `chan number` is not a `chan ?number`: a channel both takes and gives values, so the types must
+  be the same.
 
 ## 5. Conditions and loops
 

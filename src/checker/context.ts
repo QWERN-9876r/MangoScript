@@ -180,6 +180,8 @@ export interface FunctionContext {
   isConstructor: boolean;
   /** The body of a component: every `return` gives markup. */
   isComponent?: boolean;
+  /** An async function, which may wait: `await`, `<-ch`, `for v in ch`. */
+  isAsync?: boolean;
 }
 
 export interface ClassContext {

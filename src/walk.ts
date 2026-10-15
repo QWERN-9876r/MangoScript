@@ -112,6 +112,16 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       visit(node.target);
       break;
 
+    case 'SendStatement':
+      visit(node.channel);
+      visit(node.value);
+      break;
+
+    case 'ChanExpression':
+      visit(node.element);
+      optional(node.size);
+      break;
+
     case 'ReturnStatement':
       each(node.values);
       break;
@@ -289,6 +299,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       break;
 
     case 'ArrayType':
+    case 'ChanType':
       visit(node.element);
       break;
 

@@ -237,7 +237,7 @@
         },
         {
           "name": "storage.type.mango",
-          "match": "(?<![\\w$])(?<![^.]\\.)(?:let|const|type|interface|class)(?![\\w$])"
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:let|const|type|interface|class|chan)(?![\\w$])"
         },
         {
           "name": "storage.modifier.mango",
@@ -373,6 +373,7 @@
           "name": "keyword.operator.assignment.compound.mango",
           "match": "\\*\\*=|<<=|>>>=|>>=|&&=|\\|\\|=|\\?\\?=|[-+*/%&|^]="
         },
+        { "name": "keyword.operator.channel.mango", "match": "<-" },
         { "name": "keyword.operator.comparison.mango", "match": "===|!==|==|!=|<=|>=|<|>" },
         { "name": "keyword.operator.logical.mango", "match": "&&|\\|\\||\\?\\?|!" },
         { "name": "keyword.operator.increment.mango", "match": "\\+\\+|--" },

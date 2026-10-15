@@ -28,7 +28,15 @@ export type Expression =
   | DecoratorMember
   | DecoratorGet
   | AsExpression
-  | GoExpression;
+  | GoExpression
+  | ChanExpression;
+
+/** `chan[number](10)`: a new channel with room for 10 values; `chan[number]()` has none. */
+export interface ChanExpression extends NodeBase {
+  kind: 'ChanExpression';
+  element: TypeNode;
+  size: Expression | null;
+}
 
 /**
  * `go work(x)`: calls a function of the module in a worker, with copies of the arguments. As an
@@ -148,8 +156,11 @@ export interface ArrowFunction extends NodeBase {
   body: BlockStatement | Expression;
 }
 
-/** `await` is allowed only in async functions and at the top level of a module. */
-export type UnaryOperator = '!' | '-' | '+' | '~' | 'typeof' | 'await';
+/**
+ * `await` and `<-ch`, the receive from a channel, are allowed only in async functions and at the
+ * top level of a module.
+ */
+export type UnaryOperator = '!' | '-' | '+' | '~' | 'typeof' | 'await' | '<-';
 
 export interface UnaryExpression extends NodeBase {
   kind: 'UnaryExpression';

@@ -102,14 +102,8 @@ export abstract class ExpressionParser extends TypeParser {
     if (isUnaryOperator(token.kind)) {
       const operator = token.kind;
 
-      if (operator === 'await' && !this.context.inAsync) {
-        this.error(
-          this.context.inDefer
-            ? '"await" is not allowed inside "defer": deferred code runs when the function ends'
-            : '"await" is allowed only in async functions and at the top level of a module; mark the function, e.g. "async func load() { ... }"',
-          token.start,
-          token.end,
-        );
+      if (operator === 'await' || operator === '<-') {
+        this.requireAsync(operator, token.start, token.end);
       }
 
       this.next();
@@ -275,6 +269,23 @@ export abstract class ExpressionParser extends TypeParser {
 
       case 'func':
         return this.parseFuncExpression();
+
+      // `chan[number](10)`: a new channel.
+      case 'chan': {
+        this.next();
+        this.expect('[', '"[": a channel is made as chan[T](size), e.g. chan[number](10)');
+
+        const element = this.parseType();
+
+        this.expect(']');
+        this.expect('(');
+
+        const size = this.check(')') ? null : this.nested(() => this.parseExpression());
+
+        this.expect(')');
+
+        return { kind: 'ChanExpression', element, size, ...this.span(start) };
+      }
 
       case 'async': {
         this.next();

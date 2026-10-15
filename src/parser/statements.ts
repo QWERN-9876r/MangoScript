@@ -144,7 +144,10 @@ export abstract class StatementParser extends SimpleStatementParser {
     if (statement.kind === 'ExpressionStatement') {
       const { expression } = statement;
 
-      const awaited = expression.kind === 'UnaryExpression' && expression.operator === 'await';
+      // `await save()` and `<-done` wait for something.
+      const awaited =
+        expression.kind === 'UnaryExpression' &&
+        (expression.operator === 'await' || expression.operator === '<-');
       const call =
         expression.kind === 'CallExpression' ||
         expression.kind === 'NewExpression' ||

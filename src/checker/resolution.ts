@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { chanOf } from './channel.ts';
 import { ClassChecker } from './classes.ts';
 import type { AliasEntry } from './context.ts';
 import { CONTENT } from './dom.ts';
@@ -31,6 +32,9 @@ export abstract class TypeResolver extends ClassChecker {
 
       case 'ArrayType':
         return arrayOf(this.resolveType(node.element));
+
+      case 'ChanType':
+        return chanOf(this.resolveType(node.element));
 
       case 'NullableType':
         return nullable(this.resolveType(node.type));

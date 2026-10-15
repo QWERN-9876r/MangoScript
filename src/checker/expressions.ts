@@ -33,6 +33,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
   /** `go work(x)`: a Promise of the result; implemented by GoroutineChecker. */
   protected abstract checkGo(node: ast.GoExpression): Type;
 
+  /** `chan[number](10)`; implemented by ChannelChecker. */
+  protected abstract checkChan(node: ast.ChanExpression): Type;
+
   /** The type of an expression that must be a single value (not `void` or several results). */
   protected override checkValue(node: ast.Expression, expected: Type | null = null): Type {
     return this.single(this.checkExpression(node, expected), node);
@@ -121,6 +124,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
       case 'GoExpression':
         return this.checkGo(node);
+
+      case 'ChanExpression':
+        return this.checkChan(node);
 
       case 'NewExpression':
         return this.checkNew(node, expected);

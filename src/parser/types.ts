@@ -20,6 +20,7 @@ export abstract class TypeParser extends ClassParser {
       case '?':
       case 'func':
       case 'comp':
+      case 'chan':
       case '{':
       case '(':
       case 'String':
@@ -95,6 +96,14 @@ export abstract class TypeParser extends ClassParser {
         return { kind: 'FuncType', params, results, ...this.span(start) };
       }
 
+      case 'chan': {
+        this.next();
+
+        const element = this.parsePrimaryType();
+
+        return { kind: 'ChanType', element, ...this.span(start) };
+      }
+
       // `comp(title string)`: the names are those of the attributes, so they are required.
       case 'comp': {
         this.next();
@@ -168,6 +177,7 @@ export abstract class TypeParser extends ClassParser {
       case '{':
       case '(':
       case 'func':
+      case 'chan':
       case 'String':
       case 'Number':
         return true;

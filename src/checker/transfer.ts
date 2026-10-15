@@ -5,6 +5,8 @@ import { memberNames, typeToString, type Type } from './types.ts';
 
 /** Built-in types whose copies are whole: their type arguments are checked, not their members. */
 const COPIED = new Set([
+  // A channel is copied as its id: what goes through it is copied too.
+  'chan',
   'Map',
   'Set',
   'Date',

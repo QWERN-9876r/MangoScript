@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import { isUntyped, countValues, callName, isCall } from './helpers.ts';
 import { InitializerChecker } from './initializers.ts';
 import {
+  BOOL,
   ANY,
   isAssignable,
   isNullable,
@@ -28,6 +29,13 @@ export abstract class AssignmentChecker extends InitializerChecker {
     const type = this.checkExpression(value, null);
 
     if (type.kind === 'unknown') return Array<Type>(count).fill(UNKNOWN);
+
+    // `v, ok = <-ch`: ok is false once the channel is closed and empty.
+    if (count === 2 && value.kind === 'UnaryExpression' && value.operator === '<-') {
+      if (declared) this.expectAssignable(type, declared, value);
+
+      return declared ? [declared, BOOL] : [type, BOOL];
+    }
 
     const returned = type.kind === 'tuple' ? type.types.length : type.kind === 'void' ? 0 : 1;
 

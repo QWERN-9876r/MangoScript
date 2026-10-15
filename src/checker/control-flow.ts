@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { assignedNames } from '../names.ts';
+import { elementOf, isChan } from './channel.ts';
 import { type Binding, type Flow, type Narrowing, NARROWABLE } from './context.ts';
 import {
   narrowByTypeof,
@@ -95,6 +96,17 @@ export abstract class ControlFlowChecker extends StatementChecker {
       this.nullError(node.iterable);
     } else if (iterable.kind === 'array') {
       value = iterable.element;
+    } else if (isChan(iterable)) {
+      // Each value waits for the channel, until it is closed.
+      value = elementOf(iterable);
+      if (this.fn && !this.fn.isAsync) {
+        this.error(
+          '"for ... in" a channel waits for its values, so it is allowed only in async functions and at the top level of a module',
+          node.iterable,
+        );
+      }
+
+      if (node.key) this.error('a channel has no keys: write "for value in ch"', node.key);
     } else if (iterable.kind === 'string') {
       value = STRING;
     } else if (iterable.kind === 'any') {

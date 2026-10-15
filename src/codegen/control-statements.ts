@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { isChan } from '../checker/channel.ts';
 import { containsBreak } from '../walk.ts';
 import { declarationsOf, endsWithJump, type BindingKind } from './analysis.ts';
 import { SimpleStatementEmitter } from './simple-statements.ts';
@@ -67,6 +68,11 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
 
       case 'ExpressionStatement':
         return this.expression(node.expression, 0);
+
+      case 'SendStatement':
+        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+
+        return `await $$send(${this.expression(node.channel, ARROW)}, ${this.expression(node.value, ARROW)})`;
     }
   }
 
@@ -77,7 +83,18 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
     if (node.key) bindings.push([node.key.name, 'loop']);
     this.withScope(bindings, () => {
       const value = this.name(node.value.name);
+      const iterable = this.options.types?.get(node.iterable);
       let head: string;
+
+      // A channel gives its values as they come, until it is closed.
+      if (iterable && isChan(iterable)) {
+        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+        this.line(
+          `for await (const ${value} of $$range(${this.expression(node.iterable, ARROW)})) ${this.loopBody(node.body)}`,
+        );
+
+        return;
+      }
 
       if (node.key === null) {
         head = `const ${value} of ${this.expression(node.iterable, ARROW)}`;

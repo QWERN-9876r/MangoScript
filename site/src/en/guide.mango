@@ -17,6 +17,7 @@ export const SECTIONS []Section = [
     { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
     { id: "async", title: "Async functions", group: "Language", content: Async },
     { id: "goroutines", title: "Goroutines", group: "Language", content: Goroutines },
+    { id: "channels", title: "Channels", group: "Language", content: Channels },
     { id: "control", title: "Conditions and loops", group: "Language", content: Control },
     { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
     { id: "generics", title: "Generics", group: "Language", content: Generics },
@@ -202,6 +203,20 @@ comp Goroutines() {
             compiler checks both.
         </p>
         {example("goroutines")}
+    </>
+}
+
+comp Channels() {
+    return <>
+        <p>
+            Channels pass values between goroutines, as in Go: <code>chan[number](10)</code> makes a
+            channel with room for ten numbers, <code>{"ch <- v"}</code> sends a value and waits
+            until the channel takes it, <code>{"<-ch"}</code> receives one, and
+            {" "}<code>for v in ch</code> receives them until <code>close(ch)</code>. Both ends
+            wait, so they work in async functions. A channel can go to goroutines in different
+            workers: what passes through it is copied.
+        </p>
+        {example("channels")}
     </>
 }
 

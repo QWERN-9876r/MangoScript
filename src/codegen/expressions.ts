@@ -18,6 +18,26 @@ export abstract class ExpressionEmitter extends Emitter {
   /** Whether an arrow function's expression body changes component state; see ElementEmitter. */
   protected abstract changesState(body: ast.Expression): boolean;
 
+  /** Go-style zero value of a type, or `null`; implemented by SimpleStatementEmitter. */
+  protected abstract zeroValue(type: ast.TypeNode): string | null;
+
+  /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
+  protected readonly commaOk = new WeakSet<ast.Expression>();
+
+  /** In the worker module, `go` and channels go through the main thread (go-helpers.ts). */
+  protected get inWorker(): boolean {
+    return this.options.goroutines !== undefined && 'targets' in this.options.goroutines;
+  }
+
+  /** `v, ok = <-ch`: two variables from a single receive. */
+  protected markCommaOk(count: number, values: readonly ast.Expression[]): void {
+    const [value] = values;
+
+    if (count === 2 && values.length === 1 && value?.kind === 'UnaryExpression') {
+      if (value.operator === '<-') this.commaOk.add(value);
+    }
+  }
+
   /** The expression, in parentheses if it binds weaker than `minPrecedence`. */
   protected expression(node: ast.Expression, minPrecedence: number, forceParens = false): string {
     const [text, precedence] = this.expressionWithPrecedence(node);
@@ -64,6 +84,13 @@ export abstract class ExpressionEmitter extends Emitter {
         // A component as a value is its function.
         if (component) {
           return [this.functionNames.get(component) ?? `$$${component.name.name}`, PRIMARY];
+        }
+
+        // `close(ch)` is predeclared too; JS has a `close` of its own, the window's.
+        if (node.name === 'close' && this.lookup('close') === undefined) {
+          this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+
+          return ['$$close', PRIMARY];
         }
 
         // The predeclared `error` used as a value is JS's `Error`, which also works without `new`.
@@ -116,15 +143,22 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'ArrowFunction':
         return [this.arrowFunction(node), ARROW];
 
+      // `chan[number](10)`: the channel keeps the zero value that a closed one gives.
+      case 'ChanExpression': {
+        const size = node.size ? this.expression(node.size, ARROW) : '0';
+
+        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+
+        return [`$$chan(${size}, ${this.zeroValue(node.element) ?? 'null'})`, POSTFIX];
+      }
+
       // The worker module has the function under the same name; the arguments are copied there.
       case 'GoExpression': {
         const { callee } = node.call;
         // Without type checking, a callee that is not a name fails when the call runs.
         const name = callee.kind === 'Identifier' ? this.name(callee.name) : null;
 
-        this.helpers.add(
-          this.options.goroutines && 'targets' in this.options.goroutines ? 'goLocal' : 'go',
-        );
+        this.helpers.add(this.inWorker ? 'goLocal' : 'go');
 
         return [`$$go(${JSON.stringify(name)}, [${this.elements(node.call.arguments)}])`, POSTFIX];
       }
@@ -280,6 +314,14 @@ export abstract class ExpressionEmitter extends Emitter {
   }
 
   private unary(node: ast.UnaryExpression): string {
+    if (node.operator === '<-') {
+      this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+
+      const channel = this.expression(node.argument, ARROW);
+
+      return `await $$receive(${channel}${this.commaOk.has(node) ? ', true' : ''})`;
+    }
+
     const argument = this.expression(node.argument, UNARY);
 
     if (node.operator === 'typeof' || node.operator === 'await') {

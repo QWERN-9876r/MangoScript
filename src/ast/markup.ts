@@ -111,7 +111,14 @@ export type TypeNode =
   | ComponentType
   | ObjectType
   | UnionType
-  | LiteralType;
+  | LiteralType
+  | ChanType;
+
+/** `chan number`: a channel of numbers, made by `chan[number](size)`. */
+export interface ChanType extends NodeBase {
+  kind: 'ChanType';
+  element: TypeNode;
+}
 
 /** A named type: `number`, `User`, `Point`, `Box[number]`. */
 export interface TypeReference extends NodeBase {

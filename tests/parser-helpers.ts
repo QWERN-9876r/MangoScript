@@ -46,6 +46,9 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
     case 'GoExpression':
       return `(go ${sx(node.call)})`;
 
+    case 'ChanExpression':
+      return `(chan ${ty(node.element)}${node.size ? ` ${sx(node.size)}` : ''})`;
+
     case 'NumberLiteral':
     case 'StringLiteral':
       return node.raw;
@@ -138,6 +141,9 @@ export function ty(node: ast.TypeNode): string {
 
     case 'ArrayType':
       return `[]${ty(node.element)}`;
+
+    case 'ChanType':
+      return `chan ${ty(node.element)}`;
 
     case 'NullableType':
       return `?${ty(node.type)}`;

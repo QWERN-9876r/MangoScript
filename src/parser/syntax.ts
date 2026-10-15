@@ -36,6 +36,7 @@ export const UNARY_OPERATORS: ReadonlySet<string> = new Set<ast.UnaryOperator>([
   '~',
   'typeof',
   'await',
+  '<-',
 ]);
 
 export const ASSIGNMENT_OPERATORS: ReadonlySet<string> = new Set<ast.AssignmentOperator>([

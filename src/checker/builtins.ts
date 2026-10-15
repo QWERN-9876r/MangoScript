@@ -1,5 +1,6 @@
 import { DOM_TYPES, EVENT } from './dom.ts';
 import { SVG_TYPES } from './dom-svg.ts';
+import { chanOf } from './channel.ts';
 import { PROMISE } from './promise.ts';
 import {
   ANY,
@@ -342,6 +343,8 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['Error', ERROR_CLASS.value],
   // `error("message")` creates an Error, so the result is never null.
   ['error', func([STRING], [ERROR_CLASS.instance])],
+  // `close(ch)`: the channel takes no more values.
+  ['close', func([chanOf(ANY)], [])],
   ...UNTYPED_GLOBALS.map((name): [string, Type] => [name, ANY]),
 ]);
 

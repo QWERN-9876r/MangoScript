@@ -201,6 +201,15 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
         this.deferStatement(node);
         break;
 
+      // Waits until the channel takes the value.
+      case 'SendStatement': {
+        const channel = this.expression(node.channel, ARROW);
+
+        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+        this.line(`await $$send(${channel}, ${this.expression(node.value, ARROW)});`);
+        break;
+      }
+
       case 'MountStatement':
         this.mountStatement(node);
         break;
@@ -228,6 +237,8 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       return `${keyword} ${names.map((name) => (zero === null ? name : `${name} = ${zero}`)).join(', ')}`;
     }
 
+    this.markCommaOk(node.names.length, node.values);
+
     const values = node.values.map((value) => this.expression(value, ARROW));
     const skips = node.names.some((name) => name.name === '_');
 
@@ -244,7 +255,7 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
   }
 
   /** Go-style zero value of a type, or `null` for types without one. */
-  protected zeroValue(type: ast.TypeNode, seen = new Set<string>()): string | null {
+  protected override zeroValue(type: ast.TypeNode, seen = new Set<string>()): string | null {
     switch (type.kind) {
       case 'NullableType':
         return 'null';
@@ -254,6 +265,7 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
 
       case 'FuncType':
       case 'ComponentType':
+      case 'ChanType':
       case 'ObjectType':
       case 'UnionType':
       case 'LiteralType':
@@ -295,6 +307,8 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
 
       return `[${node.values.map((value) => this.expression(value, ARROW)).join(', ')}]`;
     }
+
+    this.markCommaOk(node.targets.length, node.values);
 
     const values = node.values.map((value) => this.expression(value, ARROW));
 

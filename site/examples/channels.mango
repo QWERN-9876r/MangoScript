@@ -1,0 +1,26 @@
+// A channel passes values between goroutines: ch <- v sends, <-ch receives
+async func worker(id number, jobs chan number, results chan string) {
+    // for ... in a channel receives until it is closed
+    for n in jobs {
+        results <- `worker ${id}: ${n}² = ${n * n}`
+    }
+}
+
+const jobs = chan[number](10) // room for 10 values
+const results = chan[string]() // no room: a send waits for a receiver
+
+go worker(1, jobs, results)
+go worker(2, jobs, results)
+
+for let n = 1; n <= 6; n++ {
+    jobs <- n
+}
+close(jobs)
+
+for let i = 0; i < 6; i++ {
+    console.log(<-results)
+}
+
+// A closed, empty channel gives the zero value, and ok tells it
+const n, ok = <-jobs
+console.log("after close:", n, ok)

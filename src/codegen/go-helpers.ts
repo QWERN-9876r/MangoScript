@@ -18,6 +18,7 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
    * Up to one worker per processor, started when needed. A call goes to an idle worker, or to a new
    * one, or else to the one with the fewest calls: a worker runs several of them at once while
    * they wait. Until a worker has started, the calls wait for it with copies of their arguments.
+   * The operations of channels in a worker come here too (chan-helpers.ts).
    */
   pool: [
     'function $$pool(start) {',
@@ -33,7 +34,22 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '      call.reject(error);',
     '    }',
     '  };',
+    '  const answer = (thread, { op, channel, value, request }) => {',
+    '    const reply = (result) => thread.postMessage({ request, ...result });',
+    '    try {',
+    '      const done =',
+    '        op === "send"',
+    '          ? $$send(channel, value)',
+    '          : op === "receive"',
+    '            ? $$receive(channel, true)',
+    '            : $$close(channel);',
+    '      Promise.resolve(done).then((value) => reply({ value }), (error) => reply({ error }));',
+    '    } catch (error) {',
+    '      reply({ error });',
+    '    }',
+    '  };',
     '  const receive = (worker, { id, ...result }) => {',
+    '    if ("op" in result) return answer(worker.thread, result);',
     '    const call = calls.get(id);',
     '    if (!call) return;',
     '    calls.delete(id);',
@@ -85,15 +101,38 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '  return Promise.resolve().then(() => $$goroutines[name](...copies));',
     '}',
   ],
-  /** The worker: runs the calls that the pool sends and sends back their results or errors. */
+  /**
+   * The worker: runs the calls that the pool sends and sends back their results or errors; and
+   * asks the main thread for the operations of channels, $$ask.
+   */
   serve: [
+    'let $$port;',
+    'const $$asked = new Map();',
+    'let $$asks = 0;',
+    '',
+    'function $$ask(op, channel, value) {',
+    '  return new Promise((resolve, reject) => {',
+    '    const request = $$asks++;',
+    '    $$asked.set(request, { resolve, reject });',
+    '    $$port.postMessage({ op, channel, value, request });',
+    '  });',
+    '}',
+    '',
     'async function $$serve(functions) {',
     '  const threads = "node:worker_threads";',
     '  const port =',
     '    typeof postMessage === "function"',
     '      ? globalThis',
     '      : (await import(/* @vite-ignore */ threads)).parentPort;',
-    '  const receive = async ({ id, name, args }) => {',
+    '  $$port = port;',
+    '  const receive = async ({ id, name, args, ...reply }) => {',
+    '    if ("request" in reply) {',
+    '      const asked = $$asked.get(reply.request);',
+    '      $$asked.delete(reply.request);',
+    '      if ("error" in reply) asked.reject(reply.error);',
+    '      else asked.resolve(reply.value);',
+    '      return;',
+    '    }',
     '    try {',
     '      port.postMessage({ id, value: await functions[name](...args) });',
     '    } catch (error) {',

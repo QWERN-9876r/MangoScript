@@ -113,6 +113,8 @@ function anonymousParameters(type: FunctionType): string {
 function objectType(type: ObjectType): string {
   // The children of a component are a fragment at runtime.
   if (type === CONTENT) return 'Node';
+  // A channel is an object with its id; TypeScript code only passes it on.
+  if (type.name === 'chan') return `{ readonly $$chan: string }`;
   if (type.name !== null) {
     const args = type.instanceOf?.args ?? type.typeParams;
 

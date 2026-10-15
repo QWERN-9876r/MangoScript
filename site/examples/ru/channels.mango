@@ -1,0 +1,26 @@
+// Канал передаёт значения между горутинами: ch <- v отправляет, <-ch получает
+async func worker(id number, jobs chan number, results chan string) {
+    // for ... in по каналу получает значения, пока его не закроют
+    for n in jobs {
+        results <- `воркер ${id}: ${n}² = ${n * n}`
+    }
+}
+
+const jobs = chan[number](10) // место на 10 значений
+const results = chan[string]() // без места: отправка ждёт получателя
+
+go worker(1, jobs, results)
+go worker(2, jobs, results)
+
+for let n = 1; n <= 6; n++ {
+    jobs <- n
+}
+close(jobs)
+
+for let i = 0; i < 6; i++ {
+    console.log(<-results)
+}
+
+// Закрытый пустой канал даёт нулевое значение, а ok это показывает
+const n, ok = <-jobs
+console.log("после close:", n, ok)

@@ -1,10 +1,12 @@
+import { CHAN_HELPERS, type ChanHelper } from './chan-helpers.ts';
 import { GO_HELPERS, type GoHelper } from './go-helpers.ts';
 
-// Small functions that a module gets only when its code needs them; those of `go` are in
-// go-helpers.ts.
+// Small functions that a module gets only when its code needs them; those of `go` and of channels
+// are in go-helpers.ts and chan-helpers.ts.
 
 export type Helper =
   | GoHelper
+  | ChanHelper
   | 'runDeferred'
   | 'append'
   | 'attribute'
@@ -21,6 +23,8 @@ export type Helper =
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
   go: ['pool'],
+  pool: ['chan'],
+  chanWorker: ['serve'],
   owner: ['runDeferred'],
   mount: ['owner'],
   content: ['owner'],
@@ -31,6 +35,7 @@ export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> 
 
 export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   ...GO_HELPERS,
+  ...CHAN_HELPERS,
   /** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
   runDeferred: [
     'function $$runDeferred(deferred) {',

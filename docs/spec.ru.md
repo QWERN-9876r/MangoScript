@@ -70,7 +70,7 @@ const point = {
 ```
 func  comp  return  let  const  type  interface  class  extends  new  this  super
 if  else  for  in  break  continue  switch  case  default  defer
-try  catch  finally  throw  import  export  async  await  go
+try  catch  finally  throw  import  export  async  await  go  chan
 null  true  false  typeof  instanceof
 ```
 
@@ -86,7 +86,7 @@ null  true  false  typeof  instanceof
 `xs.map(f)`, `event.type`, `{ default: 1 }`.
 
 Предопределённые идентификаторы (не ключевые слова, их можно перекрыть): типы `number`, `string`,
-`bool`, `any`, `error` и функция `error()`.
+`bool`, `any`, `error` и функции `error()` и `close()` (каналов).
 
 Имена, которые начинаются с `$$`, зарезервированы за сгенерированным кодом (`$$defer`, `$$0`).
 Имена, допустимые в MangoScript, но запрещённые в JS (`delete`, `static`, `function`…), в
@@ -557,6 +557,57 @@ $$go("countPrimes", [0, 100]);
 
 Модуль воркера лежит рядом с модулем: `mango build app.mango` пишет `app.js` и `app.worker.js`, а
 `mango run` компилирует его на лету.
+
+### Каналы
+
+```go
+async func worker(jobs chan number, results chan number) {
+    for n in jobs {
+        results <- n * n
+    }
+}
+
+const jobs = chan[number](10)          // место на 10 значений
+const results = chan[number]()          // без места: отправка ждёт получателя
+go worker(jobs, results)
+go worker(jobs, results)
+for let n = 1; n <= 4; n++ {
+    jobs <- n
+}
+close(jobs)
+for let i = 0; i < 4; i++ {
+    console.log(<-results)
+}
+```
+
+```js
+const jobs = $$chan(10, 0);
+const results = $$chan(0, 0);
+// ...
+await $$send(jobs, n);
+// ...
+console.log(await $$receive(results));
+```
+
+Каналы передают значения между горутинами, как в Go. `chan T` — тип канала значений `T`, а
+`chan[T](size)` создаёт канал с местом на `size` значений; у `chan[T]()` места нет.
+
+- **`ch <- v` отправляет значение** и ждёт, пока канал его примет: пока в канале есть место —
+  сразу, иначе — пока не придёт получатель. **`<-ch` получает значение**, дожидаясь его. Обе
+  операции ждут, поэтому они разрешены там же, где `await`, — в async-функциях и на верхнем
+  уровне модуля — и компилируются в `await`.
+- **`for v in ch`** получает значения, пока канал не закрыт и не пуст.
+- **`close(ch)`** закрывает канал: больше в него ничего не попадёт, а отправка в закрытый канал
+  и повторный `close` бросают исключение. Закрытый пустой канал сразу даёт нулевое значение своего
+  типа, как в Go, а `const v, ok = <-ch` это показывает: `ok` равно `false`. Тип без нулевого
+  значения (интерфейс, класс) даёт `null`, поэтому `<-ch` у `chan Point` имеет тип `?Point`.
+- **Между потоками:** канал попадает в воркер как свой id, поэтому горутины в разных воркерах и
+  главный поток пользуются одним каналом, а то, что проходит через него между потоками,
+  копируется. Поэтому `go` проверяет, что значения канала можно скопировать, как и аргументы. В
+  одном потоке передаётся само значение. Содержимое каналов хранит главный поток; воркер
+  обращается к нему при каждой операции.
+- `chan number` — это не `chan ?number`: канал и принимает, и отдаёт значения, поэтому типы
+  должны совпадать.
 
 ## 5. Условия и циклы
 
