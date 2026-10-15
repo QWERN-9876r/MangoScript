@@ -70,7 +70,7 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
         return this.expression(node.expression, 0);
 
       case 'SendStatement':
-        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+        this.helpers.add('chan');
 
         return `await $$send(${this.expression(node.channel, ARROW)}, ${this.expression(node.value, ARROW)})`;
     }
@@ -88,7 +88,7 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
 
       // A channel gives its values as they come, until it is closed.
       if (iterable && isChan(iterable)) {
-        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+        this.helpers.add('chan');
         this.line(
           `for await (const ${value} of $$range(${this.expression(node.iterable, ARROW)})) ${this.loopBody(node.body)}`,
         );
@@ -154,7 +154,7 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
    * switch runs the case; a `break` inside it leaves the select, as in Go. `default` is -1.
    */
   protected override selectStatement(node: ast.SelectStatement): void {
-    this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+    this.helpers.add('chan');
 
     const operations = node.cases.flatMap(({ operation }) => {
       if (operation === null) return [];

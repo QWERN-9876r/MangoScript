@@ -24,7 +24,7 @@ export abstract class ExpressionEmitter extends Emitter {
   /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
   protected readonly commaOk = new WeakSet<ast.Expression>();
 
-  /** In the worker module, `go` and channels go through the main thread (go-helpers.ts). */
+  /** In the worker module, `go` runs in the same worker (go-helpers.ts). */
   protected get inWorker(): boolean {
     return this.options.goroutines !== undefined && 'targets' in this.options.goroutines;
   }
@@ -88,7 +88,7 @@ export abstract class ExpressionEmitter extends Emitter {
 
         // `close(ch)` is predeclared too; JS has a `close` of its own, the window's.
         if (node.name === 'close' && this.lookup('close') === undefined) {
-          this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+          this.helpers.add('chan');
 
           return ['$$close', PRIMARY];
         }
@@ -147,7 +147,7 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'ChanExpression': {
         const size = node.size ? this.expression(node.size, ARROW) : '0';
 
-        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+        this.helpers.add('chan');
 
         return [`$$chan(${size}, ${this.zeroValue(node.element) ?? 'null'})`, POSTFIX];
       }
@@ -315,7 +315,7 @@ export abstract class ExpressionEmitter extends Emitter {
 
   private unary(node: ast.UnaryExpression): string {
     if (node.operator === '<-') {
-      this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+      this.helpers.add('chan');
 
       const channel = this.expression(node.argument, ARROW);
 

@@ -211,7 +211,7 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       case 'SendStatement': {
         const channel = this.expression(node.channel, ARROW);
 
-        this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+        this.helpers.add('chan');
         this.line(`await $$send(${channel}, ${this.expression(node.value, ARROW)});`);
         break;
       }

@@ -286,7 +286,8 @@ let s Stack<number> = new Stack()
 - **Type arguments** are written only in types: `Box<number>`, `Pair<string, ?number>`. In calls
   and in `new` they are inferred from the arguments, and failing that, from the expected type:
   `let xs []number = empty()`. There is no explicit `first<number>(xs)`: in an expression it could
-  not be told from a comparison. If there is nothing to infer from, it is an error: `let s = new Stack()`.
+  not be told from a comparison. If there is nothing to infer from, it is an error:
+  `let s = new Stack()`.
 - Inside a function, `T` is a type of its own: `return 1` in a function with the result `T` is an
   error. `T` has no zero value.
 - A type can refer to itself: `interface Tree<T> { value T; children []Tree<T> }`.
@@ -555,11 +556,16 @@ calls run at once, on different processors, and the program goes on without wait
 - **The result:** as an expression, `go f(x)` is a Promise of what `f` returns, or of what its
   Promise gives for an async `f`: `const n, err = await go load(id)`. As a statement nothing waits
   for it, and an exception in it is not caught: in Node it ends the program, like a panic in Go.
-- **The pool:** the workers of a module start on its first `go`, up to one per processor, and a
-  call goes to an idle worker. A worker runs several calls at once while they wait in `await`. In
-  Node, idle workers do not keep the program running, but, unlike Go, the program waits for
-  the goroutines that run, even for one that waits forever to send to a channel nobody reads. `go` inside a goroutine runs in the same
-  worker.
+- **The pool:** the workers start on the first `go`, up to one per processor, and the modules of
+  the program share them. A call waits in one queue for a free worker of its module, one whose
+  thread is not running code: a worker that is busy with a long call gets no more, and the next
+  call goes to the first worker that is free. A worker runs several calls at once while they wait
+  in `await`, so a call goes to a free worker without calls, else to a new worker, else to a free
+  worker whose calls wait. When there are as many workers as processors, an idle worker of another
+  module makes room, unless it keeps channels. In Node, idle workers do not keep the program
+  running, but, unlike Go, the program waits for the goroutines that run, even for one that waits
+  forever to send to a channel nobody reads, and for a worker whose channel it waits for. `go`
+  inside a goroutine runs in the same worker.
 
 The worker module goes next to the module: `mango build app.mango` writes `app.js` and
 `app.worker.js`, `mango run` compiles it on the fly, and the Vite plugin gives it to Vite, which
@@ -608,11 +614,14 @@ Channels pass values between goroutines, as in Go. `chan T` is the type of a cha
   second `close` throws. A closed, empty channel gives the zero value of its type at once, as in
   Go, and `const v, ok = <-ch` tells it: `ok` is `false`. A type without a zero value (an
   interface, a class) gives `null`, so `<-ch` of a `chan Point` is a `?Point`.
-- **Between threads:** a channel goes to a worker as its id, so goroutines in different workers
-  and the main thread share it, and what goes through it between threads is copied. So `go`
-  checks that the values of a channel can be copied, as it does for arguments. Within one thread
-  a value is passed itself. The main thread keeps what channels hold; a worker asks it for each
-  operation.
+- **Between threads:** a channel goes to another thread as its id, so goroutines in different
+  workers and the main thread share it, and what goes through it between threads is copied. So
+  `go` checks that the values of a channel can be copied, as it does for arguments. Within one
+  thread a value is passed itself. What a channel holds lives in the thread that made it, and the
+  other threads ask that thread directly, each through a port of its own: workers pass values to
+  each other also while the main thread is busy. A channel that goes on with a case of a `select`
+  over channels of several threads locks the `select` first, so only one case goes on, as in Go.
+  A channel that no value holds any more, in any thread, is forgotten.
 - `chan number` is not a `chan ?number`: a channel both takes and gives values, so the types must
   be the same.
 

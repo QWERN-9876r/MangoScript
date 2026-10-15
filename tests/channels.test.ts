@@ -247,10 +247,10 @@ close(ch)`);
     expect(code).toContain('const [w, ok] = await $$receive(ch, true);');
     expect(code).toContain('for await (const x of $$range(ch)) {');
     expect(code).toContain('$$close(ch);');
-    expect(code).toContain('const $$channels = Symbol.for("mangoscript.channels");');
+    expect(code).toContain('return (globalThis[Symbol.for("mangoscript.threads")] ??= {');
   });
 
-  it('asks the main thread in the worker module', () => {
+  it('gives the worker module the same helpers, which ask the thread that made a channel', () => {
     const { worker } = compile(`async func fill(c chan string) {
     c <- "x"
     close(c)
@@ -258,7 +258,7 @@ close(ch)`);
 go fill(chan<string>())`);
 
     expect(worker).toContain(
-      'function $$send(channel, value) {\n  $$retain(value);\n  return $$ask("send", channel, value);',
+      'if (owner !== $$registry().key) return $$ask(owner, { op: "send", channel: id, value });',
     );
     expect(worker).toContain('await $$send(c, "x");');
   });

@@ -1,14 +1,16 @@
 import { CHAN_HELPERS, type ChanHelper } from './chan-helpers.ts';
 import { GO_HELPERS, type GoHelper } from './go-helpers.ts';
-import { HOLD_HELPERS, type HoldHelper } from './hold-helpers.ts';
+import { SELECT_HELPERS, type SelectHelper } from './select-helpers.ts';
+import { THREAD_HELPERS, type ThreadHelper } from './thread-helpers.ts';
 
 // Small functions that a module gets only when its code needs them; those of `go` and of channels
-// are in go-helpers.ts, chan-helpers.ts and hold-helpers.ts.
+// are in go-helpers.ts, chan-helpers.ts, select-helpers.ts and thread-helpers.ts.
 
 export type Helper =
   | GoHelper
   | ChanHelper
-  | HoldHelper
+  | SelectHelper
+  | ThreadHelper
   | 'runDeferred'
   | 'append'
   | 'attribute'
@@ -24,13 +26,11 @@ export type Helper =
 
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
-  go: ['pool'],
-  pool: ['chan'],
-  chan: ['hold'],
-  goLocal: ['holdWorker'],
-  chanWorker: ['holdWorker'],
-  serve: ['holdWorker'],
-  holdWorker: ['serve'],
+  go: ['threads'],
+  goLocal: ['threads'],
+  serve: ['threads'],
+  chan: ['threads', 'select'],
+  select: ['chan'],
   owner: ['runDeferred'],
   mount: ['owner'],
   content: ['owner'],
@@ -42,7 +42,8 @@ export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> 
 export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   ...GO_HELPERS,
   ...CHAN_HELPERS,
-  ...HOLD_HELPERS,
+  ...SELECT_HELPERS,
+  ...THREAD_HELPERS,
   /** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
   runDeferred: [
     'function $$runDeferred(deferred) {',

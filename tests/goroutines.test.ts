@@ -144,14 +144,14 @@ go render()`),
 });
 
 describe('code generation', () => {
-  it('calls the function in the pool of the module, which starts its worker module', () => {
+  it('calls the function in the pool of the program, which starts the worker module', () => {
     const { code } = compiled(`${work}const n = await go square(2)`);
 
     expect(code).toContain('const n = await $$go("square", [2]);');
     expect(code).toContain(
       'return new Worker(new URL("./main.worker.js", import.meta.url), { type: "module" });',
     );
-    expect(code).toContain('function $$pool(start) {');
+    expect(code).toContain('function $$pool() {');
   });
 
   it('puts into the worker module what the functions reach, and not the rest of the module', () => {
@@ -181,7 +181,7 @@ go work(".")`);
     expect(worker).not.toContain('export');
     expect(worker).not.toContain('UNUSED');
     expect(worker).not.toContain('console.log("main")');
-    expect(worker).toContain('const copies = structuredClone(args);');
+    expect(worker).toContain('const copies = $$copy(args);');
     expect(worker).toContain('const $$goroutines = { helper, work };');
   });
 

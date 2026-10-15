@@ -13,7 +13,7 @@ const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 /** What the registry has for each channel after a program runs in the main thread. */
 async function queues(source: string): Promise<{ receivers: number; senders: number }[]> {
   const { code, diagnostics } = compile(source);
-  const key = Symbol.for('mangoscript.channels');
+  const key = Symbol.for('mangoscript.threads');
   const prototype = Object.getPrototypeOf(async () => {}) as { constructor: unknown };
   const AsyncFunction = prototype.constructor as new (...args: string[]) => () => Promise<void>;
 
@@ -49,7 +49,7 @@ function channelsLeft(source: string): { stdout: string; stderr: string } {
   globalThis.gc();
   await new Promise((resolve) => setTimeout(resolve, 30));
 }
-console.log(globalThis[Symbol.for("mangoscript.channels")].states.size);
+console.log(globalThis[Symbol.for("mangoscript.threads")].states.size);
 `,
   );
 
