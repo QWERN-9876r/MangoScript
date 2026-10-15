@@ -25,6 +25,7 @@ export abstract class TypeParser extends ClassParser {
       case 'func':
       case 'comp':
       case 'chan':
+      case '<-':
       case '{':
       case '(':
       case 'String':
@@ -100,12 +101,23 @@ export abstract class TypeParser extends ClassParser {
         return { kind: 'FuncType', params, results, ...this.span(start) };
       }
 
+      // `chan T`, `chan<- T` that only sends, `<-chan T` that only receives.
       case 'chan': {
         this.next();
 
+        const direction = this.accept('<-') ? 'send' : 'both';
         const element = this.parsePrimaryType();
 
-        return { kind: 'ChanType', element, ...this.span(start) };
+        return { kind: 'ChanType', element, direction, ...this.span(start) };
+      }
+
+      case '<-': {
+        this.next();
+        this.expect('chan', '"chan" after "<-": a channel that only receives is <-chan T');
+
+        const element = this.parsePrimaryType();
+
+        return { kind: 'ChanType', element, direction: 'receive', ...this.span(start) };
       }
 
       // `comp(title string)`: the names are those of the attributes, so they are required.
@@ -182,6 +194,7 @@ export abstract class TypeParser extends ClassParser {
       case '(':
       case 'func':
       case 'chan':
+      case '<-':
       case 'String':
       case 'Number':
         return true;

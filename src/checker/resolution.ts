@@ -34,7 +34,7 @@ export abstract class TypeResolver extends ClassChecker {
         return arrayOf(this.resolveType(node.element));
 
       case 'ChanType':
-        return chanOf(this.resolveType(node.element));
+        return chanOf(this.resolveType(node.element), node.direction);
 
       case 'NullableType':
         return nullable(this.resolveType(node.type));

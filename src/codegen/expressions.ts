@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { decoratedName } from '../decorators.ts';
+import { goCaptures, goParams, goTarget } from '../goroutines.ts';
 import { containsElement, hasOptionalLink, startsWithObjectLiteral } from './analysis.ts';
 import { Emitter } from './emitter.ts';
 import { ARROW, BINARY, CONDITIONAL, POSTFIX, PRIMARY, UNARY } from './syntax.ts';
@@ -93,6 +94,12 @@ export abstract class ExpressionEmitter extends Emitter {
           return ['$$close', PRIMARY];
         }
 
+        if (node.name === 'transfer' && this.lookup('transfer') === undefined) {
+          this.helpers.add('threads');
+
+          return ['$$transfer', PRIMARY];
+        }
+
         // The predeclared `error` used as a value is JS's `Error`, which also works without `new`.
         return [this.isBuiltinError(node) ? 'Error' : this.name(node.name), PRIMARY];
       }
@@ -152,15 +159,29 @@ export abstract class ExpressionEmitter extends Emitter {
         return [`$$chan(${size}, ${this.zeroValue(node.element) ?? 'null'})`, POSTFIX];
       }
 
-      // The worker module has the function under the same name; the arguments are copied there.
+      // The worker module has the function under the same name, a literal under the name given to
+      // it, after the local names it uses; the arguments are copied there. In the worker module a
+      // literal runs in the same worker, with copies of those names as its first parameters.
       case 'GoExpression': {
         const { callee } = node.call;
-        // Without type checking, a callee that is not a name fails when the call runs.
-        const name = callee.kind === 'Identifier' ? this.name(callee.name) : null;
+        const literal = callee.kind === 'FuncExpression' ? callee : null;
+        const captured = literal ? goCaptures(this.program, node) : [];
+        const args = [
+          ...captured.map((name) => this.name(name)),
+          this.elements(node.call.arguments),
+        ];
+        // Without type checking, a callee that is neither fails when the call runs.
+        const fn =
+          literal && this.inWorker
+            ? this.expression(
+                { ...literal, params: [...goParams(literal, captured), ...literal.params] },
+                ARROW,
+              )
+            : JSON.stringify(goTarget(this.program, node));
 
         this.helpers.add(this.inWorker ? 'goLocal' : 'go');
 
-        return [`$$go(${JSON.stringify(name)}, [${this.elements(node.call.arguments)}])`, POSTFIX];
+        return [`$$go(${fn}, [${args.filter((arg) => arg !== '').join(', ')}])`, POSTFIX];
       }
 
       case 'UnaryExpression':

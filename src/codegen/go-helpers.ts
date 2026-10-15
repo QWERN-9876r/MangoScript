@@ -11,7 +11,7 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '  return (globalThis[Symbol.for("mangoscript.goroutines")] ??= $$pool()).call(',
     '    $$startWorker,',
     '    name,',
-    '    $$copy(args),',
+    '    $$copy(args, true),',
     '  );',
     '}',
     '',
@@ -157,9 +157,10 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
   ],
   /** `go` inside a goroutine: the function runs in the same worker, with copies of the arguments. */
   goLocal: [
-    'function $$go(name, args) {',
+    'function $$go(fn, args) {',
     '  const copies = $$copy(args);',
-    '  return Promise.resolve().then(() => $$goroutines[name](...copies));',
+    '  const run = typeof fn === "function" ? fn : $$goroutines[fn];',
+    '  return Promise.resolve().then(() => run(...copies));',
     '}',
   ],
   serve: [

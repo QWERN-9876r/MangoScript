@@ -1,0 +1,37 @@
+// go func(...) { ... }(...) выполняет функциональный литерал в воркере;
+// локальные имена, которыми он пользуется, копируются туда, как его аргументы
+async func sumInParts(numbers []number, parts number) number {
+    const size = Math.ceil(numbers.length / parts)
+    const sums = chan<number>(parts)
+    for let i = 0; i < parts; i++ {
+        go async func(from number) {
+            let sum = 0
+            for n in numbers.slice(from, from + size) {
+                sum += n
+            }
+            sums <- sum
+        }(i * size)
+    }
+
+    let total = 0
+    for let i = 0; i < parts; i++ {
+        total += <-sums
+    }
+    return total
+}
+
+const numbers []number = []
+for let i = 1; i <= 100_000; i++ {
+    numbers.push(i)
+}
+console.log("сумма:", await sumInParts(numbers, 4))
+
+// transfer() переносит буфер в воркер, а не копирует его
+func average(values Float64Array) number {
+    return values.reduce((a, b) => a + b, 0) / values.length
+}
+
+const values = new Float64Array(1_000_000).fill(2)
+const pending = go average(transfer(values))
+console.log("осталось здесь:", values.length)
+console.log("среднее:", await pending)

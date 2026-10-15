@@ -57,8 +57,14 @@ export function typeToString(type: Type): string {
     }
 
     case 'object': {
-      if (type.instanceOf && type.name === 'chan')
-        return `chan ${typeToString(type.instanceOf.args[0]!)}`;
+      // `chan T`, `chan<- T` and `<-chan T` are written with spaces, not as type arguments.
+      if (
+        type.instanceOf &&
+        (type.name === 'chan' || type.name === 'chan<-' || type.name === '<-chan')
+      ) {
+        return `${type.name} ${typeToString(type.instanceOf.args[0]!)}`;
+      }
+
       if (type.instanceOf && type.name !== null) {
         return `${type.name}<${type.instanceOf.args.map(typeToString).join(', ')}>`;
       }

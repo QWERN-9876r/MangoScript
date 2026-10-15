@@ -97,18 +97,26 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
 
     case 'object': {
       // A channel both takes and gives values, so `chan number` is not a `chan ?number`, as in Go;
-      // `chan any` is any channel, for `close(ch)`.
-      if (target.instanceOf?.template.name === 'chan') {
+      // `chan any` is any channel, for `close(ch)`. A `chan T` is also a channel of one
+      // direction, `chan<- T` or `<-chan T`, but not the other way round.
+      const direction = target.instanceOf
+        ? CHAN_NAMES.get(target.instanceOf.template.name ?? '')
+        : undefined;
+
+      if (target.instanceOf && direction !== undefined) {
         const element = target.instanceOf.args[0]!;
-        const given =
-          source.kind === 'object' && source.instanceOf?.template === target.instanceOf.template
-            ? source.instanceOf.args[0]!
-            : null;
+        const from =
+          source.kind === 'object' && source.instanceOf
+            ? CHAN_NAMES.get(source.instanceOf.template.name ?? '')
+            : undefined;
 
         return (
-          given !== null &&
+          source.kind === 'object' &&
+          from !== undefined &&
+          (from === direction || from === 'both' || element.kind === 'any') &&
           (element.kind === 'any' ||
-            (assignable(given, element, nested) && assignable(element, given, nested)))
+            (assignable(source.instanceOf!.args[0]!, element, nested) &&
+              assignable(element, source.instanceOf!.args[0]!, nested)))
         );
       }
 
@@ -129,6 +137,13 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
 }
 
 /** `{ [string]: T }` accepts an object whose own index and fields are all `T`. */
+/** The templates of channel types by name (channel.ts): no other type can have these names. */
+const CHAN_NAMES: ReadonlyMap<string, string> = new Map([
+  ['chan', 'both'],
+  ['chan<-', 'send'],
+  ['<-chan', 'receive'],
+]);
+
 function indexAssignable(source: Type, index: Type, assuming: [Type, Type][]): boolean {
   if (source.kind !== 'object') return false;
   if (source.index && !assignable(source.index, index, assuming)) return false;

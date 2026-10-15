@@ -1,5 +1,5 @@
 // A channel passes values between goroutines: ch <- v sends, <-ch receives
-async func worker(id number, jobs chan number, results chan string) {
+async func worker(id number, jobs <-chan number, results chan<- string) {
     // for ... in a channel receives until it is closed
     for n in jobs {
         results <- `worker ${id}: ${n}² = ${n * n}`

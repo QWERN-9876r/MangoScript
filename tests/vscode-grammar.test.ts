@@ -230,6 +230,16 @@ describe('VS Code grammar', () => {
       'keyword.operator.channel',
     ]);
     expect(scopeOf('const c = chan<number>(10)', 'chan')).toBe('storage.type');
+
+    // Channels of one direction: `<-` is the arrow of the channel in the type too.
+    const directions = 'func f(out chan<- number, input <-chan number) {';
+
+    expect(scopesOf(directions, 'chan')).toEqual(['storage.type', 'storage.type']);
+    expect(scopesOf(directions, '<-')).toEqual([
+      'keyword.operator.channel',
+      'keyword.operator.channel',
+    ]);
+    expect(scopesOf(directions, 'number')).toEqual(Array(2).fill('support.type.primitive'));
     expect(scopeOf('select {', 'select')).toBe('keyword.control.conditional');
     expect(scopeOf('select(x)', 'select')).not.toBe('keyword.control.conditional');
   });

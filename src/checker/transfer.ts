@@ -3,19 +3,10 @@ import { memberNames, typeToString, type Type } from './types.ts';
 // What can go to a worker and back: a worker gets a copy of each value (the structured clone of
 // postMessage), and a copy has the data of a value but not its methods.
 
-/** Built-in types whose copies are whole: their type arguments are checked, not their members. */
-const COPIED = new Set([
-  // A channel is copied as its id: what goes through it is copied too.
-  'chan',
-  'Map',
-  'Set',
-  'Date',
-  'RegExp',
+/** Buffers and their views: copied whole, or moved by `transfer(x)` (channels.ts). */
+export const BUFFERS: readonly string[] = [
   'ArrayBuffer',
   'DataView',
-  'Blob',
-  'File',
-  'ImageData',
   'Int8Array',
   'Uint8Array',
   'Uint8ClampedArray',
@@ -27,6 +18,24 @@ const COPIED = new Set([
   'Float64Array',
   'BigInt64Array',
   'BigUint64Array',
+];
+
+/** Built-in types whose copies are whole: their type arguments are checked, not their members. */
+const COPIED = new Set([
+  // A channel is copied as its id: what goes through it is copied too.
+  'chan',
+  'chan<-',
+  '<-chan',
+  'Map',
+  'Set',
+  'Date',
+  'RegExp',
+  // Its copy shares the memory: typed arrays from the lib files may have one.
+  'SharedArrayBuffer',
+  'Blob',
+  'File',
+  'ImageData',
+  ...BUFFERS,
 ]);
 
 /** Why a value of the type cannot be copied to a worker, or null if it can. */

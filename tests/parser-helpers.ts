@@ -143,7 +143,7 @@ export function ty(node: ast.TypeNode): string {
       return `[]${ty(node.element)}`;
 
     case 'ChanType':
-      return `chan ${ty(node.element)}`;
+      return `${{ both: 'chan', send: 'chan<-', receive: '<-chan' }[node.direction]} ${ty(node.element)}`;
 
     case 'NullableType':
       return `?${ty(node.type)}`;

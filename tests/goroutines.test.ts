@@ -81,7 +81,7 @@ const p number = go square(2)`),
 
   it('calls only functions of the top level of the module and imports', () => {
     const message =
-      '"go" calls a function declared at the top level of a module or imported: a worker has only those, e.g. "go work(x)"';
+      '"go" calls a function declared at the top level of a module or imported, or a function literal: a worker has only those, e.g. "go work(x)" or "go func() { ... }()"';
 
     expect(
       errors(`${work}const f = (n number) => n

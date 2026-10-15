@@ -2,6 +2,7 @@ import { DOM_TYPES, EVENT } from './dom.ts';
 import { SVG_TYPES } from './dom-svg.ts';
 import { chanOf } from './channel.ts';
 import { PROMISE } from './promise.ts';
+import { BUFFERS } from './transfer.ts';
 import {
   ANY,
   arrayOf,
@@ -284,6 +285,8 @@ const booleanObject = object('Boolean', {}, func([ANY], [BOOL]));
 const timer = func([func([], []), NUMBER], [ANY], { required: 1, rest: ANY });
 
 /** JS globals that are available without types: everything about them is `any`. */
+const MOVED: TypeParam = { kind: 'param', name: 'T' };
+
 const UNTYPED_GLOBALS = [
   'Object',
   'Array',
@@ -343,9 +346,11 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['Error', ERROR_CLASS.value],
   // `error("message")` creates an Error, so the result is never null.
   ['error', func([STRING], [ERROR_CLASS.instance])],
-  // `close(ch)`: the channel takes no more values.
+  // `close(ch)`: the channel takes no more values (a `<-chan T` cannot be closed: channels.ts).
   ['close', func([chanOf(ANY)], [])],
-  ...UNTYPED_GLOBALS.map((name): [string, Type] => [name, ANY]),
+  // `transfer(buffer)`: the buffer moves to the thread it goes to (what it takes: channels.ts).
+  ['transfer', func([MOVED], [MOVED], { typeParams: [MOVED] })],
+  ...[...UNTYPED_GLOBALS, ...BUFFERS].map((name): [string, Type] => [name, ANY]),
 ]);
 
 /** Built-in types that a library from TypeScript's lib files replaces: untyped ones and the DOM. */
@@ -357,6 +362,7 @@ export const LIBRARY_TYPES: ReadonlySet<string> = new Set([
   'Promise',
   'URL',
   'Event',
+  ...BUFFERS,
   ...[...DOM_TYPES.keys()].filter((name) => name !== 'Content'),
   ...SVG_TYPES.keys(),
 ]);
@@ -368,7 +374,7 @@ export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['any', ANY],
   ['error', ERROR],
   ['Error', ERROR_CLASS.instance],
-  ...['Date', 'RegExp', 'Map', 'Set', 'URL'].map((name): [string, Type] => [name, ANY]),
+  ...['Date', 'RegExp', 'Map', 'Set', 'URL', ...BUFFERS].map((name): [string, Type] => [name, ANY]),
   ['Promise', PROMISE],
   ...DOM_TYPES,
   ...SVG_TYPES,

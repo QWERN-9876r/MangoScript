@@ -1,5 +1,5 @@
 // select waits for the first of several operations on channels
-func after(ms number) chan bool {
+func after(ms number) <-chan bool {
     const ch = chan<bool>(1)
     setTimeout(async () => {
         ch <- true
@@ -7,16 +7,18 @@ func after(ms number) chan bool {
     return ch
 }
 
-async func search(query string, ms number, out chan string) {
+// out chan<- string only sends: search cannot receive from it
+async func search(query string, ms number, out chan<- string) {
     <-after(ms) // as if over the network
     out <- `results for "${query}" in ${ms} ms`
 }
 
+// Waiting needs no worker: an async call without await runs in this thread.
 // Room for one answer: a search that nobody waits for can still finish
 const fast = chan<string>(1)
 const slow = chan<string>(1)
-go search("mango", 100, fast)
-go search("papaya", 2000, slow)
+search("mango", 100, fast)
+search("papaya", 2000, slow)
 
 // The first answer wins; a timeout stops waiting
 for let i = 0; i < 2; i++ {
@@ -36,4 +38,20 @@ case text = <-slow:
     console.log(text)
 default:
     console.log("slow is not ready yet")
+}
+
+// A null channel turns its case off: each search is waited for once
+let lime ?chan string = chan<string>(1)
+let kiwi ?chan string = chan<string>(1)
+search("lime", 80, lime)
+search("kiwi", 40, kiwi)
+for lime != null || kiwi != null {
+    select {
+    case text = <-lime:
+        console.log(text)
+        lime = null
+    case text = <-kiwi:
+        console.log(text)
+        kiwi = null
+    }
 }

@@ -2,7 +2,7 @@ import type * as ast from '../ast.ts';
 import { ExpressionChecker } from './expressions.ts';
 import { withNarrowing } from './flow.ts';
 import { isUntyped, isNumeric, instanceTypeOf } from './helpers.ts';
-import { elementOf, isChan, received } from './channel.ts';
+import { chanDirection, elementOf, isChan, received } from './channel.ts';
 import { awaited } from './promise.ts';
 import {
   ANY,
@@ -24,7 +24,15 @@ import {
 // Unary, binary and conditional operators.
 
 export abstract class OperatorChecker extends ExpressionChecker {
+  /** In the operation of a `select` case, a channel may be null: that case never goes on. */
+  protected inSelectCase = false;
+
   protected override checkUnary(node: ast.UnaryExpression): Type {
+    // Only the channel of the case itself may be null, not one inside it.
+    const nullChannel = this.inSelectCase;
+
+    this.inSelectCase = false;
+
     const type = this.checkValue(node.argument);
 
     switch (node.operator) {
@@ -39,13 +47,26 @@ export abstract class OperatorChecker extends ExpressionChecker {
 
         return awaited(type);
 
-      case '<-':
-        if (isChan(type)) return received(elementOf(type));
+      case '<-': {
+        const channel = nullChannel && isNullable(type) ? nonNull(type) : type;
+
+        if (isChan(channel)) {
+          if (chanDirection(channel) === 'send') {
+            this.error(
+              `"<-" cannot receive from ${typeToString(channel)}: it only sends; receive from a "chan T" or a "<-chan T"`,
+              node.argument,
+            );
+          }
+
+          return received(elementOf(channel));
+        }
+
         if (!isUntyped(type)) {
           this.error(`"<-" receives from a channel, not from ${typeToString(type)}`, node.argument);
         }
 
         return type.kind === 'any' ? ANY : UNKNOWN;
+      }
 
       case '!':
         this.expectBool(type, node.argument, '"!"');

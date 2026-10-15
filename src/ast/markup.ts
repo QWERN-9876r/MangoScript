@@ -115,10 +115,14 @@ export type TypeNode =
   | LiteralType
   | ChanType;
 
-/** `chan number`: a channel of numbers, made by `chan<number>(size)`. */
+/**
+ * `chan number`: a channel of numbers, made by `chan<number>(size)`; `chan<- number` only sends
+ * and `<-chan number` only receives.
+ */
 export interface ChanType extends NodeBase {
   kind: 'ChanType';
   element: TypeNode;
+  direction: 'both' | 'send' | 'receive';
 }
 
 /** A named type: `number`, `User`, `Point`, `Box<number>`. */

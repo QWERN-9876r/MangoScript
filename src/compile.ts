@@ -110,7 +110,9 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     ...jsOptions,
     goroutines: { workerUrl: options.workerUrl ?? workerUrl('main.mango', rewriteImports) },
   });
-  const targets = [...new Set(goExpressions(program).flatMap((node) => goTarget(node) ?? []))];
+  const targets = [
+    ...new Set(goExpressions(program).flatMap((node) => goTarget(program, node) ?? [])),
+  ];
   const worker =
     targets.length > 0
       ? generateJs(workerProgram(program, targets), { ...jsOptions, goroutines: { targets } })

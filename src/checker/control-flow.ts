@@ -1,6 +1,6 @@
 import type * as ast from '../ast.ts';
 import { assignedNames } from '../names.ts';
-import { elementOf, isChan } from './channel.ts';
+import { chanDirection, elementOf, isChan } from './channel.ts';
 import { type Binding, type Flow, type Narrowing, NARROWABLE } from './context.ts';
 import {
   narrowByTypeof,
@@ -99,6 +99,13 @@ export abstract class ControlFlowChecker extends StatementChecker {
     } else if (isChan(iterable)) {
       // Each value waits for the channel, until it is closed.
       value = elementOf(iterable);
+      if (chanDirection(iterable) === 'send') {
+        this.error(
+          `"for ... in" cannot receive from ${typeToString(iterable)}: it only sends; receive from a "chan T" or a "<-chan T"`,
+          node.iterable,
+        );
+      }
+
       if (this.fn && !this.fn.isAsync) {
         this.error(
           '"for ... in" a channel waits for its values, so it is allowed only in async functions and at the top level of a module',

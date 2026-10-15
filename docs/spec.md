@@ -541,15 +541,25 @@ $$go("countPrimes", [0, 100]);
 `go f(x)` calls `f` in a worker: a Web Worker in the browser, a worker thread in Node. Several
 calls run at once, on different processors, and the program goes on without waiting for them.
 
-- **What `go` calls:** a function declared at the top level of the module, or an imported one. A
-  worker shares no memory with the program: it loads the functions that `go` calls, with the
-  declarations and the imports that their code uses, but not the rest of the module and not its
-  top-level code. The modules it imports run their top-level code in the worker too.
+- **What `go` calls:** a function declared at the top level of the module, an imported one, or a
+  function literal, `go func(n number) { ... }(i)`. A worker shares no memory with the program: it
+  loads the functions that `go` calls, with the declarations and the imports that their code uses,
+  but not the rest of the module and not its top-level code. The modules it imports run their
+  top-level code in the worker too.
+- **A function literal** gets copies of the local names it uses, as it gets its arguments, when
+  `go` runs: so they must be data, and the literal cannot assign them, since that would change only
+  its copy. It compiles to a function of the worker module, `$$goroutine0`, whose first parameters
+  are these names.
 - **Copies:** the worker gets copies of the arguments, and the program gets a copy of the result
   (the structured clone of `postMessage`). So they are data: numbers, strings, `bool`, arrays,
   objects of interfaces without methods, `Map`, `Set`, `Date`, typed arrays, `error`. A function,
   an instance of a class or a DOM element is a compile error: its copy would lose its methods.
   Changing a copy does not change the original.
+- **Moving instead of copying:** `transfer(x)` gives `x`, an `ArrayBuffer` or a typed array, and
+  marks its buffer: the next time it goes to another thread, as an argument, a result or through a
+  channel, it moves there without a copy, and here it is left empty (the transfer list of
+  `postMessage`). `go sum(transfer(data))` passes a large array for free; `data.length` is 0 after
+  it.
 - **No shared state:** the code of the function cannot use the `let` variables of the module, since
   each worker would have its own, nor components and markup, since a worker has no document. Values
   go in as arguments and come back as the result.
@@ -570,6 +580,11 @@ calls run at once, on different processors, and the program goes on without wait
 The worker module goes next to the module: `mango build app.mango` writes `app.js` and
 `app.worker.js`, `mango run` compiles it on the fly, and the Vite plugin gives it to Vite, which
 bundles it as a worker.
+
+A worker is for work that keeps a processor busy. Waiting, for a timer or the network, needs no
+thread: the call of an async function without `await`, `search(query, out)`, runs in the same
+thread at once with the rest of the program, sharing its memory, as goroutines of Go share theirs.
+It talks to the others through channels as well.
 
 ### Channels
 
@@ -624,6 +639,10 @@ Channels pass values between goroutines, as in Go. `chan T` is the type of a cha
   A channel that no value holds any more, in any thread, is forgotten.
 - `chan number` is not a `chan ?number`: a channel both takes and gives values, so the types must
   be the same.
+- **One direction:** `chan<- T` only sends and `<-chan T` only receives, as in Go: a function that
+  takes `out chan<- string` can only send to it, and `close` it. A `chan T` goes where either is
+  expected, but not the other way round. `<-` goes with the leftmost `chan`, so `chan<- chan T` is
+  a channel that sends channels, and a channel of `<-chan T` is written `chan (<-chan T)`.
 
 ### select
 
@@ -666,6 +685,9 @@ as in Go. A case receives, `case v = <-ch:` or `case <-ch:`, or sends, `case ch 
   keep the value, assign it in the case.
 - **Which case:** one that can go on at once, a random one if several can; otherwise `default`, if
   there is one; otherwise `select` waits for the first one that can.
+- **A null channel** turns its case off, as a nil channel does in Go: the channel of a case may be
+  a `?chan T`, and a case whose channel is `null` never goes on. So a loop can stop waiting on a
+  channel by setting a variable to `null`.
 - `break` inside a case leaves the `select`, as in Go.
 - `select` waits, so it is allowed where `await` is. It is a keyword only before `{`: elsewhere
   `select` is an ordinary name.
