@@ -12,6 +12,7 @@ export type Helper =
   | SelectHelper
   | ThreadHelper
   | 'runDeferred'
+  | 'values'
   | 'append'
   | 'attribute'
   | 'content'
@@ -55,6 +56,12 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   ...CHAN_HELPERS,
   ...SELECT_HELPERS,
   ...THREAD_HELPERS,
+  /** `for v in x` over an untyped value: a Map gives its values, as a typed one does. */
+  values: [
+    'function $$values(iterable) {',
+    '  return iterable instanceof Map ? iterable.values() : iterable;',
+    '}',
+  ],
   /** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
   runDeferred: [
     'function $$runDeferred(deferred) {',

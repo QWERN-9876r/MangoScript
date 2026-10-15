@@ -177,6 +177,7 @@ export abstract class AssignmentChecker extends InitializerChecker {
         if (keyed) return keyed;
         this.expectIndex(target.index);
         if (object.kind === 'array') return object.element;
+        if (object.kind === 'object' && object.numberIndex) return object.numberIndex;
         this.error(
           object.kind === 'string'
             ? 'cannot assign to a character: strings cannot be changed'

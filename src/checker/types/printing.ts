@@ -79,6 +79,7 @@ export function typeToString(type: Type): string {
           .map(([name, member]) => `${name} ${typeToString(member.type)}`);
 
         if (type.members.size > MAX_OBJECT_MEMBERS) members.push('...');
+        if (type.numberIndex) members.unshift(`[number]: ${typeToString(type.numberIndex)}`);
         if (type.index) members.unshift(`[string]: ${typeToString(type.index)}`);
 
         return members.length === 0 ? '{}' : `{ ${members.join('; ')} }`;

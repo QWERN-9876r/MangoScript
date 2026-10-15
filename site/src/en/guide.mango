@@ -258,7 +258,9 @@ comp Control() {
         <p>
             Conditions and loops are as in Go: no parentheses around the condition and always braces.
             There is one loop, <code>for</code>: over an array, with a condition, and the classic one
-            with three parts. <code>switch</code> has no <code>break</code>: each case ends by itself.
+            with three parts. It also goes over a <code>Map</code>, by keys and values, over a
+            {" "}<code>Set</code> and a typed array, which is indexed as an array is.
+            {" "}<code>switch</code> has no <code>break</code>: each case ends by itself.
         </p>
         {example("control")}
     </>

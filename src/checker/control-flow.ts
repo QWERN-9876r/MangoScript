@@ -11,6 +11,7 @@ import {
   leaves,
 } from './flow.ts';
 import { instanceTypeOf } from './helpers.ts';
+import { isMap, loopEntry } from './iterables.ts';
 import { StatementChecker } from './statements.ts';
 import {
   ANY,
@@ -96,6 +97,18 @@ export abstract class ControlFlowChecker extends StatementChecker {
       this.nullError(node.iterable);
     } else if (iterable.kind === 'array') {
       value = iterable.element;
+    } else if (iterable.kind === 'object' && iterable.iterates) {
+      // A Map gives its keys and values; one variable gets the values, as with an array.
+      const entry = loopEntry(iterable);
+
+      value = isMap(iterable) && entry ? entry[1] : iterable.iterates;
+      if (entry) key = entry[0];
+      else if (node.key) {
+        this.error(
+          `${typeToString(iterable)} has no keys: loop over its values, e.g. "for value in items"`,
+          node.key,
+        );
+      }
     } else if (isChan(iterable)) {
       // Each value waits for the channel, until it is closed.
       value = elementOf(iterable);

@@ -5,6 +5,13 @@ for i, fruit in fruits {
     console.log(i + 1, fruit)
 }
 
+// Map даёт ключи и значения, как map в Go; одна переменная получает значения
+const prices = new Map()
+prices.set("манго", 3).set("личи", 7)
+for name, price in prices {
+    console.log(name, price)
+}
+
 // Цикл один — for: и как while, и с тремя частями
 let left = 3
 for left > 0 {

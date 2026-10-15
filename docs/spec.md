@@ -761,12 +761,24 @@ taken for the start of the block (the same rule as in Go).
 | `for let i = 0; i < n; i++ { }` | `for (let i = 0; i < n; i++) { }`           |
 | `for x in items { }`            | `for (const x of items) { }`                |
 | `for i, x in items { }`         | `for (const [i, x] of items.entries()) { }` |
+| `for v in scores { }` (a Map)   | `for (const v of scores.values()) { }`      |
 | `for cond { }`                  | `while (cond) { }`                          |
 | `for { }`                       | `while (true) { }`                          |
 
 `for x in items` goes over the **values**, like `for...of` in JS or `for x in` in Python and Rust,
 not over the keys like `for...in` in JS. In Go, `for i := range xs` with one variable gives the
 index; here one variable gets the value, and two get the index and the value.
+
+- **Besides arrays and strings,** `for` goes over what the lib files make iterable (with
+  `[Symbol.iterator]()`): a `Set`, a typed array, a `NodeList`, an iterator. Two variables need
+  positions or keys: a typed array and a `NodeList` give the index and the value, as an array does;
+  a `Set` has no keys.
+- **A Map** gives its keys and values, as a map in Go: `for name, score in scores`. One variable
+  gets the values, as with an array, and compiles to `scores.values()`. A value whose type is not
+  known (`any`) is tested at runtime, so that a Map gives its values there too; code built with
+  `--no-check` loops with `for...of` as it is.
+- **A typed array** is indexed as an array is: `data[i]` reads and writes a number, and it can go
+  where an `ArrayLike<number>` is expected, as in `Array.from(data)`.
 
 `break` and `continue` work as usual.
 

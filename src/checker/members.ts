@@ -79,6 +79,7 @@ export abstract class MemberChecker extends DecoratorMemberChecker {
     this.expectIndex(node.index);
     if (object.kind === 'array') return [object.element, shortCircuits];
     if (object.kind === 'string') return [STRING, shortCircuits];
+    if (object.kind === 'object' && object.numberIndex) return [object.numberIndex, shortCircuits];
     this.error(`cannot index ${typeToString(object)}`, node);
 
     return [UNKNOWN, shortCircuits];
@@ -112,7 +113,9 @@ export abstract class MemberChecker extends DecoratorMemberChecker {
    * an object with `[key: string]: T` from a `.d.ts`. `null` for arrays and strings.
    */
   protected override keyedIndex(object: Type, index: ast.Expression): Type | null {
-    if (object.kind === 'object' && !object.index) return this.fieldsByKey(object, index);
+    if (object.kind === 'object' && !object.index && !object.numberIndex) {
+      return this.fieldsByKey(object, index);
+    }
 
     const type = isUntyped(object) ? object : object.kind === 'object' ? object.index : undefined;
 

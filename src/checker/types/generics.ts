@@ -67,6 +67,17 @@ export function instantiate(template: ObjectType, args: readonly Type[]): Object
     instance.construct = substitute(template.construct, bindings) as FunctionType;
   }
 
+  // The indexes and the values of a loop, substituted when first used: the template of a
+  // `.d.ts` may get them after its instances.
+  for (const key of ['index', 'numberIndex', 'iterates'] as const) {
+    let substituted: Type | undefined;
+
+    Object.defineProperty(instance, key, {
+      enumerable: true,
+      get: () => (substituted ??= template[key] && substitute(template[key], bindings)),
+    });
+  }
+
   cached.push({ args: [...args], instance });
 
   return instance;

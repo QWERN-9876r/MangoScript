@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { isChan } from '../checker/channel.ts';
+import { isMap } from '../checker/iterables.ts';
 import { containsBreak } from '../walk.ts';
 import { declarationsOf, endsWithJump, type BindingKind } from './analysis.ts';
 import { SimpleStatementEmitter } from './simple-statements.ts';
@@ -76,7 +77,10 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
     }
   }
 
-  /** `for x in xs` → `for (const x of xs)`; `for i, x in xs` iterates `xs.entries()`. */
+  /**
+   * `for x in xs` → `for (const x of xs)`, `m.values()` for a Map; `for i, x in xs` iterates
+   * `xs.entries()`, which gives the keys and values of a Map too.
+   */
   protected override forInStatement(node: ast.ForInStatement): void {
     const bindings: [string, BindingKind][] = [[node.value.name, 'loop']];
 
@@ -97,7 +101,18 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
       }
 
       if (node.key === null) {
-        head = `const ${value} of ${this.expression(node.iterable, ARROW)}`;
+        // A Map gives its values; an untyped value may be a Map, which only the runtime tells.
+        // Code that was not checked is taken as it is written.
+        const untyped = iterable?.kind === 'any' || iterable?.kind === 'unknown';
+        let values = this.expression(node.iterable, untyped ? ARROW : POSTFIX);
+
+        if (iterable && isMap(iterable)) values += '.values()';
+        else if (untyped) {
+          this.helpers.add('values');
+          values = `$$values(${values})`;
+        }
+
+        head = `const ${value} of ${values}`;
       } else {
         const key = node.key.name === '_' ? '' : this.name(node.key.name);
         const pair = node.value.name === '_' ? `[${key}]` : `[${key}, ${value}]`;

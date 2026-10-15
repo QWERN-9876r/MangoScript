@@ -130,6 +130,9 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
       }
 
       if (target.index && !indexAssignable(source, target.index, nested)) return false;
+      if (target.numberIndex && !numberIndexAssignable(source, target.numberIndex, nested)) {
+        return false;
+      }
 
       return missingMember(source, target.members, nested) === null;
     }
@@ -153,6 +156,18 @@ function indexAssignable(source: Type, index: Type, assuming: [Type, Type][]): b
 
     return !member || member.method || assignable(member.type, index, assuming);
   });
+}
+
+/** `ArrayLike<T>` from a `.d.ts` accepts an array, a string or a typed array of `T`. */
+function numberIndexAssignable(source: Type, index: Type, assuming: [Type, Type][]): boolean {
+  if (source.kind === 'array') return assignable(source.element, index, assuming);
+  if (source.kind === 'string') return assignable(source, index, assuming);
+
+  return (
+    source.kind === 'object' &&
+    source.numberIndex !== undefined &&
+    assignable(source.numberIndex, index, assuming)
+  );
 }
 
 function functionAssignable(source: FunctionType, target: FunctionType, assuming: [Type, Type][]) {

@@ -95,6 +95,10 @@ export interface ObjectType {
   construct?: FunctionType;
   /** `[key: string]: T` in a `.d.ts`: the type of members that are not listed. */
   index?: Type;
+  /** `[index: number]: T` in a `.d.ts`: what `x[i]` gives, as with typed arrays. */
+  numberIndex?: Type;
+  /** What `for v in x` gives: the values of `[Symbol.iterator]()` in a `.d.ts`. */
+  iterates?: Type;
   /** A generic interface, `interface Box<T>`: its members use these parameters. */
   typeParams?: TypeParam[];
   /** `Box<number>`: the generic interface and the type arguments it was made from. */

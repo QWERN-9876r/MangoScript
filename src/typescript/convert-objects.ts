@@ -165,10 +165,56 @@ export abstract class ObjectConverter extends ConverterBase {
     if (construct) object.construct = construct;
 
     const index = checker.getIndexTypeOfType(type, IndexKind.String);
+    const numberIndex = checker.getIndexTypeOfType(type, IndexKind.Number);
 
     if (index) object.index = this.convert(index);
+    if (numberIndex && numberIndex !== index) object.numberIndex = this.convert(numberIndex);
+    this.iterates(object, type);
 
     return object;
+  }
+
+  /**
+   * What `for v in x` gives: the `value` of what `next()` of `[Symbol.iterator]()` returns while
+   * it is not `done`. Found when it is first needed, as most types are never looped over.
+   */
+  private iterates(object: ObjectType, type: TS.Type): void {
+    const { checker } = this;
+    const iterator = type
+      .getProperties()
+      .find((property) => String(property.escapedName).startsWith('__@iterator@'));
+
+    if (!iterator) return;
+
+    let found: Type | undefined;
+    let done = false;
+
+    Object.defineProperty(object, 'iterates', {
+      enumerable: true,
+      get: () => {
+        if (done) return found;
+        done = true;
+
+        const next = checker
+          .getTypeOfSymbol(iterator)
+          .getCallSignatures()[0]
+          ?.getReturnType()
+          .getProperty('next');
+        const result =
+          next && checker.getTypeOfSymbol(next).getCallSignatures()[0]?.getReturnType();
+        const results = result?.isUnion() ? result.types : result ? [result] : [];
+        const yielded = results.find((each) => {
+          const flag = each.getProperty('done');
+
+          return !flag || checker.typeToString(checker.getTypeOfSymbol(flag)) !== 'true';
+        });
+        const value = yielded?.getProperty('value');
+
+        found = value && this.convert(checker.getTypeOfSymbol(value));
+
+        return found;
+      },
+    });
   }
 
   protected member(type: TS.Type, name: string, owner: ClassInfo | null): Member | undefined {
