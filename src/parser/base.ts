@@ -23,6 +23,8 @@ export abstract class ParserBase {
 
   protected abstract parseSwitch(): ast.SwitchStatement;
 
+  protected abstract parseSelect(): ast.SelectStatement;
+
   protected abstract parseThrow(): ast.ThrowStatement;
 
   protected abstract parseTry(): ast.TryStatement;

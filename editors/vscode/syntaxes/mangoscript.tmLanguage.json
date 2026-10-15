@@ -205,7 +205,7 @@
       "patterns": [
         {
           "name": "keyword.control.conditional.mango",
-          "match": "(?<![\\w$])(?<![^.]\\.)(?:if|else|switch|case|default)(?![\\w$])"
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:if|else|switch|case|default|select(?=\\s*\\{))(?![\\w$])"
         },
         {
           "name": "keyword.control.loop.mango",

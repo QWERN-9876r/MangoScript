@@ -135,9 +135,10 @@ func identifierClass(text string, next string, language string) string {
         }
         // state, derived, ref, mount, effect, style and dec are keywords only at the start of a
         // declaration: state count = 0, ref input, mount() { }, effect { }, style { },
-        // dec visible() { }; so is public, in classes and decorators
+        // dec visible() { }; so is public, in classes and decorators, and select before {
         if (text == "state" || text == "derived" || text == "ref") && next == "Identifier" ||
-            text == "mount" && next == "(" || (text == "effect" || text == "style") && next == "{" {
+            text == "mount" && next == "(" ||
+            (text == "effect" || text == "style" || text == "select") && next == "{" {
             return "kw"
         }
         if text == "dec" && next == "Identifier" || text == "public" && PUBLIC_NEXT.includes(next) {

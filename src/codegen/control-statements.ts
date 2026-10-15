@@ -150,6 +150,61 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
   }
 
   /**
+   * `select`: $$select gives the index of the case that went on and what it received, and a
+   * switch runs the case; a `break` inside it leaves the select, as in Go. `default` is -1.
+   */
+  protected override selectStatement(node: ast.SelectStatement): void {
+    this.helpers.add(this.inWorker ? 'chanWorker' : 'chan');
+
+    const operations = node.cases.flatMap(({ operation }) => {
+      if (operation === null) return [];
+      if (operation.kind === 'UnaryExpression') {
+        return [`{ channel: ${this.expression(operation.argument, ARROW)} }`];
+      }
+
+      const channel = this.expression(operation.channel, ARROW);
+
+      return [`{ channel: ${channel}, value: ${this.expression(operation.value, ARROW)} }`];
+    });
+    const hasDefault = node.cases.some((selectCase) => selectCase.operation === null);
+    let index = 0;
+    const select = this.block(() => {
+      this.line(
+        `const [$$case, $$received, $$ok] = await $$select([${operations.join(', ')}], ${hasDefault});`,
+      );
+
+      const body = this.withBreakTarget(null, () =>
+        this.block(() => {
+          for (const { names, operation, body: statements } of node.cases) {
+            const label = operation === null ? 'default:' : `case ${index++}:`;
+            const variables = names.filter((name) => name.name !== '_');
+            const bindings: [string, BindingKind][] = [
+              ...variables.map((name): [string, BindingKind] => [name.name, 'const']),
+              ...declarationsOf(statements),
+            ];
+            const lines = this.capture(() => {
+              this.withScope(bindings, () => {
+                names.forEach((name, i) => {
+                  if (name.name === '_') return;
+                  this.line(`const ${this.name(name.name)} = ${i === 0 ? '$$received' : '$$ok'};`);
+                });
+                this.statements(statements);
+                if (!endsWithJump(statements)) this.line('break;');
+              });
+            });
+
+            this.line(`${label} {\n${lines.join('\n')}\n${this.indent()}}`);
+          }
+        }),
+      );
+
+      this.line(`switch ($$case) ${body}`);
+    });
+
+    this.line(select);
+  }
+
+  /**
    * `switch { case cond: ... }` becomes an if/else chain. A `break` inside it must leave the
    * switch, not an enclosing loop, so then the chain gets a label to break to.
    */

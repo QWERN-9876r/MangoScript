@@ -9,7 +9,7 @@ import type {
   TypeAliasDeclaration,
   VariableDeclaration,
 } from './declarations.ts';
-import type { CallExpression, Expression, Identifier } from './expressions.ts';
+import type { CallExpression, Expression, Identifier, UnaryExpression } from './expressions.ts';
 import type { JsxElementStatement } from './markup.ts';
 
 // ─── Statements ──────────────────────────────────────────────────────────────────────────────────
@@ -42,7 +42,8 @@ export type Statement =
   | StyleStatement
   | DeleteStatement
   | JsxElementStatement
-  | SendStatement;
+  | SendStatement
+  | SelectStatement;
 
 /** Statements allowed in the `init` and `update` parts of a `for` header. */
 export type SimpleStatement =
@@ -157,6 +158,25 @@ export interface SwitchStatement extends NodeBase {
 export interface SwitchCase extends NodeBase {
   kind: 'SwitchCase';
   tests: Expression[];
+  body: Statement[];
+}
+
+/**
+ * `select { case v = <-ch: ... case out <- v: ... default: ... }`: waits until one of the
+ * operations on channels can go on, does it and runs its case; `default` runs when none can at
+ * once.
+ */
+export interface SelectStatement extends NodeBase {
+  kind: 'SelectStatement';
+  cases: SelectCase[];
+}
+
+/** A case of `select`: a receive, `<-ch`, a send, `ch <- v`, or `default` when it is null. */
+export interface SelectCase extends NodeBase {
+  kind: 'SelectCase';
+  /** `v` or `v, ok` in `case v, ok = <-ch:`: new variables of the case. */
+  names: Identifier[];
+  operation: UnaryExpression | SendStatement | null;
   body: Statement[];
 }
 

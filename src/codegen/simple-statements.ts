@@ -10,6 +10,8 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
 
   protected abstract forInStatement(node: ast.ForInStatement): void;
 
+  protected abstract selectStatement(node: ast.SelectStatement): void;
+
   protected abstract forStatement(node: ast.ForStatement): void;
 
   protected abstract ifStatement(node: ast.IfStatement): string;
@@ -171,6 +173,10 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
 
       case 'ForInStatement':
         this.forInStatement(node);
+        break;
+
+      case 'SelectStatement':
+        this.selectStatement(node);
         break;
 
       case 'SwitchStatement':

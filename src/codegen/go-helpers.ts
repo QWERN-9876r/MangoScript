@@ -42,7 +42,9 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '          ? $$send(channel, value)',
     '          : op === "receive"',
     '            ? $$receive(channel, true)',
-    '            : $$close(channel);',
+    '            : op === "select"',
+    '              ? $$select(channel, value)',
+    '              : $$close(channel);',
     '      Promise.resolve(done).then((value) => reply({ value }), (error) => reply({ error }));',
     '    } catch (error) {',
     '      reply({ error });',
@@ -151,7 +153,7 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
 
 /**
  * The start of a worker of a module: a Web Worker, or a worker thread of Node. Node takes only the
- * path of a `file:` URL, without the query of `app.mango?worker`, so its worker starts with a
+ * path of a `file:` URL, without the query of `app.mango?goroutines`, so its worker starts with a
  * module that imports the whole URL. An absolute URL, such as the Blob of the playground, is used
  * as it is.
  */
@@ -166,7 +168,9 @@ export function startWorker(url: string): string[] {
     '  }',
     '  const threads = "node:worker_threads";',
     '  const { Worker: NodeWorker } = await import(/* @vite-ignore */ threads);',
-    `  const code = \`import \${JSON.stringify(${workerUrl}.href)};\`;`,
+    // Vite bundles the Web Worker; this URL is only for Node.
+    `  const url = new URL(/* @vite-ignore */ ${JSON.stringify(url)}${base});`,
+    '  const code = `import ${JSON.stringify(url.href)};`;',
     '  return new NodeWorker(new URL(`data:text/javascript,${encodeURIComponent(code)}`));',
     '}',
   ];

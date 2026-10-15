@@ -19,6 +19,9 @@ export abstract class StatementChecker extends AssignmentChecker {
   /** `ch <- value`; implemented by ChannelChecker. */
   protected abstract checkSend(node: ast.SendStatement): void;
 
+  /** `select { ... }`; implemented by ChannelChecker. */
+  protected abstract checkSelect(node: ast.SelectStatement): void;
+
   protected override checkStatement(node: ast.Statement): void {
     switch (node.kind) {
       case 'VariableDeclaration':
@@ -47,6 +50,10 @@ export abstract class StatementChecker extends AssignmentChecker {
 
       case 'SendStatement':
         this.checkSend(node);
+        break;
+
+      case 'SelectStatement':
+        this.checkSelect(node);
         break;
 
       case 'IncDecStatement': {

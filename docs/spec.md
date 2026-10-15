@@ -76,7 +76,8 @@ null  true  false  typeof  instanceof
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
 too, in `import` and `export` so is `from`, at the start of a statement in a component's body
 `state`, `derived`, `ref`, `style`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
-parameters `needs`, and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is
+parameters `needs`, in a decorator's body `public`, and before `{` at the start of a statement
+`select`. Elsewhere they are ordinary names; `get` is
 special only in `get(@name.member)`. Reserved
 for the future: `map`. Decorators are written before `comp`: `@html-tag` (see
 "Web components") and those declared with `dec` (see "Decorators").
@@ -554,11 +555,13 @@ calls run at once, on different processors, and the program goes on without wait
   for it, and an exception in it is not caught: in Node it ends the program, like a panic in Go.
 - **The pool:** the workers of a module start on its first `go`, up to one per processor, and a
   call goes to an idle worker. A worker runs several calls at once while they wait in `await`. In
-  Node, idle workers do not keep the program running. `go` inside a goroutine runs in the same
+  Node, idle workers do not keep the program running, but, unlike Go, the program waits for
+  the goroutines that run, even for one that waits forever to send to a channel nobody reads. `go` inside a goroutine runs in the same
   worker.
 
 The worker module goes next to the module: `mango build app.mango` writes `app.js` and
-`app.worker.js`, and `mango run` compiles it on the fly.
+`app.worker.js`, `mango run` compiles it on the fly, and the Vite plugin gives it to Vite, which
+bundles it as a worker.
 
 ### Channels
 
@@ -610,6 +613,51 @@ Channels pass values between goroutines, as in Go. `chan T` is the type of a cha
   operation.
 - `chan number` is not a `chan ?number`: a channel both takes and gives values, so the types must
   be the same.
+
+### select
+
+```go
+select {
+case job = <-jobs:
+    work(job)
+case msg, ok = <-control:
+    if !ok {
+        return
+    }
+case results <- last:
+    console.log("sent")
+case <-quit:
+    return
+default:
+    console.log("nothing is ready")
+}
+```
+
+```js
+{
+  const [$$case, $$received, $$ok] = await $$select([{ channel: jobs }, { channel: control }, { channel: results, value: last }, { channel: quit }], true);
+  switch ($$case) {
+    case 0: {
+      const job = $$received;
+      work(job);
+      break;
+    }
+    // ...
+  }
+}
+```
+
+`select` waits until one of several operations on channels can go on, does it and runs its case,
+as in Go. A case receives, `case v = <-ch:` or `case <-ch:`, or sends, `case ch <- v:`.
+
+- **The variables of a case:** `case job = <-jobs:` declares `job` for that case only, and
+  `case msg, ok = <-control:` gets `ok` as `v, ok = <-ch` does. They are always new variables: to
+  keep the value, assign it in the case.
+- **Which case:** one that can go on at once, a random one if several can; otherwise `default`, if
+  there is one; otherwise `select` waits for the first one that can.
+- `break` inside a case leaves the `select`, as in Go.
+- `select` waits, so it is allowed where `await` is. It is a keyword only before `{`: elsewhere
+  `select` is an ordinary name.
 
 ## 5. Conditions and loops
 

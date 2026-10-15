@@ -144,6 +144,14 @@ export function isTerminating(node: ast.Statement): boolean {
         })
       );
 
+    // A select runs one of its cases, waiting for one if there is no default.
+    case 'SelectStatement':
+      return node.cases.every((selectCase) => {
+        const last = selectCase.body.at(-1);
+
+        return last !== undefined && isTerminating(last) && !containsBreak(selectCase.body);
+      });
+
     case 'TryStatement':
       return (
         (isTerminating(node.block) && (!node.handler || isTerminating(node.handler.body))) ||

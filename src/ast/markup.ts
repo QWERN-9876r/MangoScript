@@ -25,6 +25,7 @@ import type {
   IfStatement,
   SimpleStatement,
   Statement,
+  SelectCase,
   SwitchCase,
   SwitchStatement,
 } from './statements.ts';
@@ -211,6 +212,7 @@ export type Node =
   | ClassMember
   | TypeMember
   | SwitchCase
+  | SelectCase
   | CatchClause
   | Property
   | SpreadElement

@@ -39,6 +39,33 @@ describe('Vite plugin', () => {
     expect(code).not.toMatch(/from\s*"[^"]*\.mango"/);
   });
 
+  it('bundles the worker module of go as a worker', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
+
+    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.mango"></script>');
+    writeFileSync(
+      join(dir, 'main.mango'),
+      'func square(n number) number {\n    return n * n\n}\ndocument.body.append(`${await go square(3)}`)\n',
+    );
+    await build({
+      configFile: false,
+      root: dir,
+      logLevel: 'silent',
+      plugins: [mango()],
+      build: { outDir: join(dir, 'dist'), minify: false, target: 'esnext' },
+    });
+
+    const assets = join(dir, 'dist', 'assets');
+    const files = readdirSync(assets);
+    const worker = files.find((name) => name.startsWith('main.mango.goroutines'));
+    const main = files.find((name) => name.startsWith('index'));
+
+    expect(worker).toBeDefined();
+    expect(readFileSync(join(assets, worker!), 'utf8')).toContain('function square(n)');
+    expect(readFileSync(join(assets, worker!), 'utf8')).not.toContain('document.body');
+    expect(readFileSync(join(assets, main!), 'utf8')).toContain(`/assets/${worker}`);
+  });
+
   it('stops the build on type errors', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
 

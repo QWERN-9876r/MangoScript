@@ -33,6 +33,10 @@ export abstract class OperatorChecker extends ExpressionChecker {
 
       // What the Promise gives; the results of an async function are unpacked from it.
       case 'await':
+        if (isChan(type)) {
+          this.error('"await" does not wait for a channel: receive from it, e.g. "<-ch"', node);
+        }
+
         return awaited(type);
 
       case '<-':

@@ -46,6 +46,7 @@ export function declaredNames(node: ast.Node): Set<string> {
         break;
 
       case 'VariableDeclaration':
+      case 'SelectCase':
         for (const name of node.names) names.add(name.name);
         break;
 
@@ -125,6 +126,13 @@ export function freeNames(component: {
       case 'VariableDeclaration':
         for (const name of node.names) declared.add(name.name);
         node.values.forEach(visit);
+
+        return;
+
+      case 'SelectCase':
+        for (const name of node.names) declared.add(name.name);
+        visit(node.operation);
+        node.body.forEach(visit);
 
         return;
 

@@ -18,6 +18,7 @@ export const SECTIONS []Section = [
     { id: "async", title: "Async functions", group: "Language", content: Async },
     { id: "goroutines", title: "Goroutines", group: "Language", content: Goroutines },
     { id: "channels", title: "Channels", group: "Language", content: Channels },
+    { id: "select", title: "select", group: "Language", content: Select },
     { id: "control", title: "Conditions and loops", group: "Language", content: Control },
     { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
     { id: "generics", title: "Generics", group: "Language", content: Generics },
@@ -217,6 +218,18 @@ comp Channels() {
             workers: what passes through it is copied.
         </p>
         {example("channels")}
+    </>
+}
+
+comp Select() {
+    return <>
+        <p>
+            <code>select</code> waits for the first of several operations on channels and runs its
+            case, as in Go: <code>{"case text = <-fast:"}</code> receives into a new variable of
+            the case, <code>{"case out <- v:"}</code> sends, and <code>default</code> runs when
+            nothing is ready at once. A channel that gets a value after a while makes a timeout.
+        </p>
+        {example("select")}
     </>
 }
 

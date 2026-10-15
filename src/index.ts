@@ -21,6 +21,8 @@ export interface CompileOptions {
   typeCheck?: boolean;
   /** Also print a TypeScript declaration file (`.d.ts`); needs type checking. */
   declarations?: boolean;
+  /** Where the worker module of `go` is, relative to the module; see workerUrl() in compile.ts. */
+  workerUrl?: string;
 }
 
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
@@ -29,7 +31,7 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
 
   return compileModule(source, {
     rewriteImports,
-    workerUrl: workerUrl(filename ?? 'main.mango', rewriteImports),
+    workerUrl: options.workerUrl ?? workerUrl(filename ?? 'main.mango', rewriteImports),
     typeCheck: options.typeCheck ?? true,
     declarations: options.declarations ?? false,
     importModule: filename

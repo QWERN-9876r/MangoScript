@@ -1,4 +1,5 @@
 import type * as ast from './ast.ts';
+import { forEachTypeChild } from './walk-types.ts';
 
 /** Calls `visit` for each direct child of `node`, in source order. */
 export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): void {
@@ -156,6 +157,16 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       each(node.body);
       break;
 
+    case 'SelectStatement':
+      each(node.cases);
+      break;
+
+    case 'SelectCase':
+      each(node.names);
+      optional(node.operation);
+      each(node.body);
+      break;
+
     case 'ThrowStatement':
       visit(node.argument);
       break;
@@ -289,59 +300,19 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       break;
 
     case 'TypeReference':
-      visit(node.name);
-      each(node.typeArgs);
-      break;
-
     case 'TypeParameter':
-      visit(node.name);
-      optional(node.constraint);
-      break;
-
     case 'ArrayType':
     case 'ChanType':
-      visit(node.element);
-      break;
-
     case 'NullableType':
-      visit(node.type);
-      break;
-
     case 'FuncType':
-      each(node.params);
-      each(node.results);
-      break;
-
     case 'ComponentType':
-      each(node.params);
-      break;
-
     case 'ObjectType':
-      each(node.members);
-      break;
-
     case 'UnionType':
-      each(node.types);
-      break;
-
     case 'LiteralType':
-      visit(node.value);
-      break;
-
     case 'PropertySignature':
-      visit(node.name);
-      visit(node.type);
-      break;
-
     case 'IndexSignature':
-      visit(node.key);
-      visit(node.type);
-      break;
-
     case 'MethodSignature':
-      visit(node.name);
-      each(node.params);
-      each(node.results);
+      forEachTypeChild(node, visit);
       break;
 
     // Its names belong to the decorator, not to any scope.
@@ -378,6 +349,7 @@ export function containsBreak(statements: readonly ast.Statement[]): boolean {
       case 'ForStatement':
       case 'ForInStatement':
       case 'SwitchStatement':
+      case 'SelectStatement':
       case 'FuncDeclaration':
       case 'FuncExpression':
       case 'ArrowFunction':

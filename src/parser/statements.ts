@@ -106,6 +106,9 @@ export abstract class StatementParser extends SimpleStatementParser {
       this.fail(`"${token.text}" is not a MangoScript keyword: ${hint}`);
     }
 
+    // `select` is a keyword only before `{`: elsewhere it is a name, such as a function's.
+    if (this.checkWord('select') && this.peek(1).kind === '{') return this.parseSelect();
+
     if (this.isStyleBlock()) {
       // The lexer has read the block as CSS, so it is parsed as one to report a single error.
       const style = this.parseStyle();

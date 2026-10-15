@@ -34,12 +34,13 @@ export interface CoreCompileOptions {
 
 /**
  * Where the worker module of a module is: a `.worker.js` next to its `.js`, or, where `.mango`
- * files are imported as they are (`mango run`, Vite), the module itself with `?worker`.
+ * files are imported as they are (`mango run`), the module itself with `?goroutines`. Vite drops
+ * the query of a worker's URL, so its plugin gives another path (vite.ts).
  */
 export function workerUrl(file: string, rewriteImports: boolean): string {
   const base = file.replace(/^.*[\\/]/, '').replace(/\.mango$/, '');
 
-  return rewriteImports ? `./${base}.worker.js` : `./${base}.mango?worker`;
+  return rewriteImports ? `./${base}.worker.js` : `./${base}.mango?goroutines`;
 }
 
 export interface CompileResult {

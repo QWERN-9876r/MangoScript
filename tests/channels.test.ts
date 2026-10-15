@@ -93,10 +93,12 @@ ch <- 1
 ch <- "x"
 const n = 1
 n <- 2
+await ch
 const v = <-n`),
     ).toEqual([
       'cannot use string as number',
       '"<-" sends to a channel, not to number',
+      '"await" does not wait for a channel: receive from it, e.g. "<-ch"',
       '"<-" receives from a channel, not from number',
     ]);
   });
@@ -146,6 +148,85 @@ go calls(chan[func()]())`),
     ).toEqual([
       '"calls" runs in a worker, which gets a copy of argument 1, but a function cannot be copied',
     ]);
+  });
+});
+
+describe('select', () => {
+  it('parses receives, sends and default', () => {
+    const [select] = first(
+      'async func f() {\nselect {\ncase v, ok = <-a:\n    g(v)\ncase b <- 1:\ncase <-c:\ndefault:\n}\n}',
+      'FuncDeclaration',
+    ).body.body;
+
+    expect(select?.kind === 'SelectStatement' && select.cases.map((c) => c.names.length)).toEqual([
+      2, 0, 0, 0,
+    ]);
+    expect(syntaxErrors('const select = 1\nselect(x)')).toEqual([]);
+  });
+
+  it.each([
+    ['func f() { select {} }', '"select" is allowed only in async functions'],
+    [
+      'select { case x: }',
+      'a case of select receives, "case v = <-ch:", or sends, "case ch <- v:"',
+    ],
+    ['select { default:\ndefault: }', 'multiple "default" cases in select'],
+    ['select { case a, b, c = <-ch: }', 'a receive gives at most two values'],
+  ])('reports %j', (source, message) => {
+    expect(syntaxErrors(source)).toEqual([expect.stringContaining(message)]);
+  });
+
+  it('types the variables of each case', () => {
+    expect(
+      errors(`const a = chan[number]()
+const b = chan[string](1)
+select {
+case n, ok = <-a:
+    const m number = n
+    const done bool = ok
+case s = <-b:
+    const t number = s
+case b <- 1:
+}`),
+    ).toEqual(['cannot use string as number', 'cannot use number as string']);
+  });
+
+  it('runs the case that can go on, default, or the first that can later', async () => {
+    expect(
+      await run(`const a = chan[number](1)
+const b = chan[string](1)
+const late = chan[string]()
+select {
+case n = <-a:
+    console.log("a", n)
+default:
+    console.log("nothing")
+}
+b <- "x"
+select {
+case n = <-a:
+    console.log("a", n)
+case s = <-b:
+    console.log("b", s)
+}
+select {
+case a <- 7:
+    console.log("sent", <-a)
+default:
+    console.log("full")
+}
+setTimeout(async () => {
+    late <- "later"
+}, 5)
+select {
+case s = <-late:
+    console.log("late", s)
+    break
+    console.log("not after break")
+case <-chan[number]():
+    console.log("never")
+}`),
+    ).toEqual(['nothing', 'b x', 'sent 7', 'late later']);
   });
 });
 

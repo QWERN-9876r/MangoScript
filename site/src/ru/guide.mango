@@ -18,6 +18,7 @@ export const SECTIONS []Section = [
     { id: "async", title: "Асинхронные функции", group: "Язык", content: Async },
     { id: "goroutines", title: "Горутины", group: "Язык", content: Goroutines },
     { id: "channels", title: "Каналы", group: "Язык", content: Channels },
+    { id: "select", title: "select", group: "Язык", content: Select },
     { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
     { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
     { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
@@ -220,6 +221,19 @@ comp Channels() {
             то, что через него проходит, копируется.
         </p>
         {example("channels")}
+    </>
+}
+
+comp Select() {
+    return <>
+        <p>
+            <code>select</code> ждёт первую из нескольких операций с каналами и запускает её ветку,
+            как в Go: <code>{"case text = <-fast:"}</code> получает значение в новую переменную
+            ветки, <code>{"case out <- v:"}</code> отправляет, а <code>default</code> срабатывает,
+            когда сразу ничего не готово. Канал, который получает значение через некоторое время,
+            даёт тайм-аут.
+        </p>
+        {example("select")}
     </>
 }
 

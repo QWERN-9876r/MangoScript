@@ -1,9 +1,3 @@
-// A static server for the documentation site, in MangoScript too. It serves the Vite build from
-// site/dist. Run it from the root of the repository:
-//   npm run site
-// For development, npm run site:dev is handier: the Vite server recompiles changed files itself.
-
-// The compiler takes the types of node: modules from @types/node.
 import { Buffer } from "node:buffer"
 import { readFileSync } from "node:fs"
 import { createServer, IncomingMessage, ServerResponse } from "node:http"

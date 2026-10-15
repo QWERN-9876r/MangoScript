@@ -127,6 +127,87 @@ export abstract class ControlFlowParser extends StatementParser {
     return { kind: 'SwitchStatement', discriminant, cases, ...this.span(start) };
   }
 
+  /** `select { case v = <-ch: ... case ch <- v: ... default: ... }`; it waits, as `await` does. */
+  protected override parseSelect(): ast.SelectStatement {
+    const keyword = this.next();
+
+    this.requireAsync('select', keyword.start, keyword.end);
+    this.expect('{');
+
+    const cases: ast.SelectCase[] = [];
+    let hasDefault = false;
+
+    while (!this.check('}') && !this.check('EOF')) {
+      if (this.accept(';')) continue;
+
+      const caseStart = this.peek().start;
+      let names: ast.Identifier[] = [];
+      let operation: ast.SelectCase['operation'] = null;
+
+      if (this.accept('default')) {
+        if (hasDefault) {
+          this.error('multiple "default" cases in select', caseStart, this.span(caseStart).end);
+        }
+
+        hasDefault = true;
+      } else {
+        this.expect('case', '"case", "default" or "}"');
+        [names, operation] = this.parseSelectOperation();
+      }
+
+      this.expect(':');
+
+      const body = this.withContext({ topLevel: false, inBreakable: true }, () =>
+        this.parseStatements(() => this.check('case') || this.check('default') || this.check('}')),
+      );
+
+      cases.push({ kind: 'SelectCase', names, operation, body, ...this.span(caseStart) });
+    }
+
+    this.expect('}');
+
+    return { kind: 'SelectStatement', cases, ...this.span(keyword.start) };
+  }
+
+  /** `v = <-ch`, `v, ok = <-ch`, `<-ch` or `ch <- v`; the names are new variables of the case. */
+  private parseSelectOperation(): [ast.Identifier[], ast.UnaryExpression | ast.SendStatement] {
+    const start = this.peek().start;
+    const names: ast.Identifier[] = [];
+
+    if (this.check('Identifier') && (this.peek(1).kind === '=' || this.peek(1).kind === ',')) {
+      do names.push(this.parseIdentifier());
+      while (this.accept(','));
+      this.expect('=');
+      if (names.length > 2) {
+        this.error(
+          'a receive gives at most two values: "case v, ok = <-ch:"',
+          start,
+          this.span(start).end,
+        );
+      }
+    }
+
+    const first = this.parseExpression();
+
+    if (names.length === 0 && this.check('<-')) {
+      this.next();
+
+      const value = this.parseExpression();
+
+      return [names, { kind: 'SendStatement', channel: first, value, ...this.span(start) }];
+    }
+
+    if (first.kind !== 'UnaryExpression' || first.operator !== '<-') {
+      return this.failAt(
+        'a case of select receives, "case v = <-ch:", or sends, "case ch <- v:"',
+        first.start,
+        first.end,
+      );
+    }
+
+    return [names, first];
+  }
+
   protected override parseBreakOrContinue(): ast.BreakStatement | ast.ContinueStatement {
     const token = this.next();
     let statement: ast.BreakStatement | ast.ContinueStatement;

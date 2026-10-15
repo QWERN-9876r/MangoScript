@@ -224,6 +224,8 @@ describe('VS Code grammar', () => {
       'keyword.operator.channel',
     ]);
     expect(scopeOf('const c = chan[number](10)', 'chan')).toBe('storage.type');
+    expect(scopeOf('select {', 'select')).toBe('keyword.control.conditional');
+    expect(scopeOf('select(x)', 'select')).not.toBe('keyword.control.conditional');
   });
 
   it('colours go', () => {
