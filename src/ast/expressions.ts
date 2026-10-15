@@ -122,6 +122,8 @@ export interface SpreadElement extends NodeBase {
 /** `func(x number) number { return x * x }` */
 export interface FuncExpression extends NodeBase {
   kind: 'FuncExpression';
+  /** `async func(...)`: its results are those of the Promise it returns. */
+  async?: true;
   params: Parameter[];
   results: TypeNode[];
   body: BlockStatement;
@@ -130,11 +132,14 @@ export interface FuncExpression extends NodeBase {
 /** `x => x * 2`, `(a, b number) => a + b`, `() => { ... }`. The result type is inferred. */
 export interface ArrowFunction extends NodeBase {
   kind: 'ArrowFunction';
+  /** `async x => ...`. */
+  async?: true;
   params: Parameter[];
   body: BlockStatement | Expression;
 }
 
-export type UnaryOperator = '!' | '-' | '+' | '~' | 'typeof';
+/** `await` is allowed only in async functions and at the top level of a module. */
+export type UnaryOperator = '!' | '-' | '+' | '~' | 'typeof' | 'await';
 
 export interface UnaryExpression extends NodeBase {
   kind: 'UnaryExpression';

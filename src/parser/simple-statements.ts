@@ -81,10 +81,18 @@ export abstract class SimpleStatementParser extends ParserBase {
     if (!assignable) this.error('cannot assign to this expression', target.start, target.end);
   }
 
-  /** `a, b = 1, 2, 3`: the counts must match, unless a single call returns all the values. */
+  /**
+   * `a, b = 1, 2, 3`: the counts must match, unless a single call returns all the values, or
+   * `await` of a call gives them.
+   */
   protected checkArity(targets: number, values: ast.Expression[], start: number): void {
     if (values.length === 0 || values.length === targets) return;
-    if (values.length === 1 && values[0]!.kind === 'CallExpression') return;
+
+    const [value] = values;
+    const call =
+      value?.kind === 'UnaryExpression' && value.operator === 'await' ? value.argument : value;
+
+    if (values.length === 1 && call?.kind === 'CallExpression') return;
     this.error(
       `assignment mismatch: ${plural(targets, 'variable')} but ${plural(values.length, 'value')}`,
       start,

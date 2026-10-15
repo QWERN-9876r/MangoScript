@@ -1,5 +1,5 @@
 import type * as ast from '../ast.ts';
-import { isUntyped, countValues, callName } from './helpers.ts';
+import { isUntyped, countValues, callName, isCall } from './helpers.ts';
 import { InitializerChecker } from './initializers.ts';
 import {
   ANY,
@@ -242,8 +242,8 @@ export abstract class AssignmentChecker extends InitializerChecker {
       return;
     }
 
-    if (values.length === 1 && expected.length > 1 && values[0]!.kind === 'CallExpression') {
-      const types = this.unpack(values[0], expected.length, null, 'return');
+    if (values.length === 1 && expected.length > 1 && isCall(values[0]!)) {
+      const types = this.unpack(values[0]!, expected.length, null, 'return');
 
       types.forEach((type, i) =>
         this.expectAssignable(type, expected[i]!, values[0]!, ' in return'),

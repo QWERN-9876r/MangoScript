@@ -83,14 +83,18 @@ export abstract class DecoratorParser extends DeclarationParser {
 
     return (
       this.checkWord('public') &&
-      (next === 'Identifier' || next === 'let' || next === 'const' || next === 'func')
+      (next === 'Identifier' ||
+        next === 'let' ||
+        next === 'const' ||
+        next === 'func' ||
+        next === 'async')
     );
   }
 
   protected parsePublicMember(): ast.VariableDeclaration | ast.FuncDeclaration {
     const modifier = this.next();
 
-    if (this.check('func')) {
+    if (this.check('func') || this.check('async')) {
       const declaration = this.parseFuncDeclaration(modifier.start, false);
 
       declaration.isPublic = true;

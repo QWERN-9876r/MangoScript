@@ -158,12 +158,27 @@ func runCompiled(code string, preview HTMLElement, output func([]string)) {
         querySelector: (selector string) => preview.querySelector(selector),
     }
 
+    // An exception of the program: thrown right away, or later, after an await.
+    const fail = (e any) => {
+        if runs.get(preview) != run {
+            return
+        }
+        lines.push(`${text().exception}: ${e.message}`)
+        if finished {
+            output(lines.slice())
+        }
+    }
+
     preview.replaceChildren()
     try {
-        const program = globalThis.Function("console", "document", "customElements", code)
-        runOwned(preview, () => program(sandboxConsole, sandboxDocument, sandboxElements))
+        // An async function, so that the program may await at the top level, as a module can.
+        const AsyncFunction = globalThis.Object.getPrototypeOf(async func() {}).constructor
+        const program = new AsyncFunction("console", "document", "customElements", code)
+        runOwned(preview, () => {
+            program(sandboxConsole, sandboxDocument, sandboxElements).catch(fail)
+        })
     } catch e {
-        lines.push(`${text().exception}: ${e.message}`)
+        fail(e)
     }
     finished = true
     output(lines.slice())

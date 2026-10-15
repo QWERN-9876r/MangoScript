@@ -91,8 +91,9 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       case 'FuncDeclaration': {
         const [params, body] = this.func(node.params, node.body);
         const exported = node.exported ? 'export ' : '';
+        const async = node.async ? 'async ' : '';
 
-        this.line(`${exported}function ${this.name(node.name.name)}(${params}) ${body}`);
+        this.line(`${exported}${async}function ${this.name(node.name.name)}(${params}) ${body}`);
         break;
       }
 

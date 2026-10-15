@@ -15,6 +15,7 @@ export const SECTIONS []Section = [
     { id: "null", title: "null, union и сужение", group: "Язык", content: NullSafety },
     { id: "functions", title: "Функции", group: "Язык", content: Functions },
     { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
+    { id: "async", title: "Асинхронные функции", group: "Язык", content: Async },
     { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
     { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
     { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
@@ -175,6 +176,20 @@ comp Errors() {
             ресурсов: вызов выполнится и после <code>return</code>, и после исключения.
         </p>
         {example("defer")}
+    </>
+}
+
+comp Async() {
+    return <>
+        <p>
+            <code>async func</code> возвращает Promise, а <code>await</code> его ждёт. Типы
+            результатов пишутся как у любой функции, в том числе несколько:
+            {" "}<code>async func load() (string, error)</code> возвращает
+            {" "}<code>Promise[(string, error)]</code>, а <code>await</code> распаковывает значения
+            обратно. Модуль может делать <code>await</code> на верхнем уровне, а обработчик события
+            может быть async: изменение состояния после <code>await</code> обновляет разметку.
+        </p>
+        {example("async")}
     </>
 }
 

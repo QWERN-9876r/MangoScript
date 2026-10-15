@@ -144,7 +144,7 @@ xs.push(1)`),
 }
 let lengths []number = mapAll(["a", "bc"], s => s.length)
 let wrong []string = mapAll([1], n => n * 2)`),
-    ).toEqual(['cannot use []number as []string']);
+    ).toEqual(['cannot use number as string in return']);
   });
 
   it('treats a type parameter as its own type inside the function', () => {

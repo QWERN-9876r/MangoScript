@@ -43,6 +43,11 @@ export interface FuncDeclaration extends NodeBase {
   exported: boolean;
   /** `public func` in a decorator: the component calls it as `@name.f()`. */
   isPublic: boolean;
+  /**
+   * `async func load() User`: the results are those of the Promise it returns, so its type is
+   * `func() Promise[User]`.
+   */
+  async?: true;
   name: Identifier;
   /** `[T any, U Shape]` after the name; empty for ordinary functions. */
   typeParams: TypeParameter[];
@@ -172,6 +177,8 @@ export interface MethodDeclaration extends NodeBase {
   kind: 'MethodDeclaration';
   visibility: Visibility;
   isStatic: boolean;
+  /** `async load() User`, like `async func`. */
+  async?: true;
   name: Identifier;
   params: Parameter[];
   results: TypeNode[];

@@ -88,6 +88,8 @@ export abstract class CheckerBase {
       isComponent?: boolean;
       closure?: boolean;
       paramKind?: BindingKind;
+      /** An async function: its body returns what the Promise of `results` gives. */
+      async?: boolean;
       /** Sees the scope of the body once it is checked. */
       inspect?: (scope: Scope) => void;
     },

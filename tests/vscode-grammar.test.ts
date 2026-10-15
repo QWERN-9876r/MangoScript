@@ -205,6 +205,16 @@ describe('VS Code grammar', () => {
     expect(scopeOf('let style = 1', 'style')).toBe('variable.other.readwrite');
   });
 
+  it('colours async functions and await', () => {
+    const source = 'async func load() string {\n    const text = await fetchText()\n}';
+
+    expect(scopeOf(source, 'async')).toBe('storage.modifier.async');
+    expect(scopeOf(source, 'load')).toBe('entity.name.function');
+    expect(scopeOf(source, 'await')).toBe('keyword.control.flow');
+    expect(scopeOf('const f = async x => x', 'async')).toBe('storage.modifier.async');
+    expect(scopeOf('const n = task.await', 'await')).not.toBe('keyword.control.flow');
+  });
+
   it('colours as and delete only where they are keywords', () => {
     expect(scopeOf('const n = x as number', 'as')).toBe('keyword.operator.expression.as');
     expect(scopeOf('const as = 1', 'as')).not.toBe('keyword.operator.expression.as');

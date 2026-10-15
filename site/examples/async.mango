@@ -1,0 +1,32 @@
+// An async function returns a Promise of its results; await waits for it
+async func sleep(ms number) {
+    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    await done
+}
+
+async func loadUser(id number) (string, error) {
+    await sleep(300) // as if over the network
+    if id <= 0 {
+        return "", error(`no user with id ${id}`)
+    }
+    return `user #${id}`, null
+}
+
+// await works at the top level of a module too
+const name, err = await loadUser(7)
+console.log(name, err)
+
+const _, notFound = await loadUser(0)
+console.log("error:", notFound?.message)
+
+// An event handler can be async: the markup updates after await
+comp Profile() {
+    state text = "nobody yet"
+    return <button onClick={async () => {
+        text = "loading…"
+        const user, failed = await loadUser(42)
+        text = failed == null ? user : failed.message
+    }}>{text}</button>
+}
+
+document.body.append(<Profile />)

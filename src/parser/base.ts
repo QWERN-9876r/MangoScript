@@ -77,9 +77,9 @@ export abstract class ParserBase {
 
   protected abstract parseArrayLiteral(): ast.ArrayLiteral;
 
-  protected abstract parseArrowFunction(): ast.ArrowFunction;
+  protected abstract parseArrowFunction(async?: boolean): ast.ArrowFunction;
 
-  protected abstract parseFuncExpression(): ast.FuncExpression;
+  protected abstract parseFuncExpression(async?: boolean): ast.FuncExpression;
 
   protected abstract parseIdentifier(what?: string): ast.Identifier;
 
@@ -111,6 +111,8 @@ export abstract class ParserBase {
     inLoop: false,
     inBreakable: false,
     inDefer: false,
+    // Modules are ES modules: `await` works at their top level.
+    inAsync: true,
     noObjectLiteral: false,
     inComponent: false,
     inMarkup: false,

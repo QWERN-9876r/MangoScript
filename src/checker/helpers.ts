@@ -162,8 +162,19 @@ export function countValues(count: number): string {
   return count === 1 ? '1 value' : `${count} values`;
 }
 
+/** A call, or `await` of a call: it may give several values. */
+export function isCall(node: ast.Expression): boolean {
+  return node.kind === 'UnaryExpression' && node.operator === 'await'
+    ? node.argument.kind === 'CallExpression'
+    : node.kind === 'CallExpression';
+}
+
 /** How to name an expression in messages: `divide()`, `stats.minMax()`, or `this expression`. */
 export function callName(node: ast.Expression): string {
+  if (node.kind === 'UnaryExpression' && node.operator === 'await') {
+    return callName(node.argument);
+  }
+
   if (node.kind !== 'CallExpression') return 'this expression';
 
   const { callee } = node;

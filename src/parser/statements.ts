@@ -144,7 +144,9 @@ export abstract class StatementParser extends SimpleStatementParser {
     if (statement.kind === 'ExpressionStatement') {
       const { expression } = statement;
 
-      if (expression.kind !== 'CallExpression' && expression.kind !== 'NewExpression') {
+      const awaited = expression.kind === 'UnaryExpression' && expression.operator === 'await';
+
+      if (expression.kind !== 'CallExpression' && expression.kind !== 'NewExpression' && !awaited) {
         this.error(
           'this expression does nothing: only function calls can be used as statements',
           expression.start,
@@ -164,6 +166,15 @@ export abstract class StatementParser extends SimpleStatementParser {
       case 'func':
         // `func(...)` without a name is a function literal, e.g. one that is called right away.
         if (this.peek(1).kind !== 'Identifier') return undefined;
+
+        return this.parseFuncDeclaration(start, exported);
+
+      case 'async':
+        if (this.peek(1).kind === 'comp') {
+          this.fail('a component cannot be async: load the data in mount() or in an async func');
+        }
+
+        if (this.peek(1).kind !== 'func' || this.peek(2).kind !== 'Identifier') return undefined;
 
         return this.parseFuncDeclaration(start, exported);
 
@@ -310,8 +321,8 @@ export abstract class StatementParser extends SimpleStatementParser {
     return { kind: 'BlockStatement', body, ...this.span(start) };
   }
 
-  protected parseFunctionBody(): ast.BlockStatement {
-    return this.withContext(FUNCTION_BODY, () => this.parseBlock());
+  protected parseFunctionBody(async = false): ast.BlockStatement {
+    return this.withContext({ ...FUNCTION_BODY, inAsync: async }, () => this.parseBlock());
   }
 
   /** An if/for/switch header, where `{` starts the block rather than an object literal. */

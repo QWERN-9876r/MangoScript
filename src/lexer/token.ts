@@ -32,10 +32,10 @@ export const KEYWORDS = [
   'false',
   'typeof',
   'instanceof',
-  // Reserved for future use.
-  'map',
   'async',
   'await',
+  // Reserved for future use.
+  'map',
 ] as const;
 
 export const PUNCTUATORS = [

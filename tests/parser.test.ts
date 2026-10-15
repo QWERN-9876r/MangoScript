@@ -73,7 +73,7 @@ describe('expressions', () => {
     ['-a ** b', 'wrap the unary expression in parentheses'],
     ['{ "key" }', 'expected ":" after property name'],
     ['super', '"super" must be followed by "(" or "."'],
-    ['await f()', '"await" is reserved for future use'],
+    ['map(f)', '"map" is reserved for future use'],
     ['(', 'expected expression, found end of file'],
   ])('reports %j', (source, message) => {
     expect(errors(`x = ${source}`)).toEqual([expect.stringContaining(message)]);

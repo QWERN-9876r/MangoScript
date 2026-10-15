@@ -4,13 +4,16 @@ import { collectValueNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
 import { type Binding, type ComponentInfo, type DecoratorInfo, Scope } from './context.ts';
 import { ImportChecker } from './imports.ts';
+import { awaited, isPromise, promiseOf } from './promise.ts';
 import {
   createClass,
   func,
+  typeToString,
   UNKNOWN,
   type ClassInfo,
   type FunctionType,
   type ObjectType,
+  type Type,
   type TypeParam,
 } from './types.ts';
 
@@ -163,7 +166,7 @@ export abstract class DeclarationChecker extends ImportChecker {
       const typeParams = this.createTypeParams(node.typeParams);
 
       binding.type = this.withTypeParams(typeParams, node.typeParams, () => ({
-        ...this.signature(node.params, node.results),
+        ...this.signature(node.params, node.results, node.async),
         typeParams,
       }));
     }
@@ -219,7 +222,9 @@ export abstract class DeclarationChecker extends ImportChecker {
 
       // A nested `func` declaration is a JS `function`: it has no `this` of its own class.
       bodies.push(() =>
-        this.withClass(null, () => this.checkFunction(node.params, type, type.results, node.body)),
+        this.withClass(null, () =>
+          this.checkFunction(node.params, type, type.results, node.body, { async: node.async }),
+        ),
       );
     }
 
@@ -299,13 +304,35 @@ export abstract class DeclarationChecker extends ImportChecker {
     }
   }
 
+  /** The type of a function; an async one returns a Promise of its results. */
   protected signature(
     params: readonly ast.Parameter[],
     results: readonly ast.TypeNode[],
+    async = false,
   ): FunctionType {
+    const types = results.map((result) => this.resolveType(result));
+
+    if (async) {
+      types.forEach((type, i) => {
+        if (!isPromise(type)) return;
+        this.error(
+          `an async function declares what its Promise gives: write "${typeToString(awaited(type))}", not "${typeToString(type)}"`,
+          results[i]!,
+        );
+        types[i] = awaited(type);
+      });
+    }
+
     return func(
       params.map((param) => (param.type ? this.resolveType(param.type) : UNKNOWN)),
-      results.map((result) => this.resolveType(result)),
+      async ? [this.promiseOf(types)] : types,
     );
+  }
+
+  /** `Promise[...]` of the results of an async function, with the global `Promise` type. */
+  protected promiseOf(results: readonly Type[]): Type {
+    const entry = this.globals.types.get('Promise') ?? this.options.library?.type('Promise');
+
+    return promiseOf(entry?.kind === 'alias' ? undefined : entry, results);
   }
 }

@@ -174,7 +174,9 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
       case 'MethodDeclaration': {
         const [params, body] = this.func(member.params, member.body);
 
-        this.line(`${member.isStatic ? 'static ' : ''}${member.name.name}(${params}) ${body}`);
+        const modifiers = `${member.isStatic ? 'static ' : ''}${member.async ? 'async ' : ''}`;
+
+        this.line(`${modifiers}${member.name.name}(${params}) ${body}`);
         break;
       }
     }

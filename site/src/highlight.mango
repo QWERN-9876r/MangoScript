@@ -24,7 +24,7 @@ const JS_KEYWORDS = [
 const LITERALS = ["true", "false", "null", "undefined"]
 
 // What follows public when it is a modifier: public state x, public func f(), public name string
-const PUBLIC_NEXT = ["Identifier", "const", "let", "func"]
+const PUBLIC_NEXT = ["Identifier", "const", "let", "func", "async"]
 
 // Between tokens are spaces and comments; split with a group keeps the comments in the result.
 const COMMENT = new RegExp("(//[^\\n]*|/\\*[\\s\\S]*?\\*/)")

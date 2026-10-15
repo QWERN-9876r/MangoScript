@@ -94,7 +94,7 @@ export abstract class ClassChecker extends DeclarationChecker {
 
         case 'MethodDeclaration':
           this.declareMember(info, member.isStatic, member.name, {
-            type: this.signature(member.params, member.results),
+            type: this.signature(member.params, member.results, member.async),
             method: true,
             visibility: member.visibility,
             owner: info,
@@ -136,7 +136,9 @@ export abstract class ClassChecker extends DeclarationChecker {
 
         if (type?.kind !== 'function') continue;
         this.withClass({ info, isStatic: member.isStatic }, () =>
-          this.checkFunction(member.params, type, type.results, member.body),
+          this.checkFunction(member.params, type, type.results, member.body, {
+            async: member.async,
+          }),
         );
         this.checkOverride(info, member);
       } else if (member.kind === 'ConstructorDeclaration' && info.ctor) {

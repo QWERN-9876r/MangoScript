@@ -7,6 +7,11 @@ import { describe, cleanJsxText, isHandlerReference } from './syntax.ts';
 export abstract class MarkupParser extends LiteralParser {
   /** `<tag attributes>children</tag>`, `<tag ... />` or a fragment `<>children</>`. */
   protected override parseJsxElement(): ast.ElementExpression {
+    // The code in markup runs again in update functions, which are not async.
+    return this.withContext({ inAsync: false }, () => this.parseMarkup());
+  }
+
+  private parseMarkup(): ast.ElementExpression {
     const start = this.expect('JsxTagOpen').start;
     const tag = this.check('JsxTagEnd') ? null : this.parseJsxName('tag name');
     const attributes: (ast.JsxAttribute | ast.JsxSpreadAttribute)[] = [];

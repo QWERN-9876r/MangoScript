@@ -70,7 +70,7 @@ const point = {
 ```
 func  comp  return  let  const  type  interface  class  extends  new  this  super
 if  else  for  in  break  continue  switch  case  default  defer
-try  catch  finally  throw  import  export
+try  catch  finally  throw  import  export  async  await
 null  true  false  typeof  instanceof
 ```
 
@@ -78,8 +78,8 @@ null  true  false  typeof  instanceof
 `public` и `implements`, в `import` и `export` — `from`, в начале оператора в теле компонента —
 `state`, `derived`, `ref`, `style`, `mount` и `effect`, в начале объявления на верхнем уровне — `dec`, после его
 параметров — `needs`, а в теле декоратора — `public`. В остальных местах это обычные имена; `get`
-особый только в `get(@имя.член)`. Зарезервированы на
-будущее: `map`, `async`, `await`. Декораторы пишутся перед `comp`: `@html-tag` (см.
+особый только в `get(@имя.член)`. Зарезервировано на
+будущее: `map`. Декораторы пишутся перед `comp`: `@html-tag` (см.
 «Веб-компоненты») и объявленные через `dec` (см. «Декораторы»).
 
 После `.` и в ключах объектов ключевые слова можно использовать как обычные имена:
@@ -463,6 +463,58 @@ defer {
 Если все `defer` стоят на верхнем уровне тела функции, компилятор выдаёт вложенные
 `try/finally`, как в примере выше. Если `defer` стоит внутри `if` или цикла, отложенные вызовы
 собираются в стек и выполняются в `finally`.
+
+### Асинхронные функции
+
+```go
+async func loadText(url string) (string, error) {
+    const response = await fetch(url)
+    if !response.ok {
+        return "", error(`HTTP ${response.status}`)
+    }
+    return await response.text(), null
+}
+
+const text, err = await loadText("/hello.txt")
+```
+
+```js
+async function loadText(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    return ["", new Error(`HTTP ${response.status}`)];
+  }
+  return [await response.text(), null];
+}
+
+const [text, err] = await loadText("/hello.txt");
+```
+
+`async` пишется перед `func`, перед методом класса (`async load() string`), перед литералом
+`func` и перед стрелочной функцией (`async x => ...`).
+
+- **Типы результатов — то, что отдаёт `return`;** сама функция возвращает Promise с ними: у
+  `loadText` тип `func(string) Promise[(string, error)]`. Поэтому результаты пишутся как у любой
+  функции, в том числе несколько; `Promise[string]` как результат async-функции — ошибка.
+- **`await p` ждёт Promise и даёт его значение.** Результаты async-функции распаковываются из
+  него как из вызова: `const text, err = await loadText(url)`. `await` значения, которое не
+  Promise, даёт само значение, как в JS.
+- **Где можно `await`:** в async-функциях и на верхнем уровне модуля — модули это ES-модули. Не в
+  `defer`: отложенный код выполняется при выходе из функции и ждать не может. Не в разметке: её
+  код выполняется заново при обновлениях. Компонент не может быть async: загружайте данные в
+  `mount()` или в обработчике события.
+- **Обработчик события может быть async:** `onClick={async () => { user = await load() }}`.
+  Изменение состояния после `await` обновляет разметку, как любое другое.
+- `defer` async-функции выполняется при её завершении, после всего, чего она ждала.
+
+Promise, созданный вручную, получает тип из объявленного:
+
+```go
+async func sleep(ms number) {
+    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    await done
+}
+```
 
 ## 5. Условия и циклы
 
@@ -1436,7 +1488,6 @@ hello.mango:9:11: error: cannot add string and number: use a template string, e.
 
 ## 13. Не входит в v0
 
-- **`async func` и `await`.**
 - **`map[K]V`**, компилируется в `Map`: `m[k]` → `m.get(k)`, `m[k] = v` → `m.set(k, v)`.
 - **Классы:** геттеры и сеттеры, `readonly`, абстрактные классы, параметры-свойства конструктора
   (`constructor(private name string)`).

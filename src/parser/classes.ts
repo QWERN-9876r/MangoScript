@@ -39,7 +39,7 @@ export abstract class ClassParser extends DecoratorParser {
 
     const members: ast.ClassMember[] = [];
 
-    this.withContext({ topLevel: false }, () => {
+    this.withContext({ topLevel: false, inAsync: false }, () => {
       this.parseSeparated(
         () => this.check('}'),
         () => {
@@ -83,9 +83,14 @@ export abstract class ClassParser extends DecoratorParser {
       }
     }
 
+    // `async load()`; a method named `async` is `async()`.
+    const asyncToken = this.check('async') && this.peek(1).kind !== '(' ? this.next() : null;
+    const async = asyncToken !== null;
+
     if (this.checkWord('constructor') && this.peek(1).kind === '(') {
       this.next();
       if (isStatic) this.error('constructors cannot be static', start, this.span(start).end);
+      if (async) this.error('a constructor cannot be async', start, this.span(start).end);
 
       const params = this.parseParams(false);
       const resultsStart = this.peek().start;
@@ -112,13 +117,14 @@ export abstract class ClassParser extends DecoratorParser {
     if (this.check('(')) {
       const params = this.parseParams(false);
       const results = this.parseResults();
-      const body = this.parseFunctionBody();
+      const body = this.parseFunctionBody(async);
 
       return [
         {
           kind: 'MethodDeclaration',
           visibility: visibility ?? 'public',
           isStatic,
+          ...(async ? { async } : {}),
           name,
           params,
           results,
@@ -127,6 +133,8 @@ export abstract class ClassParser extends DecoratorParser {
         },
       ];
     }
+
+    if (asyncToken) this.error('only methods can be async', asyncToken.start, asyncToken.end);
 
     // Fields: `name string`, `count = 0`, `x, y number`.
     const names = [name];

@@ -233,15 +233,21 @@ export abstract class CallChecker extends MemberChecker {
 
     const errors = this.diagnostics.length;
 
+    // What the other arguments leave open comes from the expected result, before those arrow
+    // functions: `const done Promise[number] = new Promise(resolve => ...)`.
+    const fromExpected = () => {
+      if (expected && signature.results.length === 1) {
+        inferTypeParams(signature.results[0]!, expected, inferred);
+      }
+    };
+
     try {
-      this.checkArgumentList(signature, args, inferred, needsContext);
+      this.checkArgumentList(signature, args, inferred, needsContext, fromExpected);
     } finally {
       this.inferring = inferring;
     }
 
-    if (expected && signature.results.length === 1) {
-      inferTypeParams(signature.results[0]!, expected, inferred);
-    }
+    fromExpected();
 
     for (const param of signature.typeParams) {
       if (!inferred.has(param) && param.default) inferred.set(param, param.default);
@@ -280,8 +286,10 @@ export abstract class CallChecker extends MemberChecker {
     args: readonly (ast.Expression | ast.SpreadElement)[],
     inferred: Map<TypeParam, Type>,
     needsContext: (arg: ast.Expression | ast.SpreadElement) => boolean,
+    beforeContext?: () => void,
   ): void {
     for (const contextPass of [false, true]) {
+      if (contextPass) beforeContext?.();
       args.forEach((arg, i) => {
         if (needsContext(arg) !== contextPass) return;
         if (arg.kind === 'SpreadElement') {

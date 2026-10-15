@@ -102,6 +102,16 @@ export abstract class ExpressionParser extends TypeParser {
     if (isUnaryOperator(token.kind)) {
       const operator = token.kind;
 
+      if (operator === 'await' && !this.context.inAsync) {
+        this.error(
+          this.context.inDefer
+            ? '"await" is not allowed inside "defer": deferred code runs when the function ends'
+            : '"await" is allowed only in async functions and at the top level of a module; mark the function, e.g. "async func load() { ... }"',
+          token.start,
+          token.end,
+        );
+      }
+
       this.next();
 
       const argument = this.parseUnary();
@@ -253,6 +263,23 @@ export abstract class ExpressionParser extends TypeParser {
 
       case 'func':
         return this.parseFuncExpression();
+
+      case 'async': {
+        this.next();
+
+        const fn = this.check('func')
+          ? this.parseFuncExpression(true)
+          : (this.check('Identifier') && this.peek(1).kind === '=>') ||
+              (this.check('(') && this.isArrowFunctionAhead())
+            ? this.parseArrowFunction(true)
+            : this.fail(
+                'expected a function after "async": "async func(...) { ... }" or "async x => ..."',
+              );
+
+        fn.start = start;
+
+        return fn;
+      }
 
       case 'new':
         return this.parseNew();

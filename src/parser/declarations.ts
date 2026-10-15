@@ -84,18 +84,21 @@ export abstract class DeclarationParser extends ControlFlowParser {
   }
 
   protected override parseFuncDeclaration(start: number, exported: boolean): ast.FuncDeclaration {
+    const async = this.accept('async');
+
     this.expect('func');
 
     const name = this.parseIdentifier('function name');
     const typeParams = this.parseTypeParams();
     const params = this.parseParams(false);
     const results = this.parseResults();
-    const body = this.parseFunctionBody();
+    const body = this.parseFunctionBody(async);
 
     return {
       kind: 'FuncDeclaration',
       exported,
       isPublic: false,
+      ...(async ? { async } : {}),
       name,
       typeParams,
       params,

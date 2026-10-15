@@ -1,0 +1,32 @@
+// Асинхронная функция возвращает Promise с результатами; await ждёт его
+async func sleep(ms number) {
+    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    await done
+}
+
+async func loadUser(id number) (string, error) {
+    await sleep(300) // как будто по сети
+    if id <= 0 {
+        return "", error(`нет пользователя с id ${id}`)
+    }
+    return `пользователь №${id}`, null
+}
+
+// await работает и на верхнем уровне модуля
+const name, err = await loadUser(7)
+console.log(name, err)
+
+const _, notFound = await loadUser(0)
+console.log("ошибка:", notFound?.message)
+
+// Обработчик события может быть async: разметка обновится после await
+comp Profile() {
+    state text = "пока никого"
+    return <button onClick={async () => {
+        text = "загрузка…"
+        const user, failed = await loadUser(42)
+        text = failed == null ? user : failed.message
+    }}>{text}</button>
+}
+
+document.body.append(<Profile />)

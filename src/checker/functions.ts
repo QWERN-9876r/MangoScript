@@ -3,6 +3,7 @@ import { type BindingKind, type Binding, Scope, type Flow } from './context.ts';
 import { ControlFlowChecker } from './control-flow.ts';
 import { isTerminating } from './flow.ts';
 import { isUntyped, callSignature } from './helpers.ts';
+import { awaitedResults, isPromise } from './promise.ts';
 import {
   commonType,
   containsTypeParam,
@@ -30,16 +31,21 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       isComponent?: boolean;
       closure?: boolean;
       paramKind?: BindingKind;
+      async?: boolean;
       inspect?: (scope: Scope) => void;
     } = {},
   ): Type[] {
     const saved = { scope: this.scope, flow: this.flow, fn: this.fn };
+    const { async = false } = options;
+    // An async function returns a Promise: its body returns what the Promise gives.
+    const declared = async && results ? awaitedResults(results) : results;
+    const wrap = (types: Type[]) => (async && !results ? [this.promiseOf(types)] : types);
 
     this.scope = new Scope(this.scope);
     // A closure keeps the narrowing of variables that cannot change before it runs.
     this.flow = options.closure ? this.stableFlow() : new Map<Binding, Type>();
     this.fn = {
-      results,
+      results: declared,
       returns: [],
       isConstructor: options.isConstructor ?? false,
       isComponent: options.isComponent ?? false,
@@ -53,17 +59,19 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       if (body.kind === 'BlockStatement') {
         this.checkStatementList(body.body, false);
         options.inspect?.(this.scope);
-        if (results && results.length > 0 && !isTerminating(body)) {
+        if (declared && declared.length > 0 && !isTerminating(body)) {
           this.error('missing return at the end of the function', {
             start: body.end - 1,
             end: body.end,
           });
         }
 
-        return results ?? this.inferResults(this.fn.returns, body);
+        return results ?? wrap(this.inferResults(this.fn.returns, body));
       }
 
-      return this.checkExpressionBody(body, results);
+      const types = this.checkExpressionBody(body, declared);
+
+      return results ?? wrap(types);
     } finally {
       this.scope = saved.scope;
       this.flow = saved.flow;
@@ -144,11 +152,13 @@ export abstract class FunctionChecker extends ControlFlowChecker {
 
       return UNKNOWN;
     });
-    // Known result types from the context are checked; otherwise they are inferred.
+    // Known result types from the context are checked; otherwise they are inferred. Those of an
+    // async function must be a Promise.
     const contextResults =
       context &&
       context.results.length > 0 &&
-      !context.results.some((type) => containsTypeParam(type, this.inferring))
+      !context.results.some((type) => containsTypeParam(type, this.inferring)) &&
+      (!node.async || (context.results.length === 1 && isPromise(context.results[0]!)))
         ? context.results
         : null;
     const type = func(params, []);
@@ -159,6 +169,7 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       try {
         return this.checkFunction(node.params, type, contextResults, node.body, {
           closure: true,
+          async: node.async,
         });
       } finally {
         this.inferring = inferring;
@@ -171,7 +182,7 @@ export abstract class FunctionChecker extends ControlFlowChecker {
       contextResults ?? (untypedContext || context?.results.length === 0 ? [] : null);
 
     if (knownResults && !params.includes(UNKNOWN) && this.deferBody(node.body, checkBody)) {
-      type.results = knownResults;
+      type.results = node.async && !contextResults ? [this.promiseOf([])] : knownResults;
 
       return type;
     }
@@ -182,9 +193,12 @@ export abstract class FunctionChecker extends ControlFlowChecker {
   }
 
   protected checkFuncExpression(node: ast.FuncExpression): Type {
-    const type = this.signature(node.params, node.results);
+    const type = this.signature(node.params, node.results, node.async);
     const checkBody = () =>
-      this.checkFunction(node.params, type, type.results, node.body, { closure: true });
+      this.checkFunction(node.params, type, type.results, node.body, {
+        closure: true,
+        async: node.async,
+      });
 
     if (!this.deferBody(node.body, checkBody)) checkBody();
 

@@ -15,6 +15,7 @@ export const SECTIONS []Section = [
     { id: "null", title: "null, unions and narrowing", group: "Language", content: NullSafety },
     { id: "functions", title: "Functions", group: "Language", content: Functions },
     { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
+    { id: "async", title: "Async functions", group: "Language", content: Async },
     { id: "control", title: "Conditions and loops", group: "Language", content: Control },
     { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
     { id: "generics", title: "Generics", group: "Language", content: Generics },
@@ -172,6 +173,20 @@ comp Errors() {
             cleaning up: the call runs after a <code>return</code> and after an exception alike.
         </p>
         {example("defer")}
+    </>
+}
+
+comp Async() {
+    return <>
+        <p>
+            <code>async func</code> returns a Promise, and <code>await</code> waits for it. The result
+            types are written as in any function, several of them too: an
+            {" "}<code>async func load() (string, error)</code> returns
+            {" "}<code>Promise[(string, error)]</code>, and <code>await</code> unpacks the values
+            back. A module can <code>await</code> at the top level, and an event handler can be
+            async: a change of state after <code>await</code> updates the markup.
+        </p>
+        {example("async")}
     </>
 }
 

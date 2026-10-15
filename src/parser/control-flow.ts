@@ -193,14 +193,15 @@ export abstract class ControlFlowParser extends StatementParser {
     }
 
     if (this.check('{')) {
-      const body = this.withContext({ inDefer: true, inLoop: false, inBreakable: false }, () =>
-        this.parseBlock(),
+      const body = this.withContext(
+        { inDefer: true, inAsync: false, inLoop: false, inBreakable: false },
+        () => this.parseBlock(),
       );
 
       return { kind: 'DeferStatement', body, ...this.span(start) };
     }
 
-    const call = this.parseExpression();
+    const call = this.withContext({ inDefer: true, inAsync: false }, () => this.parseExpression());
 
     if (call.kind !== 'CallExpression') {
       this.failAt('"defer" needs a function call or a block', call.start, call.end);

@@ -26,7 +26,7 @@ export abstract class LiteralParser extends ExpressionParser {
     return false;
   }
 
-  protected override parseArrowFunction(): ast.ArrowFunction {
+  protected override parseArrowFunction(async = false): ast.ArrowFunction {
     const start = this.peek().start;
     let params: ast.Parameter[];
 
@@ -49,11 +49,17 @@ export abstract class LiteralParser extends ExpressionParser {
 
     this.expect('=>');
 
-    const body = this.withContext(FUNCTION_BODY, () =>
+    const body = this.withContext({ ...FUNCTION_BODY, inAsync: async }, () =>
       this.check('{') ? this.parseBlock() : this.parseExpression(),
     );
 
-    return { kind: 'ArrowFunction', params, body, ...this.span(start) };
+    return {
+      kind: 'ArrowFunction',
+      ...(async ? { async } : {}),
+      params,
+      body,
+      ...this.span(start),
+    };
   }
 
   protected override parseParenthesized(): ast.Expression {
@@ -67,13 +73,20 @@ export abstract class LiteralParser extends ExpressionParser {
     return expression;
   }
 
-  protected override parseFuncExpression(): ast.FuncExpression {
+  protected override parseFuncExpression(async = false): ast.FuncExpression {
     const start = this.expect('func').start;
     const params = this.parseParams(false);
     const results = this.parseResults();
-    const body = this.parseFunctionBody();
+    const body = this.parseFunctionBody(async);
 
-    return { kind: 'FuncExpression', params, results, body, ...this.span(start) };
+    return {
+      kind: 'FuncExpression',
+      ...(async ? { async } : {}),
+      params,
+      results,
+      body,
+      ...this.span(start),
+    };
   }
 
   protected override parseNew(): ast.NewExpression {

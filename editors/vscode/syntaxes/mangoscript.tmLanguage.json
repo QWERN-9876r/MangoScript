@@ -213,7 +213,7 @@
         },
         {
           "name": "keyword.control.flow.mango",
-          "match": "(?<![\\w$])(?<![^.]\\.)(?:return|throw|defer)(?![\\w$])"
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:return|throw|defer|await)(?![\\w$])"
         },
         {
           "name": "keyword.control.trycatch.mango",
@@ -226,6 +226,10 @@
         {
           "name": "storage.type.function.mango",
           "match": "(?<![\\w$])(?<![^.]\\.)func(?![\\w$])"
+        },
+        {
+          "name": "storage.modifier.async.mango",
+          "match": "(?<![\\w$])(?<![^.]\\.)async(?![\\w$])"
         },
         {
           "name": "storage.type.component.mango",

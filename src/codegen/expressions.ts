@@ -110,7 +110,7 @@ export abstract class ExpressionEmitter extends Emitter {
         // Func literals become arrow functions, so `this` inside them is the enclosing `this`.
         const [params, body] = this.func(node.params, node.body);
 
-        return [`(${params}) => ${body}`, ARROW];
+        return [`${node.async ? 'async ' : ''}(${params}) => ${body}`, ARROW];
       }
 
       case 'ArrowFunction':
@@ -234,11 +234,12 @@ export abstract class ExpressionEmitter extends Emitter {
 
   private arrowFunction(node: ast.ArrowFunction): string {
     const { body } = node;
+    const async = node.async ? 'async ' : '';
 
     if (body.kind === 'BlockStatement') {
       const [params, block] = this.func(node.params, body);
 
-      return `(${params}) => ${block}`;
+      return `${async}(${params}) => ${block}`;
     }
 
     return this.withFunction('none', node.params, () => {
@@ -255,20 +256,22 @@ export abstract class ExpressionEmitter extends Emitter {
         };
         const block = this.block(() => this.statement(statement));
 
-        return `(${params}) => ${block}`;
+        return `${async}(${params}) => ${block}`;
       }
 
       // `() => ({ ... })`: a body starting with `{` would be read as a block.
       const text = this.expression(body, ARROW, startsWithObjectLiteral(body));
 
-      return `(${params}) => ${text}`;
+      return `${async}(${params}) => ${text}`;
     });
   }
 
   private unary(node: ast.UnaryExpression): string {
     const argument = this.expression(node.argument, UNARY);
 
-    if (node.operator === 'typeof') return `typeof ${argument}`;
+    if (node.operator === 'typeof' || node.operator === 'await') {
+      return `${node.operator} ${argument}`;
+    }
 
     // `- -x` must not turn into `--x`.
     const space =

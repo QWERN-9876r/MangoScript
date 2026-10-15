@@ -69,7 +69,7 @@ const point = {
 ```
 func  comp  return  let  const  type  interface  class  extends  new  this  super
 if  else  for  in  break  continue  switch  case  default  defer
-try  catch  finally  throw  import  export
+try  catch  finally  throw  import  export  async  await
 null  true  false  typeof  instanceof
 ```
 
@@ -78,7 +78,7 @@ too, in `import` and `export` so is `from`, at the start of a statement in a com
 `state`, `derived`, `ref`, `style`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
 parameters `needs`, and in a decorator's body `public`. Elsewhere they are ordinary names; `get` is
 special only in `get(@name.member)`. Reserved
-for the future: `map`, `async`, `await`. Decorators are written before `comp`: `@html-tag` (see
+for the future: `map`. Decorators are written before `comp`: `@html-tag` (see
 "Web components") and those declared with `dec` (see "Decorators").
 
 After `.` and in object keys, keywords can be used as ordinary names: `xs.map(f)`, `event.type`,
@@ -463,6 +463,59 @@ defer {
 If all the `defer`s are at the top level of the function's body, the compiler writes nested
 `try/finally`, as in the example above. If a `defer` is inside an `if` or a loop, the deferred calls
 are collected in a stack and run in `finally`.
+
+### Async functions
+
+```go
+async func loadText(url string) (string, error) {
+    const response = await fetch(url)
+    if !response.ok {
+        return "", error(`HTTP ${response.status}`)
+    }
+    return await response.text(), null
+}
+
+const text, err = await loadText("/hello.txt")
+```
+
+```js
+async function loadText(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    return ["", new Error(`HTTP ${response.status}`)];
+  }
+  return [await response.text(), null];
+}
+
+const [text, err] = await loadText("/hello.txt");
+```
+
+`async` is written before `func`, before a method of a class (`async load() string`), before a
+`func` literal and before an arrow function (`async x => ...`).
+
+- **The result types are what `return` gives;** the function itself returns a Promise of them:
+  `loadText` has the type `func(string) Promise[(string, error)]`. So the results are written as
+  in any function, also several of them; `Promise[string]` as the result of an async function is
+  an error.
+- **`await p` waits for the Promise and gives its value.** The results of an async function are
+  unpacked from it as from a call: `const text, err = await loadText(url)`. `await` of a value
+  that is not a Promise gives the value itself, as in JS.
+- **Where `await` is allowed:** in async functions and at the top level of a module, since
+  modules are ES modules. Not in `defer`: deferred code runs when the function ends and cannot
+  wait. Not in markup: its code runs again on updates. A component cannot be async: load the data
+  in `mount()` or in an event handler.
+- **An event handler may be async:** `onClick={async () => { user = await load() }}`. A change of
+  state after `await` updates the markup like any other.
+- A `defer` of an async function runs when it ends, after everything it has waited for.
+
+A Promise made by hand gets its type from the declared one:
+
+```go
+async func sleep(ms number) {
+    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    await done
+}
+```
 
 ## 5. Conditions and loops
 
@@ -1435,7 +1488,6 @@ types of other imports come from TypeScript declarations (section 9).
 
 ## 13. Not in v0
 
-- **`async func` and `await`.**
 - **`map[K]V`**, compiled to `Map`: `m[k]` → `m.get(k)`, `m[k] = v` → `m.set(k, v)`.
 - **Classes:** getters and setters, `readonly`, abstract classes, constructor parameter properties
   (`constructor(private name string)`).

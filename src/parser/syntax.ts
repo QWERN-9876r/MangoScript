@@ -35,6 +35,7 @@ export const UNARY_OPERATORS: ReadonlySet<string> = new Set<ast.UnaryOperator>([
   '+',
   '~',
   'typeof',
+  'await',
 ]);
 
 export const ASSIGNMENT_OPERATORS: ReadonlySet<string> = new Set<ast.AssignmentOperator>([
@@ -68,7 +69,7 @@ export function isAssignmentOperator(kind: TokenKind): kind is ast.AssignmentOpe
   return ASSIGNMENT_OPERATORS.has(kind);
 }
 
-export const RESERVED: ReadonlySet<string> = new Set(['map', 'async', 'await']);
+export const RESERVED: ReadonlySet<string> = new Set(['map']);
 
 export const MODIFIERS: ReadonlySet<string> = new Set(['public', 'protected', 'private', 'static']);
 
@@ -117,6 +118,8 @@ export interface Context {
   /** Inside a loop or switch, where `break` is allowed. */
   inBreakable: boolean;
   inDefer: boolean;
+  /** In an async function or at the top level of the module, where `await` is allowed. */
+  inAsync: boolean;
   /** In an if/for/switch header, where `{` starts the block rather than an object literal. */
   noObjectLiteral: boolean;
   /** Inside a component, for the error about `state` in a nested block. */
@@ -131,6 +134,7 @@ export const FUNCTION_BODY: Partial<Context> = {
   inLoop: false,
   inBreakable: false,
   inDefer: false,
+  inAsync: false,
   noObjectLiteral: false,
   inMarkup: false,
 };
