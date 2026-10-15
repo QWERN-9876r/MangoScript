@@ -1,7 +1,16 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { build, displayPath } from './build.ts';
@@ -141,17 +150,28 @@ function buildFiles(entries: string[], outDir: string | undefined, typeCheck: bo
 
 /**
  * Runs a program in a process of its own that imports loader.ts first: so do the worker threads
- * of its goroutines, which do not share the hooks of the thread that registers them.
+ * of its goroutines, which do not share the hooks of the thread that registers them. They take
+ * the compiled code from a directory of the run, removed after it.
  */
 function runFile(file: string, typeCheck: boolean): number {
   const loader = new URL('./loader.ts', import.meta.url).href;
   const run = fileURLToPath(new URL('./run.ts', import.meta.url));
-  const { status, signal } = spawnSync(process.execPath, ['--import', loader, run, file], {
-    stdio: 'inherit',
-    env: typeCheck ? process.env : { ...process.env, MANGO_NO_CHECK: '1' },
-  });
+  const cache = mkdtempSync(join(tmpdir(), 'mango-run-'));
 
-  return status ?? (signal ? 1 : 0);
+  try {
+    const { status, signal } = spawnSync(process.execPath, ['--import', loader, run, file], {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        MANGO_RUN_CACHE: cache,
+        ...(typeCheck ? {} : { MANGO_NO_CHECK: '1' }),
+      },
+    });
+
+    return status ?? (signal ? 1 : 0);
+  } finally {
+    rmSync(cache, { recursive: true, force: true });
+  }
 }
 
 function printTokens(file: SourceFile): void {

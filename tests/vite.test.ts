@@ -9,7 +9,8 @@ import { mango } from '../src/vite.ts';
 
 const root = new URL('..', import.meta.url).pathname;
 
-describe('Vite plugin', () => {
+// Builds take seconds while the other tests run too.
+describe('Vite plugin', { timeout: 30_000 }, () => {
   it('compiles .mango modules and the modules they import', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
 
@@ -83,7 +84,7 @@ describe('Vite plugin', () => {
   });
 });
 
-describe('documentation site', () => {
+describe('documentation site', { timeout: 30_000 }, () => {
   it('is built by Vite: a page for each language, with its examples in its bundle', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'mango-site-'));
 

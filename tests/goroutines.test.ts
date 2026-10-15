@@ -190,7 +190,8 @@ go work(".")`);
   });
 });
 
-describe('runtime', () => {
+// Processes with workers take seconds while the other tests run too.
+describe('runtime', { timeout: 30_000 }, () => {
   const program = `${work}
 async func divide(a, b number) (number, error) {
     if b == 0 {

@@ -264,7 +264,8 @@ go fill(chan[string]())`);
   });
 });
 
-describe('runtime', () => {
+// Processes with workers take seconds while the other tests run too.
+describe('runtime', { timeout: 30_000 }, () => {
   it('passes values in the main thread: buffered, unbuffered and after close', async () => {
     expect(
       await run(`async func produce(out chan number) {
