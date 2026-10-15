@@ -1,4 +1,4 @@
-import { compileModule, type CompileResult } from './compile.ts';
+import { compileModule, workerUrl, type CompileResult } from './compile.ts';
 import { loadModuleExports } from './modules.ts';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -25,9 +25,11 @@ export interface CompileOptions {
 
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
   const { filename } = options;
+  const rewriteImports = options.rewriteImports ?? true;
 
   return compileModule(source, {
-    rewriteImports: options.rewriteImports ?? true,
+    rewriteImports,
+    workerUrl: workerUrl(filename ?? 'main.mango', rewriteImports),
     typeCheck: options.typeCheck ?? true,
     declarations: options.declarations ?? false,
     importModule: filename
@@ -38,7 +40,10 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
       : undefined,
     readStyleModule: filename ? (specifier: string) => readNear(filename, specifier) : undefined,
     // Without a file name, `@types` packages are looked up from the current directory.
-    library: libraryFor(filename ?? join(process.cwd(), 'main.mango')),
+    library:
+      (options.typeCheck ?? true)
+        ? libraryFor(filename ?? join(process.cwd(), 'main.mango'))
+        : undefined,
   });
 }
 

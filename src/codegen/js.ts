@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import { declarationsOf } from './analysis.ts';
 import type { JsOptions } from './emitter.ts';
 import { FunctionEmitter } from './functions.ts';
+import { startWorker } from './go-helpers.ts';
 import { HELPER_NEEDS, HELPERS, type Helper } from './helpers.ts';
 
 export type { JsOptions } from './emitter.ts';
@@ -80,6 +81,20 @@ class JsGenerator extends FunctionEmitter {
       this.hiddenExports();
     });
 
+    const { goroutines } = this.options;
+
+    // The worker module runs the functions that `go` calls (see goroutines.ts).
+    if (goroutines && 'targets' in goroutines) {
+      const names = goroutines.targets.map((name) => this.name(name));
+
+      this.helpers.add('serve');
+      this.lines.push(
+        '',
+        `const $$goroutines = { ${names.join(', ')} };`,
+        '$$serve($$goroutines);',
+      );
+    }
+
     // The CSS of the components goes before the code, so that the page has it before the markup.
     const styles = this.styleRegistrations();
     let lines = this.lines;
@@ -95,9 +110,14 @@ class JsGenerator extends FunctionEmitter {
 
       for (const helper of this.helpers) add(helper);
 
+      const workerUrl = goroutines && 'workerUrl' in goroutines ? goroutines.workerUrl : '';
       const helpers = [...needed]
         .sort()
-        .flatMap((helper, i) => [...(i > 0 ? [''] : []), ...HELPERS[helper]]);
+        .flatMap((helper, i) => [
+          ...(i > 0 ? [''] : []),
+          ...HELPERS[helper],
+          ...(helper === 'go' ? ['', ...startWorker(workerUrl)] : []),
+        ]);
       let imports = 0;
 
       while (lines[imports]?.startsWith('import ')) imports++;

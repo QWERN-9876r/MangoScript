@@ -21,10 +21,16 @@ export interface BrowserCompileResult {
   diagnostics: BrowserDiagnostic[];
   /** Problems that do not stop compilation. */
   warnings: BrowserDiagnostic[];
+  /** The worker module of `go`, when the program has `go`. */
+  worker?: string;
 }
 
-export function compile(source: string): BrowserCompileResult {
-  const result = compileModule(source, { rewriteImports: false });
+/** Compiles a program; `workerUrl` is where its worker module of `go` will be, if not next to it. */
+export function compile(source: string, workerUrl?: string | null): BrowserCompileResult {
+  const result = compileModule(source, {
+    rewriteImports: false,
+    workerUrl: workerUrl ?? undefined,
+  });
   const file = new SourceFile('', source);
   const located = (diagnostic: Diagnostic) => ({
     message: diagnostic.message,
@@ -35,5 +41,6 @@ export function compile(source: string): BrowserCompileResult {
     code: result.code,
     diagnostics: result.diagnostics.map(located),
     warnings: result.warnings.map(located),
+    ...(result.worker === undefined ? {} : { worker: result.worker }),
   };
 }

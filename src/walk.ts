@@ -210,6 +210,10 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       visit(node.argument);
       break;
 
+    case 'GoExpression':
+      visit(node.call);
+      break;
+
     case 'BinaryExpression':
       visit(node.left);
       visit(node.right);

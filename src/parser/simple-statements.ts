@@ -83,14 +83,15 @@ export abstract class SimpleStatementParser extends ParserBase {
 
   /**
    * `a, b = 1, 2, 3`: the counts must match, unless a single call returns all the values, or
-   * `await` of a call gives them.
+   * `await` of a call or of `go` gives them.
    */
   protected checkArity(targets: number, values: ast.Expression[], start: number): void {
     if (values.length === 0 || values.length === targets) return;
 
     const [value] = values;
-    const call =
+    const awaited =
       value?.kind === 'UnaryExpression' && value.operator === 'await' ? value.argument : value;
+    const call = awaited?.kind === 'GoExpression' ? awaited.call : awaited;
 
     if (values.length === 1 && call?.kind === 'CallExpression') return;
     this.error(

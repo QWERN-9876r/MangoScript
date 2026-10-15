@@ -27,7 +27,17 @@ export type Expression =
   | ElementExpression
   | DecoratorMember
   | DecoratorGet
-  | AsExpression;
+  | AsExpression
+  | GoExpression;
+
+/**
+ * `go work(x)`: calls a function of the module in a worker, with copies of the arguments. As an
+ * expression it is a Promise of what the function returns; as a statement nothing waits for it.
+ */
+export interface GoExpression extends NodeBase {
+  kind: 'GoExpression';
+  call: CallExpression;
+}
 
 /**
  * `value as Type`: the value seen as another type, as in TypeScript. The types must be related:

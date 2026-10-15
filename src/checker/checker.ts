@@ -1,12 +1,12 @@
 import type * as ast from '../ast.ts';
-import { CallChecker } from './calls.ts';
+import { GoroutineChecker } from './goroutines.ts';
 import type { CheckOptions, CheckResult } from './context.ts';
 
 export type { CheckOptions, CheckResult, ImportResult, Library, ModuleExports } from './context.ts';
 
 // The type checker of a module; its layers are listed in base.ts.
 
-class Checker extends CallChecker {
+class Checker extends GoroutineChecker {
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
     this.checkEndlessRecursion();

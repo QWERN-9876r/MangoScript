@@ -10,9 +10,12 @@ import styles from "./sandbox.module.css"
 export interface Compiled {
     code string
     errors []string
+    /** The worker module of `go`; empty without `go`. */
+    worker string
 }
 
-type Compile func(string) Compiled
+/** Compiles a program whose worker module of `go` will be at the URL; "" means next to it. */
+type Compile func(string, string) Compiled
 
 // The compiler is loaded on the first run, when a JavaScript tab is opened and when the playground
 // comes into view; null until then. Compilations asked for while it loads wait in `waiting`.
@@ -23,9 +26,9 @@ let waiting []func(?Compile) = []
 export func compileMango(source string, done func(Compiled)) {
     withCompiler(compile => {
         if compile == null {
-            done({ code: "", errors: [text().compilerFailed] })
+            done({ code: "", errors: [text().compilerFailed], worker: "" })
         } else {
-            done(compile(source))
+            done(compile(source, ""))
         }
     })
 }
@@ -42,11 +45,12 @@ func withCompiler(use func(?Compile)) {
     }
     loadCompiler().then(
         module => {
-            compiler = source => {
-                const result = module.compile(source)
+            compiler = (source, workerUrl) => {
+                const result = module.compile(source, workerUrl == "" ? null : workerUrl)
                 return {
                     code: result.code,
                     errors: result.diagnostics.map(d => `${text().position(d.line, d.column)}: ${d.message}`),
+                    worker: result.worker ?? "",
                 }
             }
             resolveWaiting(compiler)
@@ -111,32 +115,72 @@ export func runProgram(source string, preview HTMLElement, output func([]string)
             output(compiled.errors)
         } else if source.includes("import ") {
             output([text().noImports])
+        } else if compiled.worker == "" {
+            runCompiled(compiled.code, null, preview, output)
         } else {
-            runCompiled(compiled.code, preview, output)
+            // `go` runs functions in workers whose module is a Blob: the program is compiled again
+            // with its URL. What the workers print comes back through a channel of the run.
+            channels++
+            const channel = `mangoscript-sandbox-${channels}`
+            const worker = workerConsole(channel) + compiled.worker
+            const url = URL.createObjectURL(new Blob([worker], { type: "text/javascript" }))
+            withCompiler(compile => {
+                if compile != null {
+                    runCompiled(compile(source, url).code, channel, preview, output)
+                }
+            })
         }
     })
 }
 
-func runCompiled(code string, preview HTMLElement, output func([]string)) {
+let channels = 0
+
+// What the previous run of each result area left: the channel of its workers.
+let workerChannels Map[HTMLElement, BroadcastChannel] = new Map()
+
+/** The `console` of the worker module: its lines go to the channel, formatted as by show(). */
+func workerConsole(channel string) string {
+    return `const console = (() => {
+    const output = new BroadcastChannel(${JSON.stringify(channel)});
+    const show = (value) => (typeof value === "string" ? value : JSON.stringify(value));
+    const log = (...values) => output.postMessage(values.map(show).join(" "));
+    return { log, info: log, warn: log, error: log };
+})();
+`
+}
+
+func runCompiled(code string, channel ?string, preview HTMLElement, output func([]string)) {
     const run = (runs.get(preview) ?? 0) + 1
     runs.set(preview, run)
     const lines []string = []
     // Output after the run, from mount() and timers, is shown right away, line by line.
     let finished = false
-    // The language has no ...rest parameters yet, so extra arguments of console.log are dropped.
-    const print = func(a any, b any, c any, d any, e any, f any) {
+    const addLine = (line string) => {
         if runs.get(preview) != run {
             return
         }
+        lines.push(line)
+        if finished {
+            output(lines.slice())
+        }
+    }
+    // The language has no ...rest parameters yet, so extra arguments of console.log are dropped.
+    const print = func(a any, b any, c any, d any, e any, f any) {
         const values []any = [a, b, c, d, e, f]
         let count = values.length
         for count > 0 && typeof values[count - 1] == "undefined" {
             count--
         }
-        lines.push(values.slice(0, count).map(show).join(" "))
-        if finished {
-            output(lines.slice())
+        addLine(values.slice(0, count).map(show).join(" "))
+    }
+    workerChannels.get(preview)?.close()
+    workerChannels.delete(preview)
+    if channel != null {
+        const listener = new BroadcastChannel(channel)
+        listener.onmessage = func(event MessageEvent) {
+            addLine(event.data)
         }
+        workerChannels.set(preview, listener)
     }
     const sandboxConsole = { log: print, info: print, warn: print, error: print }
     allRuns++
@@ -159,15 +203,7 @@ func runCompiled(code string, preview HTMLElement, output func([]string)) {
     }
 
     // An exception of the program: thrown right away, or later, after an await.
-    const fail = (e any) => {
-        if runs.get(preview) != run {
-            return
-        }
-        lines.push(`${text().exception}: ${e.message}`)
-        if finished {
-            output(lines.slice())
-        }
-    }
+    const fail = (e any) => addLine(`${text().exception}: ${e.message}`)
 
     preview.replaceChildren()
     try {

@@ -1,6 +1,7 @@
 export const KEYWORDS = [
   'func',
   'comp',
+  'go',
   'return',
   'let',
   'const',

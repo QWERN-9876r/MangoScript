@@ -16,6 +16,7 @@ export const SECTIONS []Section = [
     { id: "functions", title: "Функции", group: "Язык", content: Functions },
     { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
     { id: "async", title: "Асинхронные функции", group: "Язык", content: Async },
+    { id: "goroutines", title: "Горутины", group: "Язык", content: Goroutines },
     { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
     { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
     { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
@@ -190,6 +191,20 @@ comp Async() {
             может быть async: изменение состояния после <code>await</code> обновляет разметку.
         </p>
         {example("async")}
+    </>
+}
+
+comp Goroutines() {
+    return <>
+        <p>
+            <code>go f(x)</code> вызывает функцию в воркере, в отдельном потоке: в Web Worker в
+            браузере, в worker thread в Node. Несколько вызовов идут одновременно на разных
+            процессорах, а <code>go</code> даёт Promise с результатом. Память у воркера с программой
+            не общая: он получает копии аргументов и отправляет обратно копию результата, поэтому
+            это данные, а функция не может пользоваться <code>let</code>-переменными модуля.
+            Компилятор проверяет и то, и другое.
+        </p>
+        {example("goroutines")}
     </>
 }
 

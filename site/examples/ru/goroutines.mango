@@ -1,0 +1,33 @@
+// go запускает функцию в воркере, в отдельном потоке; он получает копии аргументов
+func isPrime(n number) bool {
+    if n < 2 {
+        return false
+    }
+    for let d = 2; d * d <= n; d++ {
+        if n % d == 0 {
+            return false
+        }
+    }
+    return true
+}
+
+// isPrime, которой пользуется countPrimes, попадает в воркер вместе с ней
+func countPrimes(from, to number) number {
+    let count = 0
+    for let n = from; n < to; n++ {
+        if isPrime(n) {
+            count++
+        }
+    }
+    return count
+}
+
+const PART = 1_000_000
+
+let started = Date.now()
+console.log("один поток:", countPrimes(0, 4 * PART), `${Date.now() - started} мс`)
+
+// go даёт Promise с результатом: четыре части считаются одновременно
+started = Date.now()
+const parts = await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * PART, (i + 1) * PART)))
+console.log("четыре воркера:", parts.reduce((a, b) => a + b, 0), `${Date.now() - started} мс`)

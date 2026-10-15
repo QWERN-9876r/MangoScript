@@ -30,6 +30,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
   /** The type of a component used as a value; implemented by ComponentValueChecker. */
   protected abstract componentValue(info: ComponentInfo): ComponentType;
 
+  /** `go work(x)`: a Promise of the result; implemented by GoroutineChecker. */
+  protected abstract checkGo(node: ast.GoExpression): Type;
+
   /** The type of an expression that must be a single value (not `void` or several results). */
   protected override checkValue(node: ast.Expression, expected: Type | null = null): Type {
     return this.single(this.checkExpression(node, expected), node);
@@ -115,6 +118,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
       case 'AsExpression':
         return this.checkAs(node);
+
+      case 'GoExpression':
+        return this.checkGo(node);
 
       case 'NewExpression':
         return this.checkNew(node, expected);

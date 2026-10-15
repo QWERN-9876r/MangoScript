@@ -1,6 +1,10 @@
-// Small functions that a module gets only when its code needs them.
+import { GO_HELPERS, type GoHelper } from './go-helpers.ts';
+
+// Small functions that a module gets only when its code needs them; those of `go` are in
+// go-helpers.ts.
 
 export type Helper =
+  | GoHelper
   | 'runDeferred'
   | 'append'
   | 'attribute'
@@ -16,6 +20,7 @@ export type Helper =
 
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
+  go: ['pool'],
   owner: ['runDeferred'],
   mount: ['owner'],
   content: ['owner'],
@@ -25,6 +30,7 @@ export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> 
 };
 
 export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
+  ...GO_HELPERS,
   /** Runs deferred calls in reverse order; every call runs even if an earlier one throws. */
   runDeferred: [
     'function $$runDeferred(deferred) {',

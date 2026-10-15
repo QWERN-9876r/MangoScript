@@ -116,6 +116,19 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'ArrowFunction':
         return [this.arrowFunction(node), ARROW];
 
+      // The worker module has the function under the same name; the arguments are copied there.
+      case 'GoExpression': {
+        const { callee } = node.call;
+        // Without type checking, a callee that is not a name fails when the call runs.
+        const name = callee.kind === 'Identifier' ? this.name(callee.name) : null;
+
+        this.helpers.add(
+          this.options.goroutines && 'targets' in this.options.goroutines ? 'goLocal' : 'go',
+        );
+
+        return [`$$go(${JSON.stringify(name)}, [${this.elements(node.call.arguments)}])`, POSTFIX];
+      }
+
       case 'UnaryExpression':
         return [this.unary(node), UNARY];
 

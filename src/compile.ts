@@ -6,6 +6,7 @@ import type { ImportedComponent } from './codegen/imported.ts';
 import { generateJs } from './codegen/js.ts';
 import { printDeclarations } from './declarations.ts';
 import type { Diagnostic } from './diagnostics.ts';
+import { goExpressions, goTarget, workerProgram } from './goroutines.ts';
 import { parse } from './parser/parser.ts';
 import { isStyleModule, styleModule, unusedClasses, type StyleModule } from './style-modules.ts';
 
@@ -27,6 +28,18 @@ export interface CoreCompileOptions {
   declarations?: boolean;
   /** The text of an imported CSS module, `./button.module.css`, or null if it cannot be read. */
   readStyleModule?: ((specifier: string) => string | null) | undefined;
+  /** Where the worker module of `go` is, relative to the module; see workerUrl(). */
+  workerUrl?: string | undefined;
+}
+
+/**
+ * Where the worker module of a module is: a `.worker.js` next to its `.js`, or, where `.mango`
+ * files are imported as they are (`mango run`, Vite), the module itself with `?worker`.
+ */
+export function workerUrl(file: string, rewriteImports: boolean): string {
+  const base = file.replace(/^.*[\\/]/, '').replace(/\.mango$/, '');
+
+  return rewriteImports ? `./${base}.worker.js` : `./${base}.mango?worker`;
 }
 
 export interface CompileResult {
@@ -39,6 +52,8 @@ export interface CompileResult {
   dependencies: string[];
   /** The `.d.ts` for the module, with the `declarations` option. */
   declarations?: string;
+  /** The worker module that runs the functions `go` calls, when the module has `go`. */
+  worker?: string;
 }
 
 export function compileModule(source: string, options: CoreCompileOptions = {}): CompileResult {
@@ -82,13 +97,23 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     if (options.declarations) declarations = printDeclarations(program, checked);
   }
 
-  const code = generateJs(program, {
+  const rewriteImports = options.rewriteImports ?? true;
+  const jsOptions = {
     source,
-    rewriteImports: options.rewriteImports ?? true,
+    rewriteImports,
     types,
     styleModules,
     ...importedCode(program, options.importModule),
+  };
+  const code = generateJs(program, {
+    ...jsOptions,
+    goroutines: { workerUrl: options.workerUrl ?? workerUrl('main.mango', rewriteImports) },
   });
+  const targets = [...new Set(goExpressions(program).flatMap((node) => goTarget(node) ?? []))];
+  const worker =
+    targets.length > 0
+      ? generateJs(workerProgram(program, targets), { ...jsOptions, goroutines: { targets } })
+      : undefined;
 
   return {
     code,
@@ -96,6 +121,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     warnings,
     dependencies,
     ...(declarations ? { declarations } : {}),
+    ...(worker === undefined ? {} : { worker }),
   };
 }
 

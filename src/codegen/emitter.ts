@@ -30,6 +30,8 @@ export interface JsOptions {
   styleModules?: ReadonlyMap<string, StyleModule> | undefined;
   /** Create elements with their attributes by a helper, $$element; see creation.ts. */
   elementHelper?: boolean | undefined;
+  /** For `go`: where the worker module is (`./app.worker.js`), or in it, the functions it runs. */
+  goroutines?: { workerUrl: string } | { targets: readonly string[] } | undefined;
 }
 
 /** A decorator of another module, with the types of the expressions of that module. */

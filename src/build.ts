@@ -21,6 +21,8 @@ export interface BuildOutput {
   code: string;
   /** Its `.d.ts` file, when declarations are written. */
   declarations?: { output: string; code: string };
+  /** Its worker module, `.worker.js`, when it has `go`. */
+  worker?: { output: string; code: string };
 }
 
 /** The errors or the warnings of a file. */
@@ -53,7 +55,12 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   const seen = new Set(queue);
   const typeCheck = options.typeCheck ?? true;
   const declarations = typeCheck && (options.declarations ?? true);
-  const compiled: { source: string; code: string; declarations: string | undefined }[] = [];
+  const compiled: {
+    source: string;
+    code: string;
+    declarations: string | undefined;
+    worker: string | undefined;
+  }[] = [];
   const errors: BuildError[] = [];
   const warnings: BuildError[] = [];
 
@@ -75,7 +82,12 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
         diagnostics: result.diagnostics,
       });
     } else {
-      compiled.push({ source, code: result.code, declarations: result.declarations });
+      compiled.push({
+        source,
+        code: result.code,
+        declarations: result.declarations,
+        worker: result.worker,
+      });
     }
 
     for (const specifier of result.dependencies) {
@@ -93,7 +105,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
 
   // The output keeps the folder structure below the given directories and all the files.
   const root = commonDirectory(queue, directories);
-  const outputs = compiled.map(({ source, code, declarations: types }): BuildOutput => {
+  const outputs = compiled.map(({ source, code, declarations: types, worker }): BuildOutput => {
     const target = options.outDir ? join(resolve(options.outDir), relative(root, source)) : source;
     const base = target.replace(/\.mango$/, '');
 
@@ -102,6 +114,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
       output: `${base}.js`,
       code,
       ...(types === undefined ? {} : { declarations: { output: `${base}.d.ts`, code: types } }),
+      ...(worker === undefined ? {} : { worker: { output: `${base}.worker.js`, code: worker } }),
     };
   });
 

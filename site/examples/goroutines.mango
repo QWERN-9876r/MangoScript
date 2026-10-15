@@ -1,0 +1,33 @@
+// go runs a function in a worker, a thread of its own; it gets copies of the arguments
+func isPrime(n number) bool {
+    if n < 2 {
+        return false
+    }
+    for let d = 2; d * d <= n; d++ {
+        if n % d == 0 {
+            return false
+        }
+    }
+    return true
+}
+
+// What countPrimes uses, isPrime, goes to the worker with it
+func countPrimes(from, to number) number {
+    let count = 0
+    for let n = from; n < to; n++ {
+        if isPrime(n) {
+            count++
+        }
+    }
+    return count
+}
+
+const PART = 1_000_000
+
+let started = Date.now()
+console.log("one thread:", countPrimes(0, 4 * PART), `${Date.now() - started} ms`)
+
+// go gives a Promise of the result: the four parts are counted at once
+started = Date.now()
+const parts = await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * PART, (i + 1) * PART)))
+console.log("four workers:", parts.reduce((a, b) => a + b, 0), `${Date.now() - started} ms`)

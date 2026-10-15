@@ -69,7 +69,7 @@ const point = {
 ```
 func  comp  return  let  const  type  interface  class  extends  new  this  super
 if  else  for  in  break  continue  switch  case  default  defer
-try  catch  finally  throw  import  export  async  await
+try  catch  finally  throw  import  export  async  await  go
 null  true  false  typeof  instanceof
 ```
 
@@ -516,6 +516,49 @@ async func sleep(ms number) {
     await done
 }
 ```
+
+### Goroutines
+
+```go
+func countPrimes(from, to number) number {
+    // ...
+}
+
+const PART = 1_000_000
+const parts = await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * PART, (i + 1) * PART)))
+go countPrimes(0, 100)              // nothing waits for it
+```
+
+```js
+const parts = await Promise.all([0, 1, 2, 3].map((i) => $$go("countPrimes", [i * PART, (i + 1) * PART])));
+$$go("countPrimes", [0, 100]);
+```
+
+`go f(x)` calls `f` in a worker: a Web Worker in the browser, a worker thread in Node. Several
+calls run at once, on different processors, and the program goes on without waiting for them.
+
+- **What `go` calls:** a function declared at the top level of the module, or an imported one. A
+  worker shares no memory with the program: it loads the functions that `go` calls, with the
+  declarations and the imports that their code uses, but not the rest of the module and not its
+  top-level code. The modules it imports run their top-level code in the worker too.
+- **Copies:** the worker gets copies of the arguments, and the program gets a copy of the result
+  (the structured clone of `postMessage`). So they are data: numbers, strings, `bool`, arrays,
+  objects of interfaces without methods, `Map`, `Set`, `Date`, typed arrays, `error`. A function,
+  an instance of a class or a DOM element is a compile error: its copy would lose its methods.
+  Changing a copy does not change the original.
+- **No shared state:** the code of the function cannot use the `let` variables of the module, since
+  each worker would have its own, nor components and markup, since a worker has no document. Values
+  go in as arguments and come back as the result.
+- **The result:** as an expression, `go f(x)` is a Promise of what `f` returns, or of what its
+  Promise gives for an async `f`: `const n, err = await go load(id)`. As a statement nothing waits
+  for it, and an exception in it is not caught: in Node it ends the program, like a panic in Go.
+- **The pool:** the workers of a module start on its first `go`, up to one per processor, and a
+  call goes to an idle worker. A worker runs several calls at once while they wait in `await`. In
+  Node, idle workers do not keep the program running. `go` inside a goroutine runs in the same
+  worker.
+
+The worker module goes next to the module: `mango build app.mango` writes `app.js` and
+`app.worker.js`, and `mango run` compiles it on the fly.
 
 ## 5. Conditions and loops
 

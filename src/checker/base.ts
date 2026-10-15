@@ -36,9 +36,9 @@ import {
 // declarations → classes → resolution → initializers → assignments → statements → control flow →
 // functions → expressions → operators → markup → forwarding → components → component values →
 // refs → styles → decorator wrappers → decorator exports → decorators → decorator members →
-// members → calls → Checker (checker.ts). The checking of statements, expressions and markup calls
-// itself recursively, so methods of later layers that earlier ones call are declared here as
-// abstract.
+// members → calls → goroutines → Checker (checker.ts). The checking of statements, expressions and
+// markup calls itself recursively, so methods of later layers that earlier ones call are declared
+// here as abstract.
 //
 // This layer has the state of a check, diagnostics, scopes and names, and the DOM types.
 

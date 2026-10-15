@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { registerHooks } from 'node:module';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { build, displayPath } from './build.ts';
+import { CompileError, compileFile } from './compile-file.ts';
 import { formatDiagnostic, type Diagnostic } from './diagnostics.ts';
-import { compile } from './index.ts';
 import { tokenize } from './lexer/lexer.ts';
 import { parse } from './parser/parser.ts';
 import { SourceFile } from './source.ts';
@@ -36,10 +36,7 @@ Options:
 /** A mistake in how the CLI was called. */
 class UsageError extends Error {}
 
-/** Compile errors, already formatted for the terminal. */
-class CompileError extends Error {}
-
-async function main(): Promise<void> {
+function main(): void {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
@@ -84,7 +81,7 @@ async function main(): Promise<void> {
           throw new UsageError('--stdout needs a single .mango file');
         }
 
-        process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck }));
+        process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck }).code);
       } else {
         buildFiles(files, values['out-dir'], typeCheck);
       }
@@ -92,8 +89,7 @@ async function main(): Promise<void> {
       break;
 
     case 'run':
-      registerMangoLoader(typeCheck);
-      await import(pathToFileURL(resolve(file)).href);
+      process.exitCode = runFile(file, typeCheck);
       break;
 
     case 'tokens':
@@ -132,42 +128,30 @@ function buildFiles(entries: string[], outDir: string | undefined, typeCheck: bo
     throw new CompileError(messages.join('\n\n'));
   }
 
-  for (const { source, output, code, declarations } of outputs) {
+  for (const { source, output, code, declarations, worker } of outputs) {
+    const extra = `${declarations ? ' + .d.ts' : ''}${worker ? ' + .worker.js' : ''}`;
+
     mkdirSync(dirname(output), { recursive: true });
     writeFileSync(output, code);
     if (declarations) writeFileSync(declarations.output, declarations.code);
-    console.log(`${displayPath(source)} → ${displayPath(output)}${declarations ? ' + .d.ts' : ''}`);
+    if (worker) writeFileSync(worker.output, worker.code);
+    console.log(`${displayPath(source)} → ${displayPath(output)}${extra}`);
   }
 }
 
-function compileFile(
-  path: string,
-  options: { rewriteImports: boolean; typeCheck: boolean },
-): string {
-  const source = readFileSync(path, 'utf8');
-  const { code, diagnostics, warnings } = compile(source, { filename: path, ...options });
-  const file = new SourceFile(path, source);
-
-  for (const warning of warnings) console.warn(`${formatDiagnostic(file, warning, 'warning')}\n`);
-  if (diagnostics.length > 0) {
-    throw new CompileError(diagnostics.map((d) => formatDiagnostic(file, d)).join('\n\n'));
-  }
-
-  return code;
-}
-
-/** Lets Node import `.mango` files directly by compiling them on load. */
-function registerMangoLoader(typeCheck: boolean): void {
-  registerHooks({
-    load(url, context, nextLoad) {
-      if (!url.startsWith('file:') || !url.endsWith('.mango')) return nextLoad(url, context);
-
-      const path = displayPath(fileURLToPath(url));
-      const source = compileFile(path, { rewriteImports: false, typeCheck });
-
-      return { format: 'module', source, shortCircuit: true };
-    },
+/**
+ * Runs a program in a process of its own that imports loader.ts first: so do the worker threads
+ * of its goroutines, which do not share the hooks of the thread that registers them.
+ */
+function runFile(file: string, typeCheck: boolean): number {
+  const loader = new URL('./loader.ts', import.meta.url).href;
+  const run = fileURLToPath(new URL('./run.ts', import.meta.url));
+  const { status, signal } = spawnSync(process.execPath, ['--import', loader, run, file], {
+    stdio: 'inherit',
+    env: typeCheck ? process.env : { ...process.env, MANGO_NO_CHECK: '1' },
   });
+
+  return status ?? (signal ? 1 : 0);
 }
 
 function printTokens(file: SourceFile): void {
@@ -204,10 +188,11 @@ function reportDiagnostics(file: SourceFile, diagnostics: Diagnostic[]): void {
   if (diagnostics.length > 0) process.exitCode = 1;
 }
 
-main().catch((err: unknown) => {
+try {
+  main();
+} catch (err: unknown) {
   if (err instanceof CompileError) console.error(err.message);
   else if (err instanceof UsageError) console.error(`mango: ${err.message}`);
-  // Anything else is thrown by the running program: show the full stack trace.
   else console.error(err);
   process.exitCode = 1;
-});
+}

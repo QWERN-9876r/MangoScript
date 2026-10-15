@@ -145,8 +145,12 @@ export abstract class StatementParser extends SimpleStatementParser {
       const { expression } = statement;
 
       const awaited = expression.kind === 'UnaryExpression' && expression.operator === 'await';
+      const call =
+        expression.kind === 'CallExpression' ||
+        expression.kind === 'NewExpression' ||
+        expression.kind === 'GoExpression';
 
-      if (expression.kind !== 'CallExpression' && expression.kind !== 'NewExpression' && !awaited) {
+      if (!call && !awaited) {
         this.error(
           'this expression does nothing: only function calls can be used as statements',
           expression.start,

@@ -16,6 +16,7 @@ export const SECTIONS []Section = [
     { id: "functions", title: "Functions", group: "Language", content: Functions },
     { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
     { id: "async", title: "Async functions", group: "Language", content: Async },
+    { id: "goroutines", title: "Goroutines", group: "Language", content: Goroutines },
     { id: "control", title: "Conditions and loops", group: "Language", content: Control },
     { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
     { id: "generics", title: "Generics", group: "Language", content: Generics },
@@ -187,6 +188,20 @@ comp Async() {
             async: a change of state after <code>await</code> updates the markup.
         </p>
         {example("async")}
+    </>
+}
+
+comp Goroutines() {
+    return <>
+        <p>
+            <code>go f(x)</code> calls a function in a worker, a thread of its own: a Web Worker in
+            the browser, a worker thread in Node. Several calls run at once on different processors,
+            and <code>go</code> gives a Promise of the result. A worker shares no memory with the
+            program: it gets copies of the arguments and sends back a copy of the result, so they
+            are data, and the function cannot use the <code>let</code> variables of the module. The
+            compiler checks both.
+        </p>
+        {example("goroutines")}
     </>
 }
 

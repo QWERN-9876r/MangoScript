@@ -43,6 +43,9 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
     case 'Identifier':
       return node.name;
 
+    case 'GoExpression':
+      return `(go ${sx(node.call)})`;
+
     case 'NumberLiteral':
     case 'StringLiteral':
       return node.raw;

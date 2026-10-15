@@ -215,6 +215,12 @@ describe('VS Code grammar', () => {
     expect(scopeOf('const n = task.await', 'await')).not.toBe('keyword.control.flow');
   });
 
+  it('colours go', () => {
+    expect(scopeOf('const n = await go count(1, 2)', 'go')).toBe('keyword.control.flow');
+    expect(scopeOf('go count(1, 2)', 'go')).toBe('keyword.control.flow');
+    expect(scopeOf('const ago = 1', 'ago')).not.toBe('keyword.control.flow');
+  });
+
   it('colours as and delete only where they are keywords', () => {
     expect(scopeOf('const n = x as number', 'as')).toBe('keyword.operator.expression.as');
     expect(scopeOf('const as = 1', 'as')).not.toBe('keyword.operator.expression.as');

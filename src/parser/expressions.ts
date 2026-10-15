@@ -123,6 +123,18 @@ export abstract class ExpressionParser extends TypeParser {
       this.fail(`"${token.kind}" must follow the variable: "i${token.kind}"`);
     }
 
+    if (token.kind === 'go') {
+      this.next();
+
+      const call = this.parsePostfix(this.parsePrimary());
+
+      if (call.kind !== 'CallExpression' || call.optional) {
+        this.failAt('"go" needs a call of a function, e.g. "go work(x)"', call.start, call.end);
+      }
+
+      return { kind: 'GoExpression', call, start: token.start, end: call.end };
+    }
+
     return this.parsePostfix(this.parsePrimary());
   }
 

@@ -213,7 +213,7 @@
         },
         {
           "name": "keyword.control.flow.mango",
-          "match": "(?<![\\w$])(?<![^.]\\.)(?:return|throw|defer|await)(?![\\w$])"
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:return|throw|defer|await|go)(?![\\w$])"
         },
         {
           "name": "keyword.control.trycatch.mango",
