@@ -296,4 +296,15 @@ const path number = join("a", "b")`,
       'cannot use number as Point in argument 2',
     ]);
   });
+
+  it('prints only a few members of a big object type without a name', () => {
+    const { diagnostics } = compile('const x = globalThis[Symbol.for("x")]', {
+      filename: join(project, 'globals.mango'),
+    });
+    const [message = ''] = diagnostics.map((d) => d.message);
+
+    expect(message).toMatch(/^cannot index \{ globalThis /);
+    expect(message).toContain('; ... }');
+    expect(message.length).toBeLessThan(1000);
+  });
 });

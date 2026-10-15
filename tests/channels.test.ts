@@ -258,7 +258,7 @@ close(ch)`);
 go fill(chan[string]())`);
 
     expect(worker).toContain(
-      'function $$send(channel, value) {\n  return $$ask("send", channel, value);',
+      'function $$send(channel, value) {\n  $$retain(value);\n  return $$ask("send", channel, value);',
     );
     expect(worker).toContain('await $$send(c, "x");');
   });

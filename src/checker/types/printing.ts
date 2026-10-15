@@ -4,6 +4,12 @@ import type { Type } from './model.ts';
 
 // Types as text, for messages.
 
+/** How deep object types without a name are printed with their members. */
+const MAX_OBJECT_DEPTH = 3;
+/** How many members of an object type without a name are printed: `globalThis` has hundreds. */
+const MAX_OBJECT_MEMBERS = 8;
+let objectDepth = 0;
+
 export function typeToString(type: Type): string {
   switch (type.kind) {
     case 'number':
@@ -58,14 +64,21 @@ export function typeToString(type: Type): string {
       }
 
       if (type.name !== null) return type.name;
+      // Types from a `.d.ts` may contain themselves without a name.
+      if (objectDepth >= MAX_OBJECT_DEPTH) return '{ ... }';
+      objectDepth++;
+      try {
+        const members = [...type.members]
+          .slice(0, MAX_OBJECT_MEMBERS)
+          .map(([name, member]) => `${name} ${typeToString(member.type)}`);
 
-      const members = [...type.members].map(
-        ([name, member]) => `${name} ${typeToString(member.type)}`,
-      );
+        if (type.members.size > MAX_OBJECT_MEMBERS) members.push('...');
+        if (type.index) members.unshift(`[string]: ${typeToString(type.index)}`);
 
-      if (type.index) members.unshift(`[string]: ${typeToString(type.index)}`);
-
-      return members.length === 0 ? '{}' : `{ ${members.join('; ')} }`;
+        return members.length === 0 ? '{}' : `{ ${members.join('; ')} }`;
+      } finally {
+        objectDepth--;
+      }
     }
 
     case 'class':
