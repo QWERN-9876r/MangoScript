@@ -45,7 +45,7 @@ export interface FuncDeclaration extends NodeBase {
   isPublic: boolean;
   /**
    * `async func load() User`: the results are those of the Promise it returns, so its type is
-   * `func() Promise[User]`.
+   * `func() Promise<User>`.
    */
   async?: true;
   name: Identifier;
@@ -194,7 +194,7 @@ export interface InterfaceDeclaration extends NodeBase {
   members: TypeMember[];
 }
 
-/** `type ID string`, `type Handler func(string) bool`, `type Pair[A, B any] { ... }`. */
+/** `type ID string`, `type Handler func(string) bool`, `type Pair<A, B any> { ... }`. */
 export interface TypeAliasDeclaration extends NodeBase {
   kind: 'TypeAliasDeclaration';
   exported: boolean;

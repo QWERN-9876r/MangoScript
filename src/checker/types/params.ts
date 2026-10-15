@@ -84,9 +84,9 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
       return substituteObject(type, bindings, fallback);
 
     case 'function': {
-      // A generic method of a generic interface keeps its own parameters: `map[U]` of `Box[T]`.
+      // A generic method of a generic interface keeps its own parameters: `map<U>` of `Box<T>`.
       // A default that uses the interface's parameters needs a parameter of its own:
-      // `then[TResult1 = T]` of `Promise[Response]` has the default Response.
+      // `then<TResult1 = T>` of `Promise<Response>` has the default Response.
       const own = new Map(bindings);
       const typeParams = type.typeParams
         .filter((param) => !bindings.has(param))
@@ -206,7 +206,7 @@ export function inferTypeParams(
       break;
 
     case 'union': {
-      // `T | PromiseLike[T]` from `Promise[string]`: a member with structure first, so that T is
+      // `T | PromiseLike<T>` from `Promise<string>`: a member with structure first, so that T is
       // string, not the whole promise; then a bare parameter.
       const members = param.types.filter((member) => containsTypeParam(member));
 

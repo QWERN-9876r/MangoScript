@@ -163,7 +163,7 @@ const wrong = scores[true]`),
 
   it('supports generic interfaces and aliases that refer to themselves', () => {
     expect(
-      errors(`${shapes('Tree, Pair')}func sum(tree Tree[number]) number {
+      errors(`${shapes('Tree, Pair')}func sum(tree Tree<number>) number {
     let total = tree.value
     for child in tree.children {
         total += sum(child)
@@ -171,7 +171,7 @@ const wrong = scores[true]`),
     return total
 }
 sum({ value: 1, children: [] })
-const p Pair[number, string] = { first: 1, second: "a" }
+const p Pair<number, string> = { first: 1, second: "a" }
 const s string = p.first`),
     ).toEqual(['cannot use number as string']);
   });
@@ -204,7 +204,7 @@ const secret = c.secret`),
     expect(
       errors(`${shapes('Box')}const box = new Box(1)
 const n number = box.value
-const strings Box[string] = box.map(value => value.toString())
+const strings Box<string> = box.map(value => value.toString())
 const wrong string = box.value`),
     ).toEqual(['cannot use number as string']);
   });
@@ -282,7 +282,7 @@ const bytes string = readFileSync("a.txt")
 const path number = join("a", "b")`,
         file,
       ),
-    ).toEqual(['cannot use Buffer[ArrayBuffer] as string', 'cannot use string as number']);
+    ).toEqual(['cannot use Buffer<ArrayBuffer> as string', 'cannot use string as number']);
   });
 
   it('is used by compile() for files with a name', () => {

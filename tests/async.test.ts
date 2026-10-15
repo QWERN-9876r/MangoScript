@@ -104,12 +104,12 @@ async func pair() (number, error) { return 1, null }
 `;
 
     expect(errors(`${source}const a number = load(1)`)).toEqual([
-      'cannot use Promise[string] as number',
+      'cannot use Promise<string> as number',
     ]);
     expect(errors(`${source}const a number = save()`)).toEqual([
-      'cannot use Promise[void] as number',
+      'cannot use Promise<void> as number',
     ]);
-    expect(errors(`${source}const p Promise[string] = load(1)\nconst s string = await p`)).toEqual(
+    expect(errors(`${source}const p Promise<string> = load(1)\nconst s string = await p`)).toEqual(
       [],
     );
     expect(
@@ -130,8 +130,8 @@ async func pair() (number, error) { return 1, null }
     expect(errors('async func f() (number, error) { return 1 }')).toEqual([
       'wrong number of return values: expected 2, got 1',
     ]);
-    expect(errors('async func f() Promise[number] { return 1 }')).toEqual([
-      'an async function declares what its Promise gives: write "number", not "Promise[number]"',
+    expect(errors('async func f() Promise<number> { return 1 }')).toEqual([
+      'an async function declares what its Promise gives: write "number", not "Promise<number>"',
     ]);
   });
 
@@ -151,13 +151,13 @@ const c string = await f(1)`),
 
   it('checks async arrow functions against the Promise their context expects', () => {
     expect(
-      errors(`func run(f func() Promise[number]) {}
+      errors(`func run(f func() Promise<number>) {}
 run(async () => 1)
 run(async () => "x")
 run(() => 1)`),
     ).toEqual([
       'cannot use string as number in return',
-      'cannot use number as Promise[number] in return',
+      'cannot use number as Promise<number> in return',
     ]);
   });
 
@@ -174,7 +174,7 @@ comp A() {
   it('infers the type of a new Promise from the expected type', () => {
     expect(
       errors(`async func sleep(ms number) {
-    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    const done Promise<number> = new Promise(resolve => setTimeout(() => resolve(ms), ms))
     await done
 }`),
     ).toEqual([]);
@@ -186,7 +186,7 @@ comp A() {
 const s, err = await load()
 const n number = s
 const p number = load()`),
-    ).toEqual(['cannot use string as number', 'cannot use Promise[(string, error)] as number']);
+    ).toEqual(['cannot use string as number', 'cannot use Promise<(string, error)> as number']);
   });
 });
 
@@ -197,7 +197,7 @@ describe('code generation', () => {
     const name = await fetchName(id)
     return name, null
 }
-func fetchName(id number) Promise[string] { return Promise.resolve("x") }
+func fetchName(id number) Promise<string> { return Promise.resolve("x") }
 class A {
     static async make() A { return new A() }
 }
@@ -240,7 +240,7 @@ describe('runtime', () => {
   it('waits for async functions, also at the top level', async () => {
     expect(
       await run(`async func sleep(ms number) {
-    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    const done Promise<number> = new Promise(resolve => setTimeout(() => resolve(ms), ms))
     await done
 }
 async func divide(a, b number) (number, error) {

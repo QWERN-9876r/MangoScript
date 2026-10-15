@@ -194,8 +194,9 @@ $$button3.addEventListener("click", onClose);
   `/>`; a line break after it inserts `;`, as after any value.
 - As with the `{` of a block, the opening tag goes on the same line as `return`: `return <div>`.
   Otherwise `return` would end at the line break. `return (` with a line break works too.
-- `<` at the start of an expression is unambiguous. The language has no generics in `<...>` and no
-  casts `<T>x`, so `<` where a value is expected is always an element, and after a value it is a
+- `<` at the start of an expression is unambiguous. Type arguments in `<...>` are written only in
+  types and after `chan`, which comes before them (`chan<number>(10)`), and there are no casts
+  `<T>x`; so `<` where a value is expected is always an element, and after a value it is a
   comparison. But the lexer must read the text inside markup by other rules. So the parser drives
   the lexer: it asks for the next token in the needed mode, as TypeScript does.
 

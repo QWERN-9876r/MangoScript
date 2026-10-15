@@ -109,11 +109,10 @@ export abstract class DeclarationParser extends ControlFlowParser {
   }
 
   /**
-   * `[T any, U Shape]` after a name, as in Go; `[K, V any]` gives both the constraint. A `[` with
-   * a name after it starts them: `[]T` is an array type.
+   * `<T any, U Shape>` after a name; `<K, V any>` gives both the constraint, as in Go.
    */
   protected parseTypeParams(): ast.TypeParameter[] {
-    if (!this.check('[') || this.peek(1).kind !== 'Identifier') return [];
+    if (!this.check('<') || this.peek(1).kind !== 'Identifier') return [];
     this.next();
 
     const params: ast.TypeParameter[] = [];
@@ -134,11 +133,11 @@ export abstract class DeclarationParser extends ControlFlowParser {
 
     do {
       pending.push(this.parseIdentifier('type parameter name'));
-      if (!this.check(',') && !this.check(']')) finish(this.parseType());
+      if (!this.check(',') && !this.peek().kind.startsWith('>')) finish(this.parseType());
     } while (this.accept(','));
 
     finish(null);
-    this.expect(']', '"]" after the type parameters');
+    this.expectTypeClose('">" after the type parameters');
 
     return params;
   }

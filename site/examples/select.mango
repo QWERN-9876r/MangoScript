@@ -1,6 +1,6 @@
 // select waits for the first of several operations on channels
 func after(ms number) chan bool {
-    const ch = chan[bool](1)
+    const ch = chan<bool>(1)
     setTimeout(async () => {
         ch <- true
     }, ms)
@@ -13,8 +13,8 @@ async func search(query string, ms number, out chan string) {
 }
 
 // Room for one answer: a search that nobody waits for can still finish
-const fast = chan[string](1)
-const slow = chan[string](1)
+const fast = chan<string>(1)
+const slow = chan<string>(1)
 go search("mango", 100, fast)
 go search("papaya", 2000, slow)
 

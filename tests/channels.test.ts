@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index.ts';
 import { errors as syntaxErrors, expr, first, sx, ty } from './parser-helpers.ts';
 
-// Channels: `chan T`, `chan[T](size)`, `ch <- v`, `<-ch`, `for v in ch` and `close(ch)`. After
+// Channels: `chan T`, `chan<T>(size)`, `ch <- v`, `<-ch`, `for v in ch` and `close(ch)`. After
 // close a channel gives the zero value of its type, as in Go.
 
 function errors(source: string): string[] {
@@ -51,11 +51,11 @@ function runBuilt(source: string): { stdout: string; stderr: string } {
 
 describe('parsing', () => {
   it('reads channel types, making channels, receiving and sending', () => {
-    const declaration = first('let c chan []number = chan[[]number](3)', 'VariableDeclaration');
+    const declaration = first('let c chan []number = chan<[]number>(3)', 'VariableDeclaration');
 
     expect(ty(declaration.type!)).toBe('chan []number');
     expect(sx(declaration.values[0]!)).toBe('(chan []number 3)');
-    expect(sx(expr('chan[string]()'))).toBe('(chan string)');
+    expect(sx(expr('chan<string>()'))).toBe('(chan string)');
     expect(sx(expr('<-ch + 1'))).toBe('(+ (<- ch) 1)');
     expect(first('ch <- x * 2', 'SendStatement')).toMatchObject({ kind: 'SendStatement' });
     expect(syntaxErrors('<-done\nconst v, ok = <-ch\nfunc f(jobs chan number) {}')).toEqual([]);
@@ -65,7 +65,7 @@ describe('parsing', () => {
     ['func f() { <-ch }', '"<-" is allowed only in async functions'],
     ['func f() { ch <- 1 }', '"<-" is allowed only in async functions'],
     ['async func f() { defer { ch <- 1 } }', '"<-" is not allowed inside "defer"'],
-    ['x = chan(1)', '"[": a channel is made as chan[T](size), e.g. chan[number](10)'],
+    ['x = chan(1)', '"<": a channel is made as chan<T>(size), e.g. chan<number>(10)'],
   ])('reports %j', (source, message) => {
     expect(syntaxErrors(source)).toEqual([expect.stringContaining(message)]);
   });
@@ -75,8 +75,8 @@ describe('types', () => {
   it('types receiving: the zero value after close, or null where the type has none', () => {
     expect(
       errors(`interface Point { x, y number }
-const numbers = chan[number](1)
-const points = chan[Point](1)
+const numbers = chan<number>(1)
+const points = chan<Point>(1)
 const n number = <-numbers
 const p Point = <-points
 const q ?Point = <-points
@@ -88,7 +88,7 @@ const k number = m`),
 
   it('checks what is sent and where', () => {
     expect(
-      errors(`const ch = chan[number]()
+      errors(`const ch = chan<number>()
 ch <- 1
 ch <- "x"
 const n = 1
@@ -105,9 +105,9 @@ const v = <-n`),
 
   it('keeps the type of the values exactly, as Go does', () => {
     expect(
-      errors(`const a chan number = chan[number]()
+      errors(`const a chan number = chan<number>()
 const b chan ?number = a
-const c chan number = chan[string](1)
+const c chan number = chan<string>(1)
 close(a)
 close(1)`),
     ).toEqual([
@@ -119,7 +119,7 @@ close(1)`),
 
   it('checks loops over channels and the size', () => {
     expect(
-      errors(`const ch = chan[string]("big")
+      errors(`const ch = chan<string>("big")
 func f(c chan number) {
     for v in c {}
 }
@@ -143,8 +143,8 @@ let none chan number`),
     expect(
       errors(`async func work(c chan number) {}
 async func calls(c chan func()) {}
-go work(chan[number]())
-go calls(chan[func()]())`),
+go work(chan<number>())
+go calls(chan<func()>())`),
     ).toEqual([
       '"calls" runs in a worker, which gets a copy of argument 1, but a function cannot be copied',
     ]);
@@ -178,8 +178,8 @@ describe('select', () => {
 
   it('types the variables of each case', () => {
     expect(
-      errors(`const a = chan[number]()
-const b = chan[string](1)
+      errors(`const a = chan<number>()
+const b = chan<string>(1)
 select {
 case n, ok = <-a:
     const m number = n
@@ -193,9 +193,9 @@ case b <- 1:
 
   it('runs the case that can go on, default, or the first that can later', async () => {
     expect(
-      await run(`const a = chan[number](1)
-const b = chan[string](1)
-const late = chan[string]()
+      await run(`const a = chan<number>(1)
+const b = chan<string>(1)
+const late = chan<string>()
 select {
 case n = <-a:
     console.log("a", n)
@@ -223,7 +223,7 @@ case s = <-late:
     console.log("late", s)
     break
     console.log("not after break")
-case <-chan[number]():
+case <-chan<number>():
     console.log("never")
 }`),
     ).toEqual(['nothing', 'b x', 'sent 7', 'late later']);
@@ -232,7 +232,7 @@ case <-chan[number]():
 
 describe('code generation', () => {
   it('writes channels with the helpers of the main thread', () => {
-    const code = js(`const ch = chan[number](2)
+    const code = js(`const ch = chan<number>(2)
 ch <- 1
 const v = <-ch
 const w, ok = <-ch
@@ -255,7 +255,7 @@ close(ch)`);
     c <- "x"
     close(c)
 }
-go fill(chan[string]())`);
+go fill(chan<string>())`);
 
     expect(worker).toContain(
       'function $$send(channel, value) {\n  $$retain(value);\n  return $$ask("send", channel, value);',
@@ -274,14 +274,14 @@ describe('runtime', { timeout: 30_000 }, () => {
     }
     close(out)
 }
-const ch = chan[number]()
+const ch = chan<number>()
 produce(ch)
 let got []number
 for v in ch {
     got.push(v)
 }
 console.log(got.join(" "))
-const buffered = chan[string](2)
+const buffered = chan<string>(2)
 buffered <- "a"
 buffered <- "b"
 close(buffered)
@@ -294,7 +294,7 @@ console.log(a, ok1, b, ok2, c == "", ok3)`),
 
   it('fails a send to a closed channel and a second close', async () => {
     expect(
-      await run(`const ch = chan[number](1)
+      await run(`const ch = chan<number>(1)
 close(ch)
 try {
     ch <- 1
@@ -328,8 +328,8 @@ async func sum(input chan number) number {
     }
     return total
 }
-const jobs = chan[number](10)
-const results = chan[number]()
+const jobs = chan<number>(10)
+const results = chan<number>()
 go worker(jobs, results)
 go worker(jobs, results)
 for let n = 1; n <= 4; n++ {
@@ -341,7 +341,7 @@ for let i = 0; i < 4; i++ {
     squares.push(<-results)
 }
 console.log(squares.sort((a, b) => a - b).join(" "))
-const pipe = chan[number]()
+const pipe = chan<number>()
 go produce(pipe)
 console.log(await go sum(pipe))
 `);

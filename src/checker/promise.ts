@@ -3,7 +3,7 @@ import { ANY, func, instantiate, method, VOID, type ObjectType, type Type } from
 // Promises: the type of what an async function returns, and what `await` gives.
 
 /**
- * `Promise[T]` where there are no TypeScript lib files (the playground): enough to wait for it
+ * `Promise<T>` where there are no TypeScript lib files (the playground): enough to wait for it
  * and to pass it on. With the lib files, their `Promise` replaces it.
  */
 export const PROMISE: ObjectType = {
@@ -18,7 +18,7 @@ export const PROMISE: ObjectType = {
   typeParams: [{ kind: 'param', name: 'T' }],
 };
 
-/** `Promise[T]` of the global `Promise` type, for the results of an async function. */
+/** `Promise<T>` of the global `Promise` type, for the results of an async function. */
 export function promiseOf(promise: Type | undefined, results: readonly Type[]): Type {
   if (promise?.kind !== 'object' || promise.typeParams?.length !== 1) return ANY;
 
@@ -32,7 +32,7 @@ export function promiseOf(promise: Type | undefined, results: readonly Type[]): 
   return instantiate(promise, [value]);
 }
 
-/** Whether a type is a `Promise[T]` (or a `PromiseLike[T]` from the lib files). */
+/** Whether a type is a `Promise<T>` (or a `PromiseLike<T>` from the lib files). */
 export function isPromise(type: Type): type is ObjectType {
   return (
     type.kind === 'object' &&
@@ -48,7 +48,7 @@ export function awaited(type: Type): Type {
 
 /**
  * The results the body of an async function returns, from the results of its type: none for
- * `Promise[void]`, several for a Promise of a tuple.
+ * `Promise<void>`, several for a Promise of a tuple.
  */
 export function awaitedResults(results: readonly Type[]): Type[] {
   const [promise] = results;

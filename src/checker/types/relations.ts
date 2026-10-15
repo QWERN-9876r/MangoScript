@@ -153,7 +153,7 @@ function functionAssignable(source: FunctionType, target: FunctionType, assuming
 
   // A callback that returns something can be used where nothing is expected.
   if (target.results.length === 0) return true;
-  // And one that returns nothing where `void` may be returned, as `TResult | PromiseLike[TResult]`
+  // And one that returns nothing where `void` may be returned, as `TResult | PromiseLike<TResult>`
   // of `then` once TResult is void.
   if (source.results.length === 0 && target.results.length === 1) {
     return assignable(VOID, target.results[0]!, assuming);
@@ -223,7 +223,7 @@ function missingMember(
 
 /** Why `source` is not assignable to an object or class `target`, e.g. `missing field "y"`. */
 export function explainMismatch(source: Type, target: Type): string | null {
-  // `Stack[number]` and `Stack[string]`: the type arguments already say what differs.
+  // `Stack<number>` and `Stack<string>`: the type arguments already say what differs.
   if (source.kind === 'class' && target.kind === 'class' && source.info === target.info) {
     return null;
   }

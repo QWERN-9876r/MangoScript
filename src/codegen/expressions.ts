@@ -143,7 +143,7 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'ArrowFunction':
         return [this.arrowFunction(node), ARROW];
 
-      // `chan[number](10)`: the channel keeps the zero value that a closed one gives.
+      // `chan<number>(10)`: the channel keeps the zero value that a closed one gives.
       case 'ChanExpression': {
         const size = node.size ? this.expression(node.size, ARROW) : '0';
 

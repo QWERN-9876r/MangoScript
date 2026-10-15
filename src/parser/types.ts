@@ -5,12 +5,16 @@ import { describe } from './syntax.ts';
 // Types: `?T`, `[]T`, unions, literal types, function, component and object types, type arguments.
 
 export abstract class TypeParser extends ClassParser {
-  /** `[number, string]` after the name of a generic type; `[]` would be an array type. */
+  /** `<number, string>` after the name of a generic type. */
   protected override parseTypeArgs(): ast.TypeNode[] {
-    if (!this.check('[') || this.peek(1).kind === ']') return [];
-    this.next();
+    if (!this.accept('<')) return [];
 
-    return this.parseList(']', () => this.parseType());
+    const args = [this.parseType()];
+
+    while (this.accept(',')) args.push(this.parseType());
+    this.expectTypeClose('">" after the type arguments');
+
+    return args;
   }
 
   protected override canStartType(): boolean {
@@ -182,7 +186,7 @@ export abstract class TypeParser extends ClassParser {
       case 'Number':
         return true;
 
-      // `x []number` is named, `Box[number]` has type arguments.
+      // `x []number` is named.
       case '[':
         return this.peek(2).kind === ']';
 

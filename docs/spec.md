@@ -254,45 +254,47 @@ func show(value string | number) string {
 
 ### Generics
 
-Type parameters go in square brackets after the name, as in Go:
+Type parameters go in angle brackets after the name, as in TypeScript, and a constraint follows
+its parameter, as in Go:
 
 ```go
-func first[T any](xs []T) ?T {
+func first<T any>(xs []T) ?T {
     return xs.length > 0 ? xs[0] : null
 }
 
-interface Box[T] {
+interface Box<T> {
     value T
 }
 
-type Pair[A, B any] { first A; second B }
+type Pair<A, B any> { first A; second B }
 
-class Stack[T] {
+class Stack<T> {
     private items []T
     push(item T) { this.items.push(item) }
     pop() ?T { return this.items.pop() ?? null }
 }
 
 const n = first([1, 2, 3])              // ?number
-let b Box[string] = { value: "a" }
-let s Stack[number] = new Stack()
+let b Box<string> = { value: "a" }
+let s Stack<number> = new Stack()
 ```
 
-- **A constraint** goes after the name: `[T Named]` means `T` must fit `Named`, and values of type
+- **A constraint** goes after the name: `<T Named>` means `T` must fit `Named`, and values of type
   `T` have the members of `Named`. `any` means no constraint, and then `T` has no members. Several
-  names in a row share one constraint: `[K, V any]`. Interfaces, classes and `type` may leave the
-  constraint out: `interface Box[T]`.
-- **Type arguments** are written only in types: `Box[number]`, `Pair[string, ?number]`. In calls
+  names in a row share one constraint: `<K, V any>`. Interfaces, classes and `type` may leave the
+  constraint out: `interface Box<T>`.
+- **Type arguments** are written only in types: `Box<number>`, `Pair<string, ?number>`. In calls
   and in `new` they are inferred from the arguments, and failing that, from the expected type:
-  `let xs []number = empty()`. There is no explicit `first[number](xs)`: in an expression it could
-  not be told from an index. If there is nothing to infer from, it is an error: `let s = new Stack()`.
+  `let xs []number = empty()`. There is no explicit `first<number>(xs)`: in an expression it could
+  not be told from a comparison. If there is nothing to infer from, it is an error: `let s = new Stack()`.
 - Inside a function, `T` is a type of its own: `return 1` in a function with the result `T` is an
   error. `T` has no zero value.
-- A type can refer to itself: `interface Tree[T] { value T; children []Tree[T] }`.
-- `Box[number]` and `Box[string]` are different types, and so are `Stack[number]` and
-  `Stack[string]`.
-- A generic class cannot be extended yet: `extends Stack[number]` would be an index in JS. Methods
-  with type parameters of their own (`map[U any](...)`) are not supported yet either.
+- A type can refer to itself: `interface Tree<T> { value T; children []Tree<T> }`.
+- `Box<number>` and `Box<string>` are different types, and so are `Stack<number>` and
+  `Stack<string>`.
+- A generic class cannot be extended yet: the base after `extends` is a value, as in JS, so
+  `extends Stack<number>` cannot be written. Methods with type parameters of their own
+  (`map<U any>(...)`) are not supported yet either.
 - In JS, generics are erased, as in TypeScript.
 
 ### null and null safety
@@ -495,8 +497,8 @@ const [text, err] = await loadText("/hello.txt");
 `func` literal and before an arrow function (`async x => ...`).
 
 - **The result types are what `return` gives;** the function itself returns a Promise of them:
-  `loadText` has the type `func(string) Promise[(string, error)]`. So the results are written as
-  in any function, also several of them; `Promise[string]` as the result of an async function is
+  `loadText` has the type `func(string) Promise<(string, error)>`. So the results are written as
+  in any function, also several of them; `Promise<string>` as the result of an async function is
   an error.
 - **`await p` waits for the Promise and gives its value.** The results of an async function are
   unpacked from it as from a call: `const text, err = await loadText(url)`. `await` of a value
@@ -513,7 +515,7 @@ A Promise made by hand gets its type from the declared one:
 
 ```go
 async func sleep(ms number) {
-    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    const done Promise<number> = new Promise(resolve => setTimeout(() => resolve(ms), ms))
     await done
 }
 ```
@@ -572,8 +574,8 @@ async func worker(jobs chan number, results chan number) {
     }
 }
 
-const jobs = chan[number](10)          // room for 10 values
-const results = chan[number]()          // no room: a send waits for a receiver
+const jobs = chan<number>(10)          // room for 10 values
+const results = chan<number>()          // no room: a send waits for a receiver
 go worker(jobs, results)
 go worker(jobs, results)
 for let n = 1; n <= 4; n++ {
@@ -595,7 +597,7 @@ console.log(await $$receive(results));
 ```
 
 Channels pass values between goroutines, as in Go. `chan T` is the type of a channel of `T`, and
-`chan[T](size)` makes one with room for `size` values; `chan[T]()` has none.
+`chan<T>(size)` makes one with room for `size` values; `chan<T>()` has none.
 
 - **`ch <- v` sends a value** and waits until the channel takes it: while the channel has room,
   at once, and otherwise until a receiver comes. **`<-ch` receives a value**, waiting until there
@@ -975,7 +977,7 @@ How TypeScript types become MangoScript types:
 | `void` as a result                              | a function without a result                  |
 | an interface, an object type, an intersection   | an interface                                 |
 | a class                                         | a class: `new`, `extends`, `instanceof`      |
-| `Box<T>`, `function first<T>(...)`              | generics: `Box[T]`, inferred type arguments  |
+| `Box<T>`, `function first<T>(...)`              | generics: `Box<T>`, inferred type arguments  |
 | overloads                                       | a call picks the first signature that fits   |
 | `enum`                                          | a union of literals                          |
 | `[key: string]: T`                              | unknown members have the type `T`            |
@@ -984,7 +986,7 @@ How TypeScript types become MangoScript types:
 
 - `import x from "pkg"` is the default export; for modules with `export =` it is the value itself,
   and named imports are its properties: `import { join } from "node:path"`.
-- A type parameter with a default may be left out: `Buffer` is `Buffer[ArrayBufferLike]`. Such a
+- A type parameter with a default may be left out: `Buffer` is `Buffer<ArrayBufferLike>`. Such a
   class can be extended: `class Bus extends EventEmitter`.
 - Constraints of type parameters from a `.d.ts` are not checked.
 - Types cannot reach a type inside a namespace (`http.Server`): it is imported by name.
@@ -1002,7 +1004,7 @@ export type Filter "all" | "active" | "done"
 
 export func divide(a, b number) (number, error) { ... }
 
-export class Stack[T] {
+export class Stack<T> {
     private items []T
     push(item T) { ... }
     pop() ?T { ... }
@@ -1604,7 +1606,7 @@ The types of the JS standard library and the DOM come from TypeScript's lib file
 
 - `document`, `window`, `fetch`, `Promise`, `Map`, `Set`, `Date`, `URL`, `Object`… are typed:
   `document.getElementById("app")` is a `?HTMLElement`, `new Map()` with
-  `let m Map[string, number]` is a `Map[string, number]`, and `m.get(k)` is a `?number`;
+  `let m Map<string, number>` is a `Map<string, number>`, and `m.get(k)` is a `?number`;
 - `<input>` creates an `HTMLInputElement` with all the members from `HTMLElementTagNameMap`;
 - `event` in `onClick` is a `PointerEvent`, in `onKeyDown` a `KeyboardEvent` (from
   `HTMLElementEventMap`), and `event.currentTarget` is the element itself. `event.target` is a

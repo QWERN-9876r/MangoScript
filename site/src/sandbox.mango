@@ -77,7 +77,7 @@ interface Owner {
 // compiled code (owner in src/codegen/helpers.ts). Before the next run, what the mount() of the
 // previous one returned runs, so its timers stop.
 const OWNER = Symbol.for("mangoscript.owner")
-let owners Map[HTMLElement, Owner] = new Map()
+let owners Map<HTMLElement, Owner> = new Map()
 
 func runOwned(preview HTMLElement, run func()) {
     const previous = owners.get(preview)
@@ -99,7 +99,7 @@ func runOwned(preview HTMLElement, run func()) {
 }
 
 // The number of the last run in each result area: output of earlier runs is dropped.
-let runs Map[HTMLElement, number] = new Map()
+let runs Map<HTMLElement, number> = new Map()
 
 // A custom element cannot be defined twice, so each run has its own tags: <app-card> of the
 // program is <app-card-3> on the page.
@@ -136,7 +136,7 @@ export func runProgram(source string, preview HTMLElement, output func([]string)
 let channels = 0
 
 // What the previous run of each result area left: the channel of its workers.
-let workerChannels Map[HTMLElement, BroadcastChannel] = new Map()
+let workerChannels Map<HTMLElement, BroadcastChannel> = new Map()
 
 /** The `console` of the worker module: its lines go to the channel, formatted as by show(). */
 func workerConsole(channel string) string {

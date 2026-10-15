@@ -188,7 +188,7 @@ comp Async() {
             <code>async func</code> возвращает Promise, а <code>await</code> его ждёт. Типы
             результатов пишутся как у любой функции, в том числе несколько:
             {" "}<code>async func load() (string, error)</code> возвращает
-            {" "}<code>Promise[(string, error)]</code>, а <code>await</code> распаковывает значения
+            {" "}<code>{"Promise<(string, error)>"}</code>, а <code>await</code> распаковывает значения
             обратно. Модуль может делать <code>await</code> на верхнем уровне, а обработчик события
             может быть async: изменение состояния после <code>await</code> обновляет разметку.
         </p>
@@ -213,7 +213,7 @@ comp Goroutines() {
 comp Channels() {
     return <>
         <p>
-            Каналы передают значения между горутинами, как в Go: <code>chan[number](10)</code>
+            Каналы передают значения между горутинами, как в Go: <code>{"chan<number>(10)"}</code>
             создаёт канал с местом на десять чисел, <code>{"ch <- v"}</code> отправляет значение и
             ждёт, пока канал его примет, <code>{"<-ch"}</code> получает значение, а
             {" "}<code>for v in ch</code> получает их до <code>close(ch)</code>. Обе стороны ждут,
@@ -267,10 +267,10 @@ comp Classes() {
 comp Generics() {
     return <>
         <p>
-            Параметры типа пишутся в квадратных скобках, как в Go:
-            {" "}<code>{"func last[T any](xs []T) ?T"}</code>, <code>{"interface Box[T]"}</code>,
-            {" "}<code>{"class Stack[T]"}</code>. В типах аргументы тоже в квадратных скобках:
-            {" "}<code>Box[number]</code>, <code>Stack[string]</code>.
+            Параметры типа пишутся в угловых скобках, ограничение — после каждого, как в Go:
+            {" "}<code>{"func last<T any>(xs []T) ?T"}</code>, <code>{"interface Box<T>"}</code>,
+            {" "}<code>{"class Stack<T>"}</code>. В типах аргументы тоже в угловых скобках:
+            {" "}<code>{"Box<number>"}</code>, <code>{"Stack<string>"}</code>.
         </p>
         <p>
             При вызове аргументы типа не пишутся: компилятор выводит их из аргументов или из

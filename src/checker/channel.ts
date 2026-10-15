@@ -1,6 +1,6 @@
 import { hasZeroValue, instantiate, nullable, type ObjectType, type Type } from './types.ts';
 
-// Channels: `chan T`, made by `chan[T](size)`. A channel type is an instance of a generic object
+// Channels: `chan T`, made by `chan<T>(size)`. A channel type is an instance of a generic object
 // without members, so that the relations of types handle it; `chan T` is written and printed by
 // its own syntax, and only the same `chan T` is assignable to it (relations.ts).
 

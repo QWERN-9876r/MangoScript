@@ -170,6 +170,35 @@ export abstract class ParserBase {
     return this.fail(`expected ${what}, found ${describe(this.peek())}`);
   }
 
+  /**
+   * The `>` that closes type arguments or parameters. In `Box<Box<number>>` the lexer reads `>>`,
+   * so a token that starts with `>` is split: its first character closes these.
+   */
+  protected expectTypeClose(what: string): void {
+    const token = this.peek();
+
+    if (token.kind === '>') {
+      this.next();
+
+      return;
+    }
+
+    if (token.kind.startsWith('>')) {
+      const rest = token.kind.slice(1) as typeof token.kind;
+
+      this.tokens[this.pos] = {
+        ...token,
+        kind: rest,
+        text: token.text.slice(1),
+        start: token.start + 1,
+      } as Token;
+
+      return;
+    }
+
+    this.fail(`expected ${what}, found ${describe(token)}`);
+  }
+
   protected expectWord(word: string): void {
     if (!this.acceptWord(word)) this.fail(`expected "${word}", found ${describe(this.peek())}`);
   }

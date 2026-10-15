@@ -115,17 +115,23 @@ describe('VS Code grammar', () => {
   });
 
   it('colours generic declarations and grouped types', () => {
-    const header = 'class Stack[T] extends Base implements Source[T] {';
+    const header = 'class Stack<T> extends Base implements Source<T> {';
 
     expect(scopeOf(header, 'Stack')).toBe('entity.name.type.class');
     expect(scopesOf(header, 'T')).toEqual(['entity.name.type', 'entity.name.type']);
     expect(scopeOf(header, 'Base')).toBe('entity.other.inherited-class');
     expect(scopeOf(header, 'implements')).toBe('storage.modifier');
 
-    const func = 'func first[T any](xs []T) ?T {';
+    const func = 'func first<T any>(xs []T) ?T {';
 
     expect(scopeOf(func, 'first')).toBe('entity.name.function');
     expect(scopeOf(func, 'any')).toBe('support.type.primitive');
+
+    // Type arguments are not markup: `<number>` is a type.
+    const typed = 'let b Box<Box<number>> = chan<Box<number>>(1)';
+
+    expect(scopesOf(typed, 'Box')).toEqual(Array(3).fill('entity.name.type'));
+    expect(scopesOf(typed, 'number')).toEqual(Array(2).fill('support.type.primitive'));
     expect(scopeOf('let x ?(A | B) = null', '?')).toBe('keyword.operator.type.nullable');
     expect(scopeOf('let xs [](A | B)', '[]')).toBe('punctuation.definition.type.array');
   });
@@ -223,7 +229,7 @@ describe('VS Code grammar', () => {
       'keyword.operator.channel',
       'keyword.operator.channel',
     ]);
-    expect(scopeOf('const c = chan[number](10)', 'chan')).toBe('storage.type');
+    expect(scopeOf('const c = chan<number>(10)', 'chan')).toBe('storage.type');
     expect(scopeOf('select {', 'select')).toBe('keyword.control.conditional');
     expect(scopeOf('select(x)', 'select')).not.toBe('keyword.control.conditional');
   });

@@ -60,7 +60,7 @@ export function typeToString(type: Type): string {
       if (type.instanceOf && type.name === 'chan')
         return `chan ${typeToString(type.instanceOf.args[0]!)}`;
       if (type.instanceOf && type.name !== null) {
-        return `${type.name}[${type.instanceOf.args.map(typeToString).join(', ')}]`;
+        return `${type.name}<${type.instanceOf.args.map(typeToString).join(', ')}>`;
       }
 
       if (type.name !== null) return type.name;
@@ -83,7 +83,7 @@ export function typeToString(type: Type): string {
 
     case 'class':
       return type.args
-        ? `${type.info.name}[${type.args.map(typeToString).join(', ')}]`
+        ? `${type.info.name}<${type.args.map(typeToString).join(', ')}>`
         : type.info.name;
 
     case 'classValue':

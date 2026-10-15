@@ -142,7 +142,7 @@
           }
         },
         {
-          "comment": "Separate from `class Name`: type parameters can come between, `class Stack[T] implements Source[T]`.",
+          "comment": "Separate from `class Name`: type parameters can come between, `class Stack<T> implements Source<T>`.",
           "match": "(?<![\\w$])(?<![^.]\\.)(extends)\\s+([A-Za-z_$][\\w$.]*)",
           "captures": {
             "1": { "name": "storage.modifier.mango" },

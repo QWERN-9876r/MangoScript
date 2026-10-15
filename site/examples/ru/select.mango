@@ -1,6 +1,6 @@
 // select ждёт первую из нескольких операций с каналами
 func after(ms number) chan bool {
-    const ch = chan[bool](1)
+    const ch = chan<bool>(1)
     setTimeout(async () => {
         ch <- true
     }, ms)
@@ -13,8 +13,8 @@ async func search(query string, ms number, out chan string) {
 }
 
 // Место для одного ответа: поиск, которого никто не ждёт, всё равно сможет закончиться
-const fast = chan[string](1)
-const slow = chan[string](1)
+const fast = chan<string>(1)
+const slow = chan<string>(1)
 go search("манго", 100, fast)
 go search("папайя", 2000, slow)
 

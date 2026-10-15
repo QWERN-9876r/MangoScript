@@ -28,13 +28,13 @@ document.body.append("text")`),
 fetch(1)
 Promise.resolve(1).then(n => console.log(n.toFixed(2)))`),
     ).toEqual([
-      'no overload fits these arguments: func(string | Request | URL, ?RequestInit) Promise[Response]',
+      'no overload fits these arguments: func(string | Request | URL, ?RequestInit) Promise<Response>',
     ]);
   });
 
   it('types Map, Set, Date and URL with generics', () => {
     expect(
-      errors(`let scores Map[string, number] = new Map()
+      errors(`let scores Map<string, number> = new Map()
 scores.set("anna", 1)
 const score ?number = scores.get("anna")
 scores.set(1, 1)

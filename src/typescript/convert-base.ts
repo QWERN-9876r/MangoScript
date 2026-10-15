@@ -163,7 +163,7 @@ export abstract class ConverterBase {
   /**
    * Constraints are not kept: they only matter in the bodies of generic functions, which in a
    * `.d.ts` are not checked, and many have no counterpart. Defaults are kept: `Buffer` is
-   * `Buffer[ArrayBufferLike]`.
+   * `Buffer<ArrayBufferLike>`.
    */
   protected typeParam(type: TS.Type): TypeParam {
     let param = this.params.get(type);

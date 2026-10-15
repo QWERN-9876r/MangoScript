@@ -1,5 +1,5 @@
 // Параметр типа T: функция работает с массивом любых значений и знает тип результата
-func last[T any](xs []T) ?T {
+func last<T any>(xs []T) ?T {
     return xs.length > 0 ? xs[xs.length - 1] : null
 }
 
@@ -11,12 +11,12 @@ interface Named {
     name string
 }
 
-func names[T Named](items []T) string {
+func names<T Named>(items []T) string {
     return items.map(x => x.name).join(", ")
 }
 
 // Обобщённый класс; аргумент типа выводится из объявления переменной
-class Stack[T] {
+class Stack<T> {
     private items []T
 
     push(item T) {
@@ -28,7 +28,7 @@ class Stack[T] {
     }
 }
 
-let stack Stack[string] = new Stack()
+let stack Stack<string> = new Stack()
 stack.push("папайя")
 console.log(fruit, count, names([{ name: "Аня", age: 30 }]), stack.pop())
 // stack.push(1) — ошибка компиляции: нужен string

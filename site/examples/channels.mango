@@ -6,8 +6,8 @@ async func worker(id number, jobs chan number, results chan string) {
     }
 }
 
-const jobs = chan[number](10) // room for 10 values
-const results = chan[string]() // no room: a send waits for a receiver
+const jobs = chan<number>(10) // room for 10 values
+const results = chan<string>() // no room: a send waits for a receiver
 
 go worker(1, jobs, results)
 go worker(2, jobs, results)

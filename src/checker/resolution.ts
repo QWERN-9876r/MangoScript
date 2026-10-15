@@ -120,7 +120,7 @@ export abstract class TypeResolver extends ClassChecker {
       return type;
     }
 
-    // Parameters with defaults (from a `.d.ts`) may be left out: `Buffer` is `Buffer[ArrayBufferLike]`.
+    // Parameters with defaults (from a `.d.ts`) may be left out: `Buffer` is `Buffer<ArrayBufferLike>`.
     const required = params.filter((param) => !param.default).length;
 
     if (args.length >= required && args.length < params.length) {
@@ -130,7 +130,7 @@ export abstract class TypeResolver extends ClassChecker {
     if (args.length !== params.length) {
       this.error(
         args.length === 0
-          ? `"${name.name}" needs type arguments: ${name.name}[${params.map((param) => param.name).join(', ')}]`
+          ? `"${name.name}" needs type arguments: ${name.name}<${params.map((param) => param.name).join(', ')}>`
           : `"${name.name}" takes ${params.length} type argument${params.length === 1 ? '' : 's'}, got ${args.length}`,
         name,
       );

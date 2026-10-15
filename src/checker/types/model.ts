@@ -54,7 +54,7 @@ export interface FunctionType {
   /** Element type of a trailing `...rest` parameter (builtins only). */
   rest: Type | null;
   results: Type[];
-  /** Type parameters inferred from the arguments of each call, e.g. `map` or `func first[T any]`. */
+  /** Type parameters inferred from the arguments of each call, e.g. `map` or `func first<T any>`. */
   typeParams: TypeParam[];
   /** The other signatures of an overloaded function from a `.d.ts`; a call uses the first that fits. */
   overloads?: FunctionType[];
@@ -95,9 +95,9 @@ export interface ObjectType {
   construct?: FunctionType;
   /** `[key: string]: T` in a `.d.ts`: the type of members that are not listed. */
   index?: Type;
-  /** A generic interface, `interface Box[T]`: its members use these parameters. */
+  /** A generic interface, `interface Box<T>`: its members use these parameters. */
   typeParams?: TypeParam[];
-  /** `Box[number]`: the generic interface and the type arguments it was made from. */
+  /** `Box<number>`: the generic interface and the type arguments it was made from. */
   instanceOf?: { template: ObjectType; args: Type[] };
 }
 
@@ -111,7 +111,7 @@ export interface ClassInfo {
   statics: Map<string, Member>;
   /** Own constructor; `null` means it is inherited (or empty). */
   ctor: FunctionType | null;
-  /** `class Stack[T]`: members use these parameters, instances give them arguments. */
+  /** `class Stack<T>`: members use these parameters, instances give them arguments. */
   typeParams: TypeParam[];
   /** Type arguments for a generic base class: the defaults of a class from a `.d.ts`. */
   superArgs?: Type[];
@@ -120,7 +120,7 @@ export interface ClassInfo {
   value: ClassValueType;
 }
 
-/** An instance of a class; `args` are the type arguments of a generic class: `Stack[number]`. */
+/** An instance of a class; `args` are the type arguments of a generic class: `Stack<number>`. */
 export interface ClassType {
   kind: 'class';
   info: ClassInfo;

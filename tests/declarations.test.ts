@@ -29,7 +29,7 @@ export interface Todo {
     rename(title string) Todo
 }
 
-export interface Box[T] {
+export interface Box<T> {
     value T
 }
 
@@ -42,7 +42,7 @@ export func divide(a, b number) (number, error) {
     return a / b, null
 }
 
-export func first[T any](xs []T) ?T {
+export func first<T any>(xs []T) ?T {
     return xs.length > 0 ? xs[0] : null
 }
 
@@ -61,7 +61,7 @@ export func origin() Point {
     return { x: 0, y: 0 }
 }
 
-export class Stack[T] {
+export class Stack<T> {
     private items []T
     protected size number
     static created = 0

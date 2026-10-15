@@ -74,7 +74,7 @@ export class TypeConverter extends ObjectConverter {
 
     const type = this.convert(this.checker.getDeclaredTypeOfSymbol(symbol));
 
-    // `type Pair<A, B> = { ... }` works like a generic interface: `Pair[number, string]`.
+    // `type Pair<A, B> = { ... }` works like a generic interface: `Pair<number, string>`.
     if (symbol.flags & SymbolFlags.TypeAlias && type.kind === 'object' && !type.typeParams) {
       const declaration = symbol.declarations?.find(this.ts.isTypeAliasDeclaration);
       const params = declaration?.typeParameters ?? [];

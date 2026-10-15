@@ -1,6 +1,6 @@
 // An async function returns a Promise of its results; await waits for it
 async func sleep(ms number) {
-    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    const done Promise<number> = new Promise(resolve => setTimeout(() => resolve(ms), ms))
     await done
 }
 

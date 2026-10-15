@@ -6,8 +6,8 @@ async func worker(id number, jobs chan number, results chan string) {
     }
 }
 
-const jobs = chan[number](10) // место на 10 значений
-const results = chan[string]() // без места: отправка ждёт получателя
+const jobs = chan<number>(10) // место на 10 значений
+const results = chan<string>() // без места: отправка ждёт получателя
 
 go worker(1, jobs, results)
 go worker(2, jobs, results)

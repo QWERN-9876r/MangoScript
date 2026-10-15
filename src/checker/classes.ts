@@ -45,7 +45,7 @@ export abstract class ClassChecker extends DeclarationChecker {
       const baseParams = base.kind === 'classValue' ? base.info.typeParams : [];
 
       if (base.kind === 'classValue' && baseParams.some((param) => !param.default)) {
-        // `extends Stack[number]` would be an index in JS: the base is used without types.
+        // The base is a value, as in JS, so it has no type arguments: `extends Stack<number>` cannot be written.
         this.error(
           `cannot extend the generic class "${base.info.name}": generic base classes are not supported`,
           node.superClass,

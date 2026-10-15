@@ -194,7 +194,7 @@ export abstract class CheckerBase {
 
   /**
    * Type parameters of the call whose arguments are being checked: they are not known yet. Other
-   * type parameters, like `T` in the body of `func first[T any]`, are types like any other.
+   * type parameters, like `T` in the body of `func first<T any>`, are types like any other.
    */
   protected inferring: ReadonlySet<TypeParam> = new Set();
 

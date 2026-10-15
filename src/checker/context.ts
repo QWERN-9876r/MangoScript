@@ -156,7 +156,7 @@ export interface AliasEntry {
   kind: 'alias';
   node: ast.TypeAliasDeclaration;
   scope: Scope;
-  /** `type Pair[A, B any] ...`: references give arguments for these. */
+  /** `type Pair<A, B any> ...`: references give arguments for these. */
   params: TypeParam[];
   resolved: Type | null;
   resolving: boolean;

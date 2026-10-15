@@ -31,7 +31,7 @@ export type Expression =
   | GoExpression
   | ChanExpression;
 
-/** `chan[number](10)`: a new channel with room for 10 values; `chan[number]()` has none. */
+/** `chan<number>(10)`: a new channel with room for 10 values; `chan<number>()` has none. */
 export interface ChanExpression extends NodeBase {
   kind: 'ChanExpression';
   element: TypeNode;

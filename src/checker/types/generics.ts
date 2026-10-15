@@ -25,8 +25,8 @@ export function bindParams(
 export const instances = new WeakMap<ObjectType, { args: Type[]; instance: ObjectType }[]>();
 
 /**
- * `Box[number]` from `interface Box[T]`. Instances are cached, so that a type that refers to itself
- * (`interface Node[T] { next ?Node[T] }`) gets the same instance back; arguments that are the
+ * `Box<number>` from `interface Box<T>`. Instances are cached, so that a type that refers to itself
+ * (`interface Node<T> { next ?Node<T> }`) gets the same instance back; arguments that are the
  * parameters themselves give the generic interface.
  */
 export function instantiate(template: ObjectType, args: readonly Type[]): ObjectType {
@@ -78,7 +78,7 @@ export function classInstance(info: ClassInfo, args: readonly Type[]): ClassType
 }
 
 /**
- * The type of a member as seen on an instance: `Stack[number].items` is `[]number`. A member of a
+ * The type of a member as seen on an instance: `Stack<number>.items` is `[]number`. A member of a
  * generic base class gets the arguments that the subclass gives it.
  */
 export function memberTypeOf(object: Type, member: Member): Type {

@@ -9,6 +9,8 @@ export abstract class MarkupLexer extends LiteralLexer {
     const last = this.tokens.at(-1);
 
     if (last && ENDS_VALUE.has(last.kind)) return false;
+    // `chan<number>(10)` makes a channel: its `<` opens the type of the values.
+    if (last?.kind === 'chan') return false;
 
     const next = this.text[this.pos + 1];
 

@@ -58,8 +58,8 @@ console.log(globalThis[Symbol.for("mangoscript.channels")].states.size);
 
 describe('select', () => {
   it('takes its waiting cases off the other channels', async () => {
-    const left = await queues(`const jobs = chan[number]()
-const quit = chan[bool]()
+    const left = await queues(`const jobs = chan<number>()
+const quit = chan<bool>()
 async func produce() {
     for let i = 0; i < 100; i++ {
         await Promise.resolve(0)
@@ -85,7 +85,7 @@ for let i = 0; i < 100; i++ {
 describe('the registry', { timeout: 30_000 }, () => {
   it('forgets channels that no thread holds', () => {
     const { stdout, stderr } = channelsLeft(`func after(ms number) chan bool {
-    const ch = chan[bool](1)
+    const ch = chan<bool>(1)
     setTimeout(async () => {
         ch <- true
     }, ms)
@@ -101,14 +101,14 @@ async func run() {
         }
     }
     for let i = 0; i < 10; i++ {
-        const a = chan[number](1)
-        const b = chan[number](1)
+        const a = chan<number>(1)
+        const b = chan<number>(1)
         a <- i
         await go echo(a, b)
         <-b
     }
 }
-const kept = chan[number](1)
+const kept = chan<number>(1)
 await run()
 `);
 

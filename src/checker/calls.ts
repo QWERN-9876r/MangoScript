@@ -131,8 +131,8 @@ export abstract class CallChecker extends MemberChecker {
       return info.instance;
     }
 
-    // `new Stack[number]()` is not valid syntax: the arguments come from the constructor
-    // arguments, or from the expected type, as in `let s Stack[number] = new Stack()`.
+    // `new Stack<number>()` is not valid syntax: the arguments come from the constructor
+    // arguments, or from the expected type, as in `let s Stack<number> = new Stack()`.
     const instance: Type = { kind: 'class', info, args: info.typeParams };
     const signatures = signaturesOf(type).map((signature) =>
       func(signature.params, [instance], {
@@ -234,7 +234,7 @@ export abstract class CallChecker extends MemberChecker {
     const errors = this.diagnostics.length;
 
     // What the other arguments leave open comes from the expected result, before those arrow
-    // functions: `const done Promise[number] = new Promise(resolve => ...)`.
+    // functions: `const done Promise<number> = new Promise(resolve => ...)`.
     const fromExpected = () => {
       if (expected && signature.results.length === 1) {
         inferTypeParams(signature.results[0]!, expected, inferred);

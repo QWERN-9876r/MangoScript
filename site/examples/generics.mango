@@ -1,5 +1,5 @@
 // The type parameter T: the function works with an array of any values and knows the result type
-func last[T any](xs []T) ?T {
+func last<T any>(xs []T) ?T {
     return xs.length > 0 ? xs[xs.length - 1] : null
 }
 
@@ -11,12 +11,12 @@ interface Named {
     name string
 }
 
-func names[T Named](items []T) string {
+func names<T Named>(items []T) string {
     return items.map(x => x.name).join(", ")
 }
 
 // A generic class; the type argument comes from the variable's declaration
-class Stack[T] {
+class Stack<T> {
     private items []T
 
     push(item T) {
@@ -28,7 +28,7 @@ class Stack[T] {
     }
 }
 
-let stack Stack[string] = new Stack()
+let stack Stack<string> = new Stack()
 stack.push("papaya")
 console.log(fruit, count, names([{ name: "Ann", age: 30 }]), stack.pop())
 // stack.push(1) is a compile error: a string is needed

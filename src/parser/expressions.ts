@@ -270,14 +270,14 @@ export abstract class ExpressionParser extends TypeParser {
       case 'func':
         return this.parseFuncExpression();
 
-      // `chan[number](10)`: a new channel.
+      // `chan<number>(10)`: a new channel.
       case 'chan': {
         this.next();
-        this.expect('[', '"[": a channel is made as chan[T](size), e.g. chan[number](10)');
+        this.expect('<', '"<": a channel is made as chan<T>(size), e.g. chan<number>(10)');
 
         const element = this.parseType();
 
-        this.expect(']');
+        this.expectTypeClose('">" after the type of the values');
         this.expect('(');
 
         const size = this.check(')') ? null : this.nested(() => this.parseExpression());

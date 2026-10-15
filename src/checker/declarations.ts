@@ -329,7 +329,7 @@ export abstract class DeclarationChecker extends ImportChecker {
     );
   }
 
-  /** `Promise[...]` of the results of an async function, with the global `Promise` type. */
+  /** `Promise<...>` of the results of an async function, with the global `Promise` type. */
   protected promiseOf(results: readonly Type[]): Type {
     const entry = this.globals.types.get('Promise') ?? this.options.library?.type('Promise');
 

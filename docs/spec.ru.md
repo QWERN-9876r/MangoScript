@@ -256,44 +256,46 @@ func show(value string | number) string {
 
 ### Дженерики
 
-Параметры типа пишутся в квадратных скобках после имени, как в Go:
+Параметры типа пишутся в угловых скобках после имени, как в TypeScript, а ограничение — после
+параметра, как в Go:
 
 ```go
-func first[T any](xs []T) ?T {
+func first<T any>(xs []T) ?T {
     return xs.length > 0 ? xs[0] : null
 }
 
-interface Box[T] {
+interface Box<T> {
     value T
 }
 
-type Pair[A, B any] { first A; second B }
+type Pair<A, B any> { first A; second B }
 
-class Stack[T] {
+class Stack<T> {
     private items []T
     push(item T) { this.items.push(item) }
     pop() ?T { return this.items.pop() ?? null }
 }
 
 const n = first([1, 2, 3])              // ?number
-let b Box[string] = { value: "a" }
-let s Stack[number] = new Stack()
+let b Box<string> = { value: "a" }
+let s Stack<number> = new Stack()
 ```
 
-- **Ограничение** пишется после имени: `[T Named]` — `T` должен подходить под `Named`, и у
+- **Ограничение** пишется после имени: `<T Named>` — `T` должен подходить под `Named`, и у
   значений типа `T` есть члены `Named`. `any` — без ограничения, тогда членов у `T` нет.
-  Несколько имён подряд делят одно ограничение: `[K, V any]`. Для интерфейсов, классов и `type`
-  ограничение можно не писать: `interface Box[T]`.
-- **Аргументы типа** пишутся только в типах: `Box[number]`, `Pair[string, ?number]`. При вызове
+  Несколько имён подряд делят одно ограничение: `<K, V any>`. Для интерфейсов, классов и `type`
+  ограничение можно не писать: `interface Box<T>`.
+- **Аргументы типа** пишутся только в типах: `Box<number>`, `Pair<string, ?number>`. При вызове
   функции и в `new` они выводятся из аргументов, а если не получилось — из ожидаемого типа:
-  `let xs []number = empty()`. Явного `first[number](xs)` нет: в выражении это неотличимо от
-  индекса. Если вывести тип не из чего, это ошибка: `let s = new Stack()`.
+  `let xs []number = empty()`. Явного `first<number>(xs)` нет: в выражении это неотличимо от
+  сравнения. Если вывести тип не из чего, это ошибка: `let s = new Stack()`.
 - Внутри функции `T` — отдельный тип: `return 1` в функции с результатом `T` — ошибка. Нулевого
   значения у `T` нет.
-- Тип может ссылаться на себя: `interface Tree[T] { value T; children []Tree[T] }`.
-- `Box[number]` и `Box[string]` — разные типы, `Stack[number]` и `Stack[string]` — тоже.
-- Наследоваться от обобщённого класса пока нельзя: `extends Stack[number]` в JS было бы
-  индексом. Методы со своими параметрами типа (`map[U any](...)`) тоже пока не поддерживаются.
+- Тип может ссылаться на себя: `interface Tree<T> { value T; children []Tree<T> }`.
+- `Box<number>` и `Box<string>` — разные типы, `Stack<number>` и `Stack<string>` — тоже.
+- Наследоваться от обобщённого класса пока нельзя: после `extends` стоит значение, как в JS, и
+  `extends Stack<number>` не написать. Методы со своими параметрами типа (`map<U any>(...)`) тоже
+  пока не поддерживаются.
 - В JS дженерики стираются, как в TypeScript.
 
 ### null и null-safety
@@ -495,8 +497,8 @@ const [text, err] = await loadText("/hello.txt");
 `func` и перед стрелочной функцией (`async x => ...`).
 
 - **Типы результатов — то, что отдаёт `return`;** сама функция возвращает Promise с ними: у
-  `loadText` тип `func(string) Promise[(string, error)]`. Поэтому результаты пишутся как у любой
-  функции, в том числе несколько; `Promise[string]` как результат async-функции — ошибка.
+  `loadText` тип `func(string) Promise<(string, error)>`. Поэтому результаты пишутся как у любой
+  функции, в том числе несколько; `Promise<string>` как результат async-функции — ошибка.
 - **`await p` ждёт Promise и даёт его значение.** Результаты async-функции распаковываются из
   него как из вызова: `const text, err = await loadText(url)`. `await` значения, которое не
   Promise, даёт само значение, как в JS.
@@ -512,7 +514,7 @@ Promise, созданный вручную, получает тип из объ�
 
 ```go
 async func sleep(ms number) {
-    const done Promise[number] = new Promise(resolve => setTimeout(() => resolve(ms), ms))
+    const done Promise<number> = new Promise(resolve => setTimeout(() => resolve(ms), ms))
     await done
 }
 ```
@@ -570,8 +572,8 @@ async func worker(jobs chan number, results chan number) {
     }
 }
 
-const jobs = chan[number](10)          // место на 10 значений
-const results = chan[number]()          // без места: отправка ждёт получателя
+const jobs = chan<number>(10)          // место на 10 значений
+const results = chan<number>()          // без места: отправка ждёт получателя
 go worker(jobs, results)
 go worker(jobs, results)
 for let n = 1; n <= 4; n++ {
@@ -593,7 +595,7 @@ console.log(await $$receive(results));
 ```
 
 Каналы передают значения между горутинами, как в Go. `chan T` — тип канала значений `T`, а
-`chan[T](size)` создаёт канал с местом на `size` значений; у `chan[T]()` места нет.
+`chan<T>(size)` создаёт канал с местом на `size` значений; у `chan<T>()` места нет.
 
 - **`ch <- v` отправляет значение** и ждёт, пока канал его примет: пока в канале есть место —
   сразу, иначе — пока не придёт получатель. **`<-ch` получает значение**, дожидаясь его. Обе
@@ -975,7 +977,7 @@ func handle(request IncomingMessage, response ServerResponse) {
 | `void` в результате                            | функция без результата                      |
 | интерфейс, объектный тип, пересечение          | интерфейс                                   |
 | класс                                          | класс: `new`, `extends`, `instanceof`       |
-| `Box<T>`, `function first<T>(...)`             | дженерики: `Box[T]`, вывод аргументов типа  |
+| `Box<T>`, `function first<T>(...)`             | дженерики: `Box<T>`, вывод аргументов типа  |
 | перегрузки                                     | вызов выбирает первую подходящую сигнатуру  |
 | `enum`                                         | union литералов                             |
 | `[key: string]: T`                             | неизвестные члены имеют тип `T`             |
@@ -985,7 +987,7 @@ func handle(request IncomingMessage, response ServerResponse) {
 - `import x from "pkg"` — экспорт по умолчанию; у модулей с `export =` это само значение, а
   именованные импорты — его свойства: `import { join } from "node:path"`.
 - У параметров типа со значением по умолчанию аргумент можно не писать: `Buffer` — это
-  `Buffer[ArrayBufferLike]`. От такого класса можно наследоваться: `class Bus extends EventEmitter`.
+  `Buffer<ArrayBufferLike>`. От такого класса можно наследоваться: `class Bus extends EventEmitter`.
 - Ограничения параметров типа из `.d.ts` не проверяются.
 - В типах нельзя обратиться к типу внутри пространства имён (`http.Server`): его импортируют по
   имени.
@@ -1001,7 +1003,7 @@ export type Filter "all" | "active" | "done"
 
 export func divide(a, b number) (number, error) { ... }
 
-export class Stack[T] {
+export class Stack<T> {
     private items []T
     push(item T) { ... }
     pop() ?T { ... }
@@ -1606,7 +1608,7 @@ hello.mango:9:11: error: cannot add string and number: use a template string, e.
 
 - `document`, `window`, `fetch`, `Promise`, `Map`, `Set`, `Date`, `URL`, `Object`… типизированы:
   `document.getElementById("app")` — это `?HTMLElement`, `new Map()` при
-  `let m Map[string, number]` — `Map[string, number]`, а `m.get(k)` — `?number`;
+  `let m Map<string, number>` — `Map<string, number>`, а `m.get(k)` — `?number`;
 - `<input>` создаёт `HTMLInputElement` со всеми членами из `HTMLElementTagNameMap`;
 - `event` в `onClick` — `PointerEvent`, в `onKeyDown` — `KeyboardEvent` (из `HTMLElementEventMap`),
   а `event.currentTarget` — сам элемент. `event.target` — `?EventTarget`, как в TypeScript;

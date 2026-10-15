@@ -5,7 +5,7 @@ import { GoroutineChecker } from './goroutines.ts';
 import { isUntyped } from './helpers.ts';
 import { BOOL, NUMBER, typeToString, type Type } from './types.ts';
 
-// Channels: `chan[number](10)` makes one, `ch <- v` sends a value, `<-ch` receives one (in
+// Channels: `chan<number>(10)` makes one, `ch <- v` sends a value, `<-ch` receives one (in
 // operators.ts), `for v in ch` receives them until it is closed (in control-flow.ts), and
 // `select` waits for the first of several.
 

@@ -115,17 +115,17 @@ export type TypeNode =
   | LiteralType
   | ChanType;
 
-/** `chan number`: a channel of numbers, made by `chan[number](size)`. */
+/** `chan number`: a channel of numbers, made by `chan<number>(size)`. */
 export interface ChanType extends NodeBase {
   kind: 'ChanType';
   element: TypeNode;
 }
 
-/** A named type: `number`, `User`, `Point`, `Box[number]`. */
+/** A named type: `number`, `User`, `Point`, `Box<number>`. */
 export interface TypeReference extends NodeBase {
   kind: 'TypeReference';
   name: Identifier;
-  /** Type arguments of a generic type: `[number]` in `Box[number]`. */
+  /** Type arguments of a generic type: `<number>` in `Box<number>`. */
   typeArgs: TypeNode[];
 }
 

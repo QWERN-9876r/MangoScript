@@ -141,7 +141,7 @@ class DeclarationPrinter {
     const exported = node.exported ? 'export ' : '';
     const params = this.typeParams(type.kind === 'object' ? (type.typeParams ?? []) : []);
 
-    // `type Pair[A, B any] { ... }` names an object type; other aliases are another name.
+    // `type Pair<A, B any> { ... }` names an object type; other aliases are another name.
     if (node.type.kind === 'ObjectType' && type.kind === 'object') {
       const members = this.objectMembers(node.type.members, type);
 
