@@ -1,16 +1,23 @@
-# Publishes the package to npm when a version tag such as v0.2.0 is pushed. npm trusts this
-# workflow instead of a token (trusted publishing), and the release gets provenance. On npmjs.com:
-# the package → Settings → Trusted publishing → GitHub Actions, with this repository and the
-# workflow file publish.yml.
+# Publishes the package to npm when main gets a version in package.json that npm does not have yet,
+# and tags that commit, e.g. v0.2.0. npm trusts this workflow instead of a token (trusted
+# publishing), and the release gets provenance. On npmjs.com: the package → Settings → Trusted
+# publishing → GitHub Actions, with this repository and the workflow file publish.yml.
 name: Publish
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
+
+# Two pushes in a row must not publish the same version twice.
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -22,11 +29,36 @@ jobs:
           node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
+      # npm prints nothing for a version it does not have, and fails for a package it does not have.
+      - name: Is this version new?
+        id: version
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          published=$(npm view "$name@$version" version 2>/dev/null || true)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$published" = "$version" ]; then
+            echo "$name@$version is on npm already"
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
       # Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install --global npm@11
-      - run: npm ci
-      # The tag has to name the version in package.json, or a different version would be released.
-      - name: Check the tag
-        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
+      - if: steps.version.outputs.new == 'true'
+        run: npm install --global npm@11
+      - if: steps.version.outputs.new == 'true'
+        run: npm ci
       # prepublishOnly runs `npm run check`, and prepack builds dist/.
-      - run: npm publish
+      - if: steps.version.outputs.new == 'true'
+        run: npm publish
+      # A tag pushed with the token of the workflow starts no other workflow.
+      - if: steps.version.outputs.new == 'true'
+        name: Tag the release
+        run: |
+          tag="v${{ steps.version.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag exists already"
+          else
+            git tag "$tag"
+            git push origin "$tag"
+          fi

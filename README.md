@@ -66,10 +66,11 @@ the JS of one file, `--no-check` skips type checking.
 
 ## Releases
 
-A release is a version tag: `npm version minor` (or `patch`) changes `package.json` and makes the
-tag `v0.2.0`, and `git push --follow-tags` sends it to GitHub. The workflow
-[.github/workflows/publish.yml](.github/workflows/publish.yml) then runs `npm run check`, builds
-`dist/` and publishes the package to npm.
+A release is a new version in `package.json` on `main`: `npm version minor --no-git-tag-version`
+(or `patch`) changes it, and the push to `main` releases it. The workflow
+[.github/workflows/publish.yml](.github/workflows/publish.yml) sees that npm does not have this
+version yet, runs `npm run check`, builds `dist/`, publishes the package to npm and tags the commit
+`v0.2.0`. A push that keeps the version publishes nothing.
 
 ## VS Code
 

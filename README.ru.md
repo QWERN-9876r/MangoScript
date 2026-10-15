@@ -67,10 +67,11 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 
 ## Релизы
 
-Релиз — это тег версии: `npm version minor` (или `patch`) меняет `package.json` и создаёт тег
-`v0.2.0`, а `git push --follow-tags` отправляет его на GitHub. Дальше workflow
-[.github/workflows/publish.yml](.github/workflows/publish.yml) запускает `npm run check`, собирает
-`dist/` и публикует пакет в npm.
+Релиз — это новая версия в `package.json` в `main`: `npm version minor --no-git-tag-version` (или
+`patch`) меняет её, а пуш в `main` выпускает релиз. Workflow
+[.github/workflows/publish.yml](.github/workflows/publish.yml) видит, что такой версии в npm ещё
+нет, запускает `npm run check`, собирает `dist/`, публикует пакет в npm и ставит на коммит тег
+`v0.2.0`. Пуш без новой версии ничего не публикует.
 
 ## VS Code
 
