@@ -25,15 +25,15 @@ const GOROUTINES = `func countPrimes(from, to number) number {
 const N = 2_500_000
 let started = Date.now()
 countPrimes(0, 4 * N)
-console.log(\`one thread: \${Date.now() - started} ms\`)
+console.log(\`one thread:   \${Date.now() - started} ms\`)
 
 started = Date.now()
 await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * N, (i + 1) * N)))
-console.log(\`4 workers:  \${Date.now() - started} ms\`)`
+console.log(\`4 goroutines: \${Date.now() - started} ms\`)`
 
 // What GOROUTINES printed under Node on a machine with more than four processors.
-const OUTPUT = `one thread: 1451 ms
-4 workers:  601 ms`
+const OUTPUT = `one thread:   1451 ms
+4 goroutines: 601 ms`
 
 const COMPONENT = `comp Counter() {
     state count = 0
@@ -51,8 +51,10 @@ $$button.addEventListener("click", () => {
 const $$text = document.createTextNode(count);
 $$button.append("Clicked ", $$text, " times");`
 
-comp Panels(label string, code Node, resultLabel string, result Node) {
-    return <div class={styles.panels}>
+// Both tabs stay on the page, one over the other, so the block is as tall as the taller one and
+// the page does not jump; the hidden one fades out while the selected one comes in.
+comp Panels(shown bool, label string, code Node, resultLabel string, result Node) {
+    return <div class={shown ? styles.panels : `${styles.panels} ${styles.hidden}`}>
         <figure class={styles.panel}>
             <figcaption class={styles.label}>{label}</figcaption>
             <pre class={styles.code}>{code}</pre>
@@ -94,22 +96,22 @@ export comp Hero() {
                 <div class={styles.switch}>
                     <Tabs items={tabs} active={tab} onSelect={tab = event} />
                 </div>
-                {switch tab {
-                case "goroutines":
+                <div class={styles.stack}>
                     <Panels
+                        shown={tab == "goroutines"}
                         label="MangoScript"
                         code={highlight(GOROUTINES, "mango")}
                         resultLabel={t.terminal}
                         result={new Text(OUTPUT)}
                     />
-                default:
                     <Panels
+                        shown={tab == "components"}
                         label="MangoScript"
                         code={highlight(COMPONENT, "mango")}
                         resultLabel="JavaScript"
                         result={highlight(JS, "js")}
                     />
-                }}
+                </div>
             </div>
         </div>
     </section>
