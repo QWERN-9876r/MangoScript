@@ -25,9 +25,9 @@ func countPrimes(from, to number) number {
 const PART = 1_000_000
 
 let started = Date.now()
-console.log("one thread:", countPrimes(0, 4 * PART), `${Date.now() - started} ms`)
+console.log("one thread:", countPrimes(0, 10 * PART), `${Date.now() - started} ms`)
 
 // go gives a Promise of the result: the four parts are counted at once
 started = Date.now()
-const parts = await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * PART, (i + 1) * PART)))
-console.log("four workers:", parts.reduce((a, b) => a + b, 0), `${Date.now() - started} ms`)
+const parts = await Promise.all(Array(10).fill(0).map((_, i) => go countPrimes(i * PART, (i + 1) * PART)))
+console.log("ten workers:", parts.reduce((a, b) => a + b, 0), `${Date.now() - started} ms`)
