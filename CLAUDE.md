@@ -26,6 +26,7 @@ npx vitest run tests/html-tag.test.ts # one test file
 npm run mango -- build app.mango      # compile (app.js next to the source); `run` compiles and runs
 node src/cli.ts ast file.mango        # print the AST
 npm run site:dev / site:build / site  # the docs site: Vite dev server / build / build and serve
+npm run vscode:build                  # bundle the VS Code extension and its language server
 npm run vscode:install                # rebuild and install the VS Code extension
 npm run format                        # prettier --write, then eslint --fix for blank lines
 ```

@@ -72,11 +72,12 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 [.github/workflows/publish.yml](.github/workflows/publish.yml) запускает `npm run check`, собирает
 `dist/` и публикует пакет в npm.
 
-## Подсветка в VS Code
+## VS Code
 
-В [editors/vscode/](editors/vscode/) лежит расширение с подсветкой синтаксиса `.mango`: код, типы
-и разметка. `npm run vscode:install` собирает его и устанавливает через `code`; подробности — в
-[editors/vscode/README.md](editors/vscode/README.md).
+В [editors/vscode/](editors/vscode/) лежит расширение для файлов `.mango`: подсветка кода, типов и
+разметки, ошибки прямо при наборе и автодополнение имён, членов, типов, тегов и атрибутов — от
+языкового сервера с компилятором. `npm run vscode:install` собирает его и устанавливает через
+`code`; подробности — в [editors/vscode/README.ru.md](editors/vscode/README.ru.md).
 
 ## Сайт с документацией
 

@@ -1,10 +1,17 @@
-import { compileModule, workerUrl, type CompileResult } from './compile.ts';
+import {
+  compileModule,
+  workerUrl,
+  type CompileResult,
+  type CoreCompileOptions,
+} from './compile.ts';
+import { completeModule, type CompletionList } from './completion.ts';
 import { loadModuleExports } from './modules.ts';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { importDeclarations, libraryFor } from './typescript/importer.ts';
 
 export type { CompileResult } from './compile.ts';
+export type { Completion, CompletionList } from './completion.ts';
 export type { Diagnostic } from './diagnostics.ts';
 export { formatDiagnostic } from './diagnostics.ts';
 export { SourceFile } from './source.ts';
@@ -30,10 +37,32 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
   const rewriteImports = options.rewriteImports ?? true;
 
   return compileModule(source, {
+    ...filesOf(filename, options.typeCheck ?? true),
     rewriteImports,
     workerUrl: options.workerUrl ?? workerUrl(filename ?? 'main.mango', rewriteImports),
     typeCheck: options.typeCheck ?? true,
     declarations: options.declarations ?? false,
+  });
+}
+
+/**
+ * What can be written at `offset` in a module, for editors: names, members, types, tags and
+ * attributes. The imports are read from disk, like those of `compile`.
+ */
+export function complete(
+  source: string,
+  offset: number,
+  options: { filename?: string } = {},
+): CompletionList {
+  return completeModule(source, offset, filesOf(options.filename, true));
+}
+
+/** Reading what a module imports: other modules, declarations, CSS modules and the library. */
+function filesOf(
+  filename: string | undefined,
+  typeCheck: boolean,
+): Pick<CoreCompileOptions, 'importModule' | 'importDeclarations' | 'readStyleModule' | 'library'> {
+  return {
     importModule: filename
       ? (specifier: string) => loadModuleExports(filename, specifier)
       : undefined,
@@ -42,11 +71,8 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
       : undefined,
     readStyleModule: filename ? (specifier: string) => readNear(filename, specifier) : undefined,
     // Without a file name, `@types` packages are looked up from the current directory.
-    library:
-      (options.typeCheck ?? true)
-        ? libraryFor(filename ?? join(process.cwd(), 'main.mango'))
-        : undefined,
-  });
+    library: typeCheck ? libraryFor(filename ?? join(process.cwd(), 'main.mango')) : undefined,
+  };
 }
 
 /** A file next to `filename`, or null if it cannot be read. */

@@ -1,5 +1,11 @@
 import type * as ast from './ast.ts';
-import { check, type ImportResult, type Library, type ModuleExports } from './checker/checker.ts';
+import {
+  check,
+  type CheckOptions,
+  type ImportResult,
+  type Library,
+  type ModuleExports,
+} from './checker/checker.ts';
 import { property, STRING, type Type } from './checker/types.ts';
 import type { ImportedDecorator } from './codegen/emitter.ts';
 import type { ImportedComponent } from './codegen/imported.ts';
@@ -63,7 +69,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
   if (diagnostics.length > 0) return { code: '', diagnostics, warnings: [], dependencies: [] };
 
   const dependencies = localImports(program);
-  const { styleModules, problems } = readStyleModules(program, options.readStyleModule);
+  const { styleModules, problems, checkOptions } = prepareCheck(program, options);
 
   if (problems.length > 0) return { code: '', diagnostics: problems, warnings: [], dependencies };
 
@@ -72,20 +78,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
   let warnings: Diagnostic[] = [];
 
   if (options.typeCheck ?? true) {
-    const { importModule, importDeclarations, library } = options;
-    // A CSS module has a default export: an object with a string for each of its classes.
-    const importStyles = (specifier: string): ImportResult => {
-      const module = styleModules.get(specifier);
-
-      return module
-        ? { exports: styleModuleExports(specifier, module) }
-        : importDeclarations?.(specifier);
-    };
-    const checked = check(program, {
-      ...(importModule ? { importModule } : {}),
-      importDeclarations: importStyles,
-      ...(library ? { library } : {}),
-    });
+    const checked = check(program, checkOptions);
 
     warnings = [...checked.warnings, ...unusedStyleClasses(program, styleModules)].sort(
       (a, b) => a.start - b.start,
@@ -125,6 +118,36 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     dependencies,
     ...(declarations ? { declarations } : {}),
     ...(worker === undefined ? {} : { worker }),
+  };
+}
+
+/**
+ * The options of the checker for a program: its imports, with the CSS modules it imports, which
+ * are read and parsed here (or what is wrong with them), and the library.
+ */
+export function prepareCheck(
+  program: ast.Program,
+  options: CoreCompileOptions,
+): { styleModules: Map<string, StyleModule>; problems: Diagnostic[]; checkOptions: CheckOptions } {
+  const { styleModules, problems } = readStyleModules(program, options.readStyleModule);
+  const { importModule, importDeclarations, library } = options;
+  // A CSS module has a default export: an object with a string for each of its classes.
+  const importStyles = (specifier: string): ImportResult => {
+    const module = styleModules.get(specifier);
+
+    return module
+      ? { exports: styleModuleExports(specifier, module) }
+      : importDeclarations?.(specifier);
+  };
+
+  return {
+    styleModules,
+    problems,
+    checkOptions: {
+      ...(importModule ? { importModule } : {}),
+      importDeclarations: importStyles,
+      ...(library ? { library } : {}),
+    },
   };
 }
 

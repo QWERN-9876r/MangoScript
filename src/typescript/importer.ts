@@ -61,6 +61,7 @@ export class DeclarationImporter {
       array: (element) => current().array(element),
       element: (tag, svg) => current().element(tag, svg),
       event: (name) => current().event(name),
+      names: (of) => current().names(of),
     };
   }
 

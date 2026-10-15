@@ -39,6 +39,8 @@ export interface Library {
   element(tag: string, svg?: boolean): Type | undefined;
   /** The event of `on<name>`: `HTMLElementEventMap[name]`, e.g. `MouseEvent` for `click`. */
   event(name: string): Type | undefined;
+  /** For completion in editors: the names of the global values, the global types or the tags. */
+  names?(of: 'value' | 'type' | 'tag'): Iterable<string>;
 }
 
 export interface CheckOptions {
@@ -51,6 +53,11 @@ export interface CheckOptions {
   importDeclarations?: (specifier: string) => ImportResult;
   /** Types of the standard library and the DOM beyond the built-in ones. */
   library?: Library;
+  /**
+   * For completion in editors: the name written where the cursor is. The result then lists what
+   * can be written there (see completion.ts).
+   */
+  completion?: string;
 }
 
 export interface CheckResult {
@@ -62,6 +69,34 @@ export interface CheckResult {
   declarations: ModuleExports;
   /** Types of checked expressions, for code generation (e.g. how to insert element children). */
   types: WeakMap<ast.Expression, Type>;
+  /** With the `completion` option: what can be written at the cursor, if the check reached it. */
+  completion?: CompletionResult;
+}
+
+/** Where the cursor is: a value, a member after a dot, a type, a tag or an attribute of markup. */
+export type CompletionContext = 'value' | 'member' | 'type' | 'tag' | 'attribute';
+
+export interface CompletionResult {
+  context: CompletionContext;
+  items: Completion[];
+}
+
+export interface Completion {
+  name: string;
+  kind:
+    | 'variable'
+    | 'constant'
+    | 'function'
+    | 'class'
+    | 'component'
+    | 'type'
+    | 'property'
+    | 'method'
+    | 'keyword'
+    | 'tag'
+    | 'attribute';
+  /** The type, as MangoScript writes it. */
+  detail?: string;
 }
 
 export type BindingKind =

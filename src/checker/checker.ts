@@ -1,12 +1,21 @@
 import type * as ast from '../ast.ts';
-import { ChannelChecker } from './channels.ts';
+import { CompletionChecker } from './completion.ts';
 import type { CheckOptions, CheckResult } from './context.ts';
 
-export type { CheckOptions, CheckResult, ImportResult, Library, ModuleExports } from './context.ts';
+export type {
+  CheckOptions,
+  CheckResult,
+  Completion,
+  CompletionContext,
+  CompletionResult,
+  ImportResult,
+  Library,
+  ModuleExports,
+} from './context.ts';
 
 // The type checker of a module; its layers are listed in base.ts.
 
-class Checker extends ChannelChecker {
+class Checker extends CompletionChecker {
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
     this.checkEndlessRecursion();
@@ -19,6 +28,7 @@ class Checker extends ChannelChecker {
       warnings: this.warnings,
       ...this.collectDeclarations(),
       types: this.checkedTypes,
+      ...(this.completion ? { completion: this.completion } : {}),
     };
   }
 }

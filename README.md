@@ -71,11 +71,12 @@ tag `v0.2.0`, and `git push --follow-tags` sends it to GitHub. The workflow
 [.github/workflows/publish.yml](.github/workflows/publish.yml) then runs `npm run check`, builds
 `dist/` and publishes the package to npm.
 
-## Highlighting in VS Code
+## VS Code
 
-[editors/vscode/](editors/vscode/) has an extension that highlights `.mango` syntax: code, types and
-markup. `npm run vscode:install` builds it and installs it with `code`; see
-[editors/vscode/README.md](editors/vscode/README.md).
+[editors/vscode/](editors/vscode/) has an extension for `.mango` files: highlighting of code, types
+and markup, errors as you type and completion of names, members, types, tags and attributes, from a
+language server with the compiler. `npm run vscode:install` builds it and installs it with `code`;
+see [editors/vscode/README.md](editors/vscode/README.md).
 
 ## Documentation site
 

@@ -77,6 +77,19 @@ export class LibraryTypes implements Library {
     return this.cached(`event ${name}`, () => this.entry('HTMLElementEventMap', name));
   }
 
+  names(of: 'value' | 'type' | 'tag'): Iterable<string> {
+    if (of === 'value') return this.values.keys();
+    if (of === 'type') return this.types.keys();
+
+    const symbol = this.types.get('HTMLElementTagNameMap');
+
+    return symbol
+      ? this.checker
+          .getPropertiesOfType(this.checker.getDeclaredTypeOfSymbol(symbol))
+          .map((property) => property.name)
+      : [];
+  }
+
   /** `Map[key]` of an interface that maps names to types. */
   private entry(map: string, key: string): Type | undefined {
     const symbol = this.types.get(map);

@@ -1,16 +1,26 @@
 {
   "name": "mangoscript",
   "displayName": "MangoScript",
-  "description": "MangoScript syntax highlighting: code, types and markup",
-  "version": "0.0.1",
+  "description": "MangoScript support: highlighting, errors as you type and completion",
+  "version": "0.1.0",
   "publisher": "mangoscript",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/QWERN-9876r/MangoScript.git",
+    "directory": "editors/vscode"
+  },
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters"
   ],
+  "activationEvents": [
+    "onLanguage:mangoscript"
+  ],
+  "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
