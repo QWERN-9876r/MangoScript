@@ -1,4 +1,4 @@
-// go runs a function in a worker, a thread of its own; it gets copies of the arguments
+// go runs a function as a goroutine, in another thread; it gets copies of the arguments
 func isPrime(n number) bool {
     if n < 2 {
         return false
@@ -12,7 +12,7 @@ func isPrime(n number) bool {
     return true
 }
 
-// What countPrimes uses, isPrime, goes to the worker with it
+// What countPrimes uses, isPrime, goes to the other thread with it
 func countPrimes(from, to number) number {
     let count = 0
     for let n = from; n < to; n++ {
@@ -31,4 +31,4 @@ console.log("one thread:", countPrimes(0, 10 * PART), `${Date.now() - started} m
 // go gives a Promise of the result: the ten parts are counted at once
 started = Date.now()
 const parts = await Promise.all(Array(10).fill(0).map((_, i) => go countPrimes(i * PART, (i + 1) * PART)))
-console.log("ten workers:", parts.reduce((a, b) => a + b, 0), `${Date.now() - started} ms`)
+console.log("ten goroutines:", parts.reduce((a, b) => a + b, 0), `${Date.now() - started} ms`)

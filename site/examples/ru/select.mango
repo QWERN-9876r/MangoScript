@@ -7,7 +7,7 @@ async func search(query string, ms number, out chan<- string) {
     out <- `результаты для «${query}» за ${ms} мс`
 }
 
-// Ожиданию не нужен воркер: async-вызов без await работает в этом же потоке.
+// Ожиданию не нужен другой поток: async-вызов без await работает в этом же потоке.
 // Место для одного ответа: поиск, которого никто не ждёт, всё равно сможет закончиться
 const fast = chan<string>(1)
 const slow = chan<string>(1)

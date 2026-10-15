@@ -32,7 +32,7 @@ for waiting {
     case <-ticks:
         console.log("всё ещё считаем")
     case <-timeout:
-        // Воркер останавливается сразу, даже посреди цикла
+        // Горутина останавливается сразу, даже посреди цикла
         cancel(task)
         console.log("слишком долго: отменено")
         waiting = false

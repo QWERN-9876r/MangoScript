@@ -6,7 +6,7 @@ A language with the semantics of JavaScript, Go-style syntax, goroutines on real
 types. It compiles to readable JavaScript without a runtime (WebAssembly is planned).
 
 ```go
-async func worker(jobs <-chan number, results chan<- number) {
+async func square(jobs <-chan number, results chan<- number) {
     for n in jobs {
         results <- n * n
     }
@@ -14,8 +14,8 @@ async func worker(jobs <-chan number, results chan<- number) {
 
 const jobs = chan<number>(10)
 const results = chan<number>()
-go worker(jobs, results)            // a worker thread of its own, on another processor
-go worker(jobs, results)
+go square(jobs, results)            // another thread, at once with the rest
+go square(jobs, results)
 
 for let n = 1; n <= 4; n++ {
     jobs <- n
@@ -26,7 +26,7 @@ for let i = 0; i < 4; i++ {
 }
 ```
 
-- **Goroutines and channels.** `go f(x)` runs a function in a Web Worker or a worker thread, and
+- **Goroutines and channels.** `go f(x)` runs a function as a goroutine, on another processor, and
   channels, `select`, `after`, `tick` and `cancel` work as in Go. The compiler checks that what goes
   to another thread can be copied there.
 - **Go syntax.** `func`, the type after the name, several results, errors as a second value,

@@ -32,7 +32,7 @@ for waiting {
     case <-ticks:
         console.log("still counting")
     case <-timeout:
-        // The worker stops at once, even in the middle of a loop
+        // The goroutine stops at once, even in the middle of a loop
         cancel(task)
         console.log("too slow: cancelled")
         waiting = false

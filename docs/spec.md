@@ -5,9 +5,9 @@
 > Status: a draft, anything may change. Unresolved questions are collected under "Open questions".
 
 MangoScript is a language with the semantics of JavaScript, Go-style syntax and static types. Its
-main feature is goroutines: `go f(x)` runs a function on another processor, in a Web Worker or a
-worker thread, and channels and `select` connect goroutines, as in Go (section 5). It compiles to
-readable JavaScript (ES modules), and the types are erased at compile time.
+main feature is goroutines: `go f(x)` runs a function as a goroutine, on another processor, and
+channels and `select` connect goroutines, as in Go (section 5). It compiles to readable JavaScript
+(ES modules), and the types are erased at compile time.
 
 ## Principles
 
@@ -16,7 +16,7 @@ readable JavaScript (ES modules), and the types are erased at compile time.
 2. **Go syntax where it is more convenient:** `func`, the type after the name, multiple results,
    `defer`, zero values, conditions without parentheses, a single `for` loop, `switch` without
    `break`, no semicolons.
-3. **Concurrency as in Go.** `go f(x)` runs a function in a worker, on another processor, and
+3. **Concurrency as in Go.** `go f(x)` runs a function as a goroutine, on another processor, and
    channels and `select` pass values between goroutines. The compiler checks that what goes
    between threads can be copied.
 4. **Static types with null safety.** The compiler finds type errors; `null` can only be assigned
@@ -476,8 +476,8 @@ are collected in a stack and run in `finally`.
 ## 5. Concurrency
 
 JavaScript runs a program in one thread. MangoScript keeps that thread for waiting and gives the
-work that keeps a processor busy to other threads, with the means of Go: an async function waits
-for a timer or the network in the same thread, `go f(x)` runs a function in a worker, on another
+work that keeps a processor busy to other threads, with the means of Go: an async function waits for
+a timer or the network in the same thread, `go f(x)` runs a function as a goroutine, on another
 processor, and channels and `select` pass values between goroutines in any thread. The compiler
 checks that what goes to another thread can be copied there.
 
@@ -551,19 +551,21 @@ const parts = await Promise.all([0, 1, 2, 3].map((i) => $$go("countPrimes", [i *
 $$go("countPrimes", [0, 100]);
 ```
 
-`go f(x)` calls `f` in a worker: a Web Worker in the browser, a worker thread in Node. Several
-calls run at once, on different processors, and the program goes on without waiting for them.
+`go f(x)` calls `f` as a goroutine, in another thread, and the program goes on without waiting for
+it. Goroutines run at once, on different processors: the threads are a pool of workers, Web
+Workers in the browser and worker threads in Node, and a worker can run several goroutines (see
+"The pool" below).
 
 - **What `go` calls:** a function declared at the top level of the module, an imported one, or a
-  function literal, `go func(n number) { ... }(i)`. A worker shares no memory with the program: it
-  loads the functions that `go` calls, with the declarations and the imports that their code uses,
-  but not the rest of the module and not its top-level code. The modules it imports run their
-  top-level code in the worker too.
+  function literal, `go func(n number) { ... }(i)`. A goroutine shares no memory with the program:
+  its worker loads the functions that `go` calls, with the declarations and the imports that their
+  code uses, but not the rest of the module and not its top-level code. The modules it imports run
+  their top-level code in the worker too.
 - **A function literal** gets copies of the local names it uses, as it gets its arguments, when
   `go` runs: so they must be data, and the literal cannot assign them, since that would change only
   its copy. It compiles to a function of the worker module, `$$goroutine0`, whose first parameters
   are these names.
-- **Copies:** the worker gets copies of the arguments, and the program gets a copy of the result
+- **Copies:** the goroutine gets copies of the arguments, and the program gets a copy of the result
   (the structured clone of `postMessage`). So they are data: numbers, strings, `bool`, arrays,
   objects of interfaces without methods, `Map`, `Set`, `Date`, typed arrays, `error`. A function,
   an instance of a class or a DOM element is a compile error: its copy would lose its methods.
@@ -594,7 +596,7 @@ The worker module goes next to the module: `mango build app.mango` writes `app.j
 `app.worker.js`, `mango run` compiles it on the fly, and the Vite plugin gives it to Vite, which
 bundles it as a worker.
 
-A worker is for work that keeps a processor busy. Waiting, for a timer or the network, needs no
+`go` is for work that keeps a processor busy. Waiting, for a timer or the network, needs no
 thread: the call of an async function without `await`, `search(query, out)`, runs in the same
 thread at once with the rest of the program, sharing its memory, as goroutines of Go share theirs.
 It talks to the others through channels as well.
@@ -602,7 +604,7 @@ It talks to the others through channels as well.
 ### Channels
 
 ```go
-async func worker(jobs chan number, results chan number) {
+async func square(jobs chan number, results chan number) {
     for n in jobs {
         results <- n * n
     }
@@ -610,8 +612,8 @@ async func worker(jobs chan number, results chan number) {
 
 const jobs = chan<number>(10)          // room for 10 values
 const results = chan<number>()          // no room: a send waits for a receiver
-go worker(jobs, results)
-go worker(jobs, results)
+go square(jobs, results)
+go square(jobs, results)
 for let n = 1; n <= 4; n++ {
     jobs <- n
 }

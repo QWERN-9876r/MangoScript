@@ -6,7 +6,7 @@
 типизацией. Компилируется в читаемый JavaScript без рантайма (в планах — WebAssembly).
 
 ```go
-async func worker(jobs <-chan number, results chan<- number) {
+async func square(jobs <-chan number, results chan<- number) {
     for n in jobs {
         results <- n * n
     }
@@ -14,8 +14,8 @@ async func worker(jobs <-chan number, results chan<- number) {
 
 const jobs = chan<number>(10)
 const results = chan<number>()
-go worker(jobs, results)            // отдельный поток, на другом процессоре
-go worker(jobs, results)
+go square(jobs, results)            // другой поток, одновременно с остальной программой
+go square(jobs, results)
 
 for let n = 1; n <= 4; n++ {
     jobs <- n
@@ -26,7 +26,7 @@ for let i = 0; i < 4; i++ {
 }
 ```
 
-- **Горутины и каналы.** `go f(x)` запускает функцию в Web Worker или worker thread, а каналы,
+- **Горутины и каналы.** `go f(x)` запускает функцию горутиной, на другом процессоре, а каналы,
   `select`, `after`, `tick` и `cancel` работают как в Go. Компилятор проверяет, что уходящее в
   другой поток можно туда скопировать.
 - **Синтаксис Go.** `func`, тип после имени, несколько результатов, ошибки вторым значением,

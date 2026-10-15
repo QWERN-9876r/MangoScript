@@ -1,5 +1,5 @@
-// go func(...) { ... }(...) выполняет функциональный литерал в воркере;
-// локальные имена, которыми он пользуется, копируются туда, как его аргументы
+// go func(...) { ... }(...) выполняет функциональный литерал горутиной;
+// локальные имена, которыми он пользуется, копируются в неё, как его аргументы
 async func sumInParts(numbers []number, parts number) number {
     const size = Math.ceil(numbers.length / parts)
     const sums = chan<number>(parts)
@@ -26,7 +26,7 @@ for let i = 1; i <= 100_000; i++ {
 }
 console.log("сумма:", await sumInParts(numbers, 4))
 
-// transfer() переносит буфер в воркер, а не копирует его
+// transfer() переносит буфер в горутину, а не копирует его
 func average(values Float64Array) number {
     return values.reduce((a, b) => a + b, 0) / values.length
 }

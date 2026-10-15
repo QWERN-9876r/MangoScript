@@ -7,7 +7,7 @@ async func search(query string, ms number, out chan<- string) {
     out <- `results for "${query}" in ${ms} ms`
 }
 
-// Waiting needs no worker: an async call without await runs in this thread.
+// Waiting needs no other thread: an async call without await runs in this thread.
 // Room for one answer: a search that nobody waits for can still finish
 const fast = chan<string>(1)
 const slow = chan<string>(1)
