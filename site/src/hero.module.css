@@ -1,4 +1,4 @@
-/* The first screen: what MangoScript is, where to go, and a component next to the JS it becomes. */
+/* The first screen: what MangoScript is, where to go, and tabs of code with what it gives. */
 
 .hero {
   position: relative;
@@ -57,6 +57,25 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.demo {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The tabs as a pill of their own above the panels. */
+.switch {
+  justify-self: center;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--mui-shadow);
+}
+
+.switch > div {
+  border-bottom: 0;
 }
 
 .panels {

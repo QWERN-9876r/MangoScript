@@ -2,19 +2,48 @@
 
 [English](README.md) · **Русский**
 
-Язык с семантикой JavaScript, синтаксисом в духе Go и статической типизацией. Компилируется в
-JavaScript (в планах — WebAssembly).
+Язык с семантикой JavaScript, синтаксисом в духе Go, горутинами на настоящих потоках и статической
+типизацией. Компилируется в читаемый JavaScript без рантайма (в планах — WebAssembly).
 
 ```go
-func divide(a, b number) (number, error) {
-    if b == 0 {
-        return 0, error("division by zero")
+async func worker(jobs <-chan number, results chan<- number) {
+    for n in jobs {
+        results <- n * n
     }
-    return a / b, null
 }
 
-const q, err = divide(10, 4)
+const jobs = chan<number>(10)
+const results = chan<number>()
+go worker(jobs, results)            // отдельный поток, на другом процессоре
+go worker(jobs, results)
+
+for let n = 1; n <= 4; n++ {
+    jobs <- n
+}
+close(jobs)
+for let i = 0; i < 4; i++ {
+    console.log(<-results)
+}
 ```
+
+- **Горутины и каналы.** `go f(x)` запускает функцию в Web Worker или worker thread, а каналы,
+  `select`, `after`, `tick` и `cancel` работают как в Go. Компилятор проверяет, что уходящее в
+  другой поток можно туда скопировать.
+- **Синтаксис Go.** `func`, тип после имени, несколько результатов, ошибки вторым значением,
+  `defer`, один цикл `for`:
+
+  ```go
+  func divide(a, b number) (number, error) {
+      if b == 0 {
+          return 0, error("division by zero")
+      }
+      return a / b, null
+  }
+  ```
+
+- **Статическая типизация с null-safety.** Значение типа `?User` нельзя использовать без проверки.
+- **Внутри — JavaScript.** Те же значения, классы и модули, любые JS-библиотеки; разметка создаёт
+  настоящие DOM-элементы, а компоненты исчезают при компиляции.
 
 Руководство с примерами и песочницей: <https://qwern-9876r.github.io/MangoScript/ru/>.
 Спецификация: [docs/spec.ru.md](docs/spec.ru.md), концепция компонентов:

@@ -4,8 +4,10 @@
 
 > Status: a draft, anything may change. Unresolved questions are collected under "Open questions".
 
-MangoScript is a language with the semantics of JavaScript, Go-style syntax and static types. It
-compiles to readable JavaScript (ES modules), and the types are erased at compile time.
+MangoScript is a language with the semantics of JavaScript, Go-style syntax and static types. Its
+main feature is goroutines: `go f(x)` runs a function on another processor, in a Web Worker or a
+worker thread, and channels and `select` connect goroutines, as in Go (section 5). It compiles to
+readable JavaScript (ES modules), and the types are erased at compile time.
 
 ## Principles
 
@@ -14,9 +16,12 @@ compiles to readable JavaScript (ES modules), and the types are erased at compil
 2. **Go syntax where it is more convenient:** `func`, the type after the name, multiple results,
    `defer`, zero values, conditions without parentheses, a single `for` loop, `switch` without
    `break`, no semicolons.
-3. **Static types with null safety.** The compiler finds type errors; `null` can only be assigned
+3. **Concurrency as in Go.** `go f(x)` runs a function in a worker, on another processor, and
+   channels and `select` pass values between goroutines. The compiler checks that what goes
+   between threads can be copied.
+4. **Static types with null safety.** The compiler finds type errors; `null` can only be assigned
    to a type that explicitly allows it. JS code has no types.
-4. **Compatibility with JS.** MangoScript can import any JS module, and a compiled module can be
+5. **Compatibility with JS.** MangoScript can import any JS module, and a compiled module can be
    used from JS.
 
 ## 1. Lexical structure
@@ -221,7 +226,7 @@ type Pair { first, second number }
 ```
 
 `type` gives a type another name: `ID` and `string` are interchangeable (in Go they would be
-different types). The shape of objects is usually described with interfaces (section 8).
+different types). The shape of objects is usually described with interfaces (section 9).
 
 ### Union and literal types
 
@@ -242,7 +247,7 @@ func show(value string | number) string {
 - **A literal type** `"all"`, `42` or `true` allows only that value. A union of literals catches
   typos: `filter = "activ"` and `filter == "activ"` are errors.
 - **A member of a union** can be used if every type has it: `string | number` has `toString()` but
-  not `length`. To get to the rest, the type is narrowed (section 11).
+  not `length`. To get to the rest, the type is narrowed (section 12).
 - A literal in code gets a literal type only where one is expected: `let f = "all"` is a `string`,
   and `let f Filter = "all"` is `"all"`.
 - Branches of `?:`, array items and the different `return`s of a function without a declared
@@ -467,6 +472,14 @@ defer {
 If all the `defer`s are at the top level of the function's body, the compiler writes nested
 `try/finally`, as in the example above. If a `defer` is inside an `if` or a loop, the deferred calls
 are collected in a stack and run in `finally`.
+
+## 5. Concurrency
+
+JavaScript runs a program in one thread. MangoScript keeps that thread for waiting and gives the
+work that keeps a processor busy to other threads, with the means of Go: an async function waits
+for a timer or the network in the same thread, `go f(x)` runs a function in a worker, on another
+processor, and channels and `select` pass values between goroutines in any thread. The compiler
+checks that what goes to another thread can be copied there.
 
 ### Async functions
 
@@ -733,7 +746,7 @@ $$cancel(task);
 - `after`, `tick` and `cancel` are predeclared, like `close`: a declaration with one of these names
   hides them.
 
-## 5. Conditions and loops
+## 6. Conditions and loops
 
 ### if
 
@@ -834,7 +847,7 @@ if (score >= 90) {
 }
 ```
 
-## 6. Errors
+## 7. Errors
 
 Expected errors (wrong input, a file not found) are returned as the last value, of type `error`:
 
@@ -887,7 +900,7 @@ throw error("unreachable")
 
 `catch` is written without parentheses, and `e` has the type `any`.
 
-## 7. Classes
+## 8. Classes
 
 Classes as in JS and TypeScript, with Go-style types. Methods are declared without `func`, like
 methods of JS classes.
@@ -961,7 +974,7 @@ class User {
 - A field without a value gets the zero value of its type. If the type has none (a class, an
   interface, a function), the field must be assigned in the constructor.
 
-## 8. Interfaces
+## 9. Interfaces
 
 An interface describes the shape of a value: its fields and methods. As in TS, it exists only at
 compile time.
@@ -1001,7 +1014,7 @@ const p Point = { x: 1, y: 2 }        // the object literal fits Point
 `implements` is optional: a class fits an interface if it has the needed fields and methods.
 `implements` just asks the compiler to check that where the class is declared.
 
-## 9. Modules
+## 10. Modules
 
 ```go
 import { readFileSync, writeFileSync as write } from "node:fs"
@@ -1591,7 +1604,7 @@ function $$counter$add() {
 
 The full design, reactivity included, is in [docs/components.md](components.md).
 
-## 10. Operators: differences from JS
+## 11. Operators: differences from JS
 
 | MangoScript       | JS          | Note                                                      |
 | ----------------- | ----------- | --------------------------------------------------------- |
@@ -1628,7 +1641,7 @@ const total = price
     + tax              // error: there is already a ; after price, and "+ tax" does nothing
 ```
 
-## 11. Type checking
+## 12. Type checking
 
 The compiler checks types before generating JS; a program with type errors does not compile
 (`mango build --no-check` skips the check).
@@ -1708,13 +1721,13 @@ In the browser (the playground on the site) there is no TypeScript compiler: onl
 types work there, and the other globals (`document`, `fetch`, `Map`…) are `any`.
 
 The types from imported `.mango` modules are checked: the compiler reads those modules itself. The
-types of other imports come from TypeScript declarations (section 9).
+types of other imports come from TypeScript declarations (section 10).
 
-## 12. Example
+## 13. Example
 
 [examples/hello.mango](../examples/hello.mango)
 
-## 13. Not in v0
+## 14. Not in v0
 
 - **`map[K]V`**, compiled to `Map`: `m[k]` → `m.get(k)`, `m[k] = v` → `m.set(k, v)`.
 - **Classes:** getters and setters, `readonly`, abstract classes, constructor parameter properties

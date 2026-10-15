@@ -1,7 +1,7 @@
 {
   "name": "mangoscript",
   "version": "0.2.0",
-  "description": "A language with JavaScript semantics, Go-style syntax and static types that compiles to readable JavaScript",
+  "description": "A language with JavaScript semantics, Go-style syntax, goroutines on real threads and static types that compiles to readable JavaScript",
   "keywords": [
     "mangoscript",
     "programming-language",
@@ -9,6 +9,10 @@
     "javascript",
     "static-typing",
     "go",
+    "goroutines",
+    "channels",
+    "concurrency",
+    "web-workers",
     "vite-plugin",
     "web-components"
   ],

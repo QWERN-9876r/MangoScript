@@ -3,7 +3,7 @@
 import { Strings } from "../i18n.mango"
 
 export const STRINGS Strings = {
-    tagline: "JavaScript with Go syntax, types and components",
+    tagline: "JavaScript with goroutines, channels and types",
     repository: "GitHub repository",
     sections: "Sections",
     playground: "Playground",
@@ -24,9 +24,11 @@ export const STRINGS Strings = {
     emptyPreview: "The program added nothing to the page.",
     loadingCompiler: "Loading the compiler…",
     compilerFailed: "Could not load the compiler. Check the connection and try again.",
-    heroBadge: "JavaScript · Go · Types",
-    heroLead: "A language with the semantics of JavaScript, the syntax of Go and static types. Markup creates real DOM elements, and components are compiled away: what is left is readable JavaScript without a runtime.",
+    heroBadge: "Goroutines · Channels · Types",
+    heroLead: "The word go runs a function in a thread of its own, on another processor, and channels and select connect goroutines, as in Go. Around them is a language with the semantics of JavaScript, the syntax of Go and static types, with markup and components, that compiles to readable JavaScript without a runtime.",
     heroStart: "Read the guide",
+    heroGoroutines: "Goroutines",
+    heroComponents: "Components",
     copy: "Copy",
     copied: "Copied",
     menu: "Menu",

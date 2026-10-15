@@ -1,14 +1,41 @@
 // The first screen of the page: what MangoScript is, buttons to the guide, the playground and the
-// repository, and a component next to the JavaScript it compiles to.
+// repository, and two tabs of code: goroutines with what they print, and a component next to the
+// JavaScript it compiles to.
 
 import { Badge } from "../ui/badge.mango"
 import { LinkButton } from "../ui/button.mango"
 import { Icon } from "../ui/icon.mango"
+import { TabItem, Tabs } from "../ui/tabs.mango"
 import styles from "./hero.module.css"
 import { highlight } from "./highlight.mango"
 import { REPOSITORY, text } from "./i18n.mango"
 
-const MANGO = `comp Counter() {
+const GOROUTINES = `func countPrimes(from, to number) number {
+    let count = 0
+    for let n = from; n < to; n++ {
+        let prime = n > 1
+        for let d = 2; d * d <= n && prime; d++ {
+            prime = n % d != 0
+        }
+        count += prime ? 1 : 0
+    }
+    return count
+}
+
+const N = 2_500_000
+let started = Date.now()
+countPrimes(0, 4 * N)
+console.log(\`one thread: \${Date.now() - started} ms\`)
+
+started = Date.now()
+await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * N, (i + 1) * N)))
+console.log(\`4 workers:  \${Date.now() - started} ms\`)`
+
+// What GOROUTINES printed under Node on a machine with more than four processors.
+const OUTPUT = `one thread: 1451 ms
+4 workers:  601 ms`
+
+const COMPONENT = `comp Counter() {
     state count = 0
     return <button onClick={count++}>
         Clicked {count} times
@@ -24,8 +51,27 @@ $$button.addEventListener("click", () => {
 const $$text = document.createTextNode(count);
 $$button.append("Clicked ", $$text, " times");`
 
+comp Panels(label string, code Node, resultLabel string, result Node) {
+    return <div class={styles.panels}>
+        <figure class={styles.panel}>
+            <figcaption class={styles.label}>{label}</figcaption>
+            <pre class={styles.code}>{code}</pre>
+        </figure>
+        <span class={styles.arrow}><Icon name="arrow-right" size={16} /></span>
+        <figure class={styles.panel}>
+            <figcaption class={styles.label}>{resultLabel}</figcaption>
+            <pre class={styles.code}>{result}</pre>
+        </figure>
+    </div>
+}
+
 export comp Hero() {
     const t = text()
+    const tabs []TabItem = [
+        { id: "goroutines", label: t.heroGoroutines },
+        { id: "components", label: t.heroComponents },
+    ]
+    state tab = "goroutines"
     return <section class={styles.hero}>
         <div class={styles.inner}>
             <div>
@@ -44,16 +90,26 @@ export comp Hero() {
                     <LinkButton kind="ghost" size="lg" href={REPOSITORY} icon="github">GitHub</LinkButton>
                 </div>
             </div>
-            <div class={styles.panels}>
-                <figure class={styles.panel}>
-                    <figcaption class={styles.label}>MangoScript</figcaption>
-                    <pre class={styles.code}>{highlight(MANGO, "mango")}</pre>
-                </figure>
-                <span class={styles.arrow}><Icon name="arrow-right" size={16} /></span>
-                <figure class={styles.panel}>
-                    <figcaption class={styles.label}>JavaScript</figcaption>
-                    <pre class={styles.code}>{highlight(JS, "js")}</pre>
-                </figure>
+            <div class={styles.demo}>
+                <div class={styles.switch}>
+                    <Tabs items={tabs} active={tab} onSelect={tab = event} />
+                </div>
+                {switch tab {
+                case "goroutines":
+                    <Panels
+                        label="MangoScript"
+                        code={highlight(GOROUTINES, "mango")}
+                        resultLabel={t.terminal}
+                        result={new Text(OUTPUT)}
+                    />
+                default:
+                    <Panels
+                        label="MangoScript"
+                        code={highlight(COMPONENT, "mango")}
+                        resultLabel="JavaScript"
+                        result={highlight(JS, "js")}
+                    />
+                }}
             </div>
         </div>
     </section>

@@ -48,6 +48,9 @@ export interface Strings {
     heroBadge string
     heroLead string
     heroStart string
+    /** The tabs of code on the first screen. */
+    heroGoroutines string
+    heroComponents string
     copy string
     copied string
     menu string

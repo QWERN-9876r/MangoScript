@@ -2,19 +2,48 @@
 
 **English** · [Русский](README.ru.md)
 
-A language with the semantics of JavaScript, Go-style syntax and static types. It compiles to
-JavaScript (WebAssembly is planned).
+A language with the semantics of JavaScript, Go-style syntax, goroutines on real threads and static
+types. It compiles to readable JavaScript without a runtime (WebAssembly is planned).
 
 ```go
-func divide(a, b number) (number, error) {
-    if b == 0 {
-        return 0, error("division by zero")
+async func worker(jobs <-chan number, results chan<- number) {
+    for n in jobs {
+        results <- n * n
     }
-    return a / b, null
 }
 
-const q, err = divide(10, 4)
+const jobs = chan<number>(10)
+const results = chan<number>()
+go worker(jobs, results)            // a worker thread of its own, on another processor
+go worker(jobs, results)
+
+for let n = 1; n <= 4; n++ {
+    jobs <- n
+}
+close(jobs)
+for let i = 0; i < 4; i++ {
+    console.log(<-results)
+}
 ```
+
+- **Goroutines and channels.** `go f(x)` runs a function in a Web Worker or a worker thread, and
+  channels, `select`, `after`, `tick` and `cancel` work as in Go. The compiler checks that what goes
+  to another thread can be copied there.
+- **Go syntax.** `func`, the type after the name, several results, errors as a second value,
+  `defer`, a single `for` loop:
+
+  ```go
+  func divide(a, b number) (number, error) {
+      if b == 0 {
+          return 0, error("division by zero")
+      }
+      return a / b, null
+  }
+  ```
+
+- **Static types with null safety.** A `?User` cannot be used without a check.
+- **JavaScript inside.** The same values, classes and modules, any JS library; markup creates real
+  DOM elements, and components are compiled away.
 
 The guide with examples and a playground: <https://qwern-9876r.github.io/MangoScript/>.
 Specification: [docs/spec.md](docs/spec.md), design of components:

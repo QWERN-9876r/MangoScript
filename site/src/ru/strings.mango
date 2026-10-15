@@ -3,7 +3,7 @@
 import { Strings } from "../i18n.mango"
 
 export const STRINGS Strings = {
-    tagline: "JavaScript с синтаксисом Go, типами и компонентами",
+    tagline: "JavaScript с горутинами, каналами и типами",
     repository: "Репозиторий на GitHub",
     sections: "Разделы",
     playground: "Песочница",
@@ -24,9 +24,11 @@ export const STRINGS Strings = {
     emptyPreview: "Программа ничего не добавила на страницу.",
     loadingCompiler: "Загружается компилятор…",
     compilerFailed: "Не удалось загрузить компилятор. Проверьте соединение и попробуйте ещё раз.",
-    heroBadge: "JavaScript · Go · Типы",
-    heroLead: "Язык с семантикой JavaScript, синтаксисом Go и статическими типами. Разметка создаёт настоящие элементы DOM, а компоненты исчезают при компиляции: остаётся читаемый JavaScript без рантайма.",
+    heroBadge: "Горутины · Каналы · Типы",
+    heroLead: "Слово go запускает функцию в отдельном потоке, на другом процессоре, а каналы и select связывают горутины, как в Go. Вокруг них — язык с семантикой JavaScript, синтаксисом Go и статическими типами, с разметкой и компонентами, который компилируется в читаемый JavaScript без рантайма.",
     heroStart: "Читать руководство",
+    heroGoroutines: "Горутины",
+    heroComponents: "Компоненты",
     copy: "Копировать",
     copied: "Скопировано",
     menu: "Меню",

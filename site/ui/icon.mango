@@ -3,7 +3,7 @@
 
 export type IconName "sun" | "moon" | "monitor" | "copy" | "check" | "play" | "menu" | "close" |
     "arrow-right" | "external" | "github" | "info" | "lightbulb" | "alert" | "code" | "zap" |
-    "shield" | "layers"
+    "shield" | "layers" | "cpu"
 
 interface Shape {
     paths []string
@@ -46,6 +46,11 @@ const SHAPES = {
     zap: line(["M13 2 3 14h9l-1 8 10-12h-9l1-8z"]),
     shield: line(["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", "M9 12l2 2 4-4"]),
     layers: line(["M12 2 2 7l10 5 10-5-10-5z", "M2 17l10 5 10-5M2 12l10 5 10-5"]),
+    cpu: line([
+        "M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
+        "M9 9h6v6H9z",
+        "M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3",
+    ]),
 }
 
 /** An icon of `size` pixels; it is decoration, so screen readers skip it. */

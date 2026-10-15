@@ -15,14 +15,14 @@ export const SECTIONS []Section = [
     { id: "null", title: "null, union и сужение", group: "Язык", content: NullSafety },
     { id: "functions", title: "Функции", group: "Язык", content: Functions },
     { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
-    { id: "async", title: "Асинхронные функции", group: "Язык", content: Async },
-    { id: "goroutines", title: "Горутины", group: "Язык", content: Goroutines },
-    { id: "channels", title: "Каналы", group: "Язык", content: Channels },
-    { id: "select", title: "select", group: "Язык", content: Select },
     { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
     { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
     { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
     { id: "modules", title: "Модули", group: "Язык", content: Modules },
+    { id: "async", title: "Асинхронные функции", group: "Горутины и каналы", content: Async },
+    { id: "goroutines", title: "Горутины", group: "Горутины и каналы", content: Goroutines },
+    { id: "channels", title: "Каналы", group: "Горутины и каналы", content: Channels },
+    { id: "select", title: "select", group: "Горутины и каналы", content: Select },
     { id: "markup", title: "Разметка", group: "Разметка и компоненты", content: Markup },
     { id: "components", title: "Компоненты", group: "Разметка и компоненты", content: Components },
     { id: "state", title: "Состояние", group: "Разметка и компоненты", content: Reactivity },
@@ -38,10 +38,15 @@ comp Intro() {
     return <>
         <p>
             MangoScript — язык с семантикой JavaScript, синтаксисом в духе Go и статической
-            типизацией. Он компилируется в читаемый JavaScript без рантайма: что написано, то и
-            выполняется.
+            типизацией. Его главная особенность — горутины: <code>go f(x)</code> запускает функцию в
+            отдельном потоке, на другом процессоре, а каналы передают значения между ними, как в Go.
+            Он компилируется в читаемый JavaScript без рантайма: что написано, то и выполняется.
         </p>
         <CardGrid>
+            <Card title="Горутины и каналы" icon="cpu">
+                <code>go f(x)</code> запускает функцию на другом процессоре, а каналы и
+                {" "}<code>select</code> связывают горутины: см. <a href="#goroutines">Горутины</a>.
+            </Card>
             <Card title="Как в JavaScript" icon="layers">
                 Те же значения, объекты, массивы, классы и модули. Можно использовать любые
                 JS-библиотеки.
@@ -198,6 +203,11 @@ comp Async() {
 
 comp Goroutines() {
     return <>
+        <p>
+            JavaScript выполняет программу в одном потоке: долгое вычисление останавливает всё
+            остальное, а воркеру нужны отдельный файл и сообщения, написанные вручную. В MangoScript
+            это одно слово, как в Go, а компилятор проверяет, что уходит в другой поток.
+        </p>
         <p>
             <code>go f(x)</code> вызывает функцию в воркере, в отдельном потоке: в Web Worker в
             браузере, в worker thread в Node. Несколько вызовов идут одновременно на разных

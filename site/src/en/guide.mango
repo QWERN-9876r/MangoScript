@@ -15,14 +15,14 @@ export const SECTIONS []Section = [
     { id: "null", title: "null, unions and narrowing", group: "Language", content: NullSafety },
     { id: "functions", title: "Functions", group: "Language", content: Functions },
     { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
-    { id: "async", title: "Async functions", group: "Language", content: Async },
-    { id: "goroutines", title: "Goroutines", group: "Language", content: Goroutines },
-    { id: "channels", title: "Channels", group: "Language", content: Channels },
-    { id: "select", title: "select", group: "Language", content: Select },
     { id: "control", title: "Conditions and loops", group: "Language", content: Control },
     { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
     { id: "generics", title: "Generics", group: "Language", content: Generics },
     { id: "modules", title: "Modules", group: "Language", content: Modules },
+    { id: "async", title: "Async functions", group: "Concurrency", content: Async },
+    { id: "goroutines", title: "Goroutines", group: "Concurrency", content: Goroutines },
+    { id: "channels", title: "Channels", group: "Concurrency", content: Channels },
+    { id: "select", title: "select", group: "Concurrency", content: Select },
     { id: "markup", title: "Markup", group: "Markup and components", content: Markup },
     { id: "components", title: "Components", group: "Markup and components", content: Components },
     { id: "state", title: "State", group: "Markup and components", content: Reactivity },
@@ -38,10 +38,15 @@ comp Intro() {
     return <>
         <p>
             MangoScript is a language with the semantics of JavaScript, Go-style syntax and static
-            types. It compiles to readable JavaScript without a runtime: what you write is what
-            runs.
+            types. Its main feature is goroutines: <code>go f(x)</code> runs a function in a thread
+            of its own, on another processor, and channels pass values between them, as in Go. It
+            compiles to readable JavaScript without a runtime: what you write is what runs.
         </p>
         <CardGrid>
+            <Card title="Goroutines and channels" icon="cpu">
+                <code>go f(x)</code> runs a function on another processor, and channels and
+                {" "}<code>select</code> connect goroutines: see <a href="#goroutines">Goroutines</a>.
+            </Card>
             <Card title="Like JavaScript" icon="layers">
                 The same values, objects, arrays, classes and modules. Any JS library can be used.
             </Card>
@@ -195,6 +200,11 @@ comp Async() {
 
 comp Goroutines() {
     return <>
+        <p>
+            JavaScript runs a program in one thread: a long computation stops everything else, and a
+            worker takes a file of its own and messages written by hand. In MangoScript it is one
+            word, as in Go, and the compiler checks what goes to the other thread.
+        </p>
         <p>
             <code>go f(x)</code> calls a function in a worker, a thread of its own: a Web Worker in
             the browser, a worker thread in Node. Several calls run at once on different processors,
