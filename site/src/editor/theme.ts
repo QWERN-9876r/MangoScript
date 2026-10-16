@@ -1,0 +1,112 @@
+import * as monaco from 'monaco-editor/editor/editor.api';
+
+// The colors of the editor are the variables of the page (site/ui/theme.module.css and
+// site/src/highlight.module.css), so it changes with the theme of the page. They are light-dark()
+// pairs, which only an element resolves: a hidden probe takes each one as its color.
+
+const THEME = 'mango';
+
+/** The colors of the classes of tokens, see textmate.ts. */
+const TOKENS: Record<string, string> = {
+  kw: '--hl-kw',
+  type: '--hl-type',
+  fn: '--hl-fn',
+  str: '--hl-str',
+  num: '--hl-num',
+  lit: '--hl-num',
+  com: '--hl-com',
+  tag: '--hl-tag',
+  attr: '--hl-attr',
+};
+
+const byte = (value: number) => Math.round(value).toString(16).padStart(2, '0');
+
+/** A computed `rgb(…)` as Monaco wants it, `#rrggbb`. */
+function hex(color: string): string {
+  const [r = 0, g = 0, b = 0] = (color.match(/[\d.]+/g) ?? []).map(Number);
+
+  return `#${byte(r)}${byte(g)}${byte(b)}`;
+}
+
+/** Whether the page is dark: chosen by [data-theme] on <html>, or else by the system. */
+function isDark(): boolean {
+  const chosen = document.documentElement.dataset.theme;
+
+  return chosen ? chosen === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+/** Resolves CSS colors, variables included, for the current theme of the page. */
+function resolver(): { color: (css: string) => string; done: () => void } {
+  const probe = document.createElement('span');
+
+  probe.style.display = 'none';
+  document.body.append(probe);
+
+  return {
+    color(css) {
+      probe.style.color = css;
+
+      return hex(getComputedStyle(probe).color);
+    },
+    done: () => probe.remove(),
+  };
+}
+
+function defineTheme(): void {
+  const { color, done } = resolver();
+  const variable = (name: string) => color(`var(${name})`);
+  // A computed color-mix() is not rgb(), so the transparency is added here.
+  const mixed = (name: string, percent: number) => variable(name) + byte((percent / 100) * 255);
+
+  monaco.editor.defineTheme(THEME, {
+    base: isDark() ? 'vs-dark' : 'vs',
+    inherit: true,
+    rules: [
+      { token: '', foreground: variable('--mui-code-text') },
+      ...Object.entries(TOKENS).map(([token, name]) => ({
+        token,
+        foreground: variable(name),
+        ...(token === 'com' ? { fontStyle: 'italic' } : {}),
+      })),
+    ],
+    colors: {
+      'editor.background': variable('--mui-code-bg'),
+      'editor.foreground': variable('--mui-code-text'),
+      'editorCursor.foreground': variable('--mui-text'),
+      'editor.selectionBackground': mixed('--mui-accent', 30),
+      'editor.inactiveSelectionBackground': mixed('--mui-accent', 18),
+      'editor.lineHighlightBackground': mixed('--mui-accent', 7),
+      'editor.lineHighlightBorder': '#00000000',
+      'editorLineNumber.foreground': mixed('--mui-muted', 60),
+      'editorLineNumber.activeForeground': variable('--mui-muted'),
+      'editorIndentGuide.background1': variable('--mui-line'),
+      'editorError.foreground': variable('--mui-danger'),
+      'editorWarning.foreground': variable('--mui-accent'),
+      'editorWidget.background': variable('--mui-surface'),
+      'editorWidget.border': variable('--mui-line-strong'),
+      'editorSuggestWidget.background': variable('--mui-surface'),
+      'editorSuggestWidget.border': variable('--mui-line-strong'),
+      'editorSuggestWidget.selectedBackground': variable('--mui-accent-soft'),
+      'editorHoverWidget.background': variable('--mui-surface'),
+      'editorHoverWidget.border': variable('--mui-line-strong'),
+      focusBorder: '#00000000',
+    },
+  });
+  done();
+}
+
+/** Gives the editors the colors of the page and changes them with its theme. */
+export function followPageTheme(): void {
+  const update = () => {
+    defineTheme();
+    monaco.editor.setTheme(THEME);
+  };
+
+  update();
+  // The page changes its theme by [data-theme] on <html> (ThemeToggle) or with the system.
+  new MutationObserver(update).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update);
+}

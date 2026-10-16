@@ -1,13 +1,22 @@
-// The playground: an editor with highlighting, the generated JS and running the program. Under the
-// transparent text area lies a <pre> with the same text, highlighted.
+// The playground: an editor with highlighting, the generated JS and running the program. The editor
+// is the one of VS Code (src/editor), loaded when the playground is about to be seen. Until then,
+// if it cannot be loaded and on touch screens, where it works badly, a text area of its own takes
+// its place: under the transparent text lies a <pre> with the same code, highlighted.
 
 import { Button } from "../ui/button.mango"
 import { TabItem, Tabs } from "../ui/tabs.mango"
+import { loadEditor } from "./editor/load.ts"
 import { highlight } from "./highlight.mango"
 import { text } from "./i18n.mango"
 import styles from "./playground.module.css"
 import { compiledView, loadingView, previewArea, resultView, runProgram } from "./sandbox.mango"
 
+
+/** The editor of VS Code once it is loaded, as playground.mango uses it (src/editor/editor.ts). */
+interface CodeEditor {
+    setValue func(string)
+    dispose func()
+}
 
 // Examples open in the playground through openInPlayground; the component sets the function.
 let openHandler = func(code string) {}
@@ -23,30 +32,71 @@ export comp Playground() {
     state lines []string = []
     const preview = previewArea()
     const tabs []TabItem = [{ id: "js", label: "JavaScript" }, { id: "result", label: t.run }]
-    // The JS tab needs the compiler, which is loaded only when the playground is about to come into
-    // view or an example is opened in it: the guide is read without it.
+    // The JS tab needs the compiler and the editor of VS Code is large, so both are loaded only
+    // when the playground is about to come into view or an example is opened in it: the guide is
+    // read without them.
     state shown = false
+    // The editor of VS Code has taken the place of the text area.
+    state vscode = false
+    let editor ?CodeEditor = null
+    ref host
+
+    func show() {
+        if shown {
+            return
+        }
+        shown = true
+        if matchMedia("(pointer: coarse)").matches {
+            return
+        }
+        loadEditor()
+            .then(module => module.createEditor(host, {
+                value: source,
+                label: t.editor,
+                onChange: value => {
+                    source = value
+                },
+            }))
+            .then(
+                created => {
+                    // What was typed while it loaded.
+                    created.setValue(source)
+                    editor = created
+                    vscode = true
+                },
+                // The text area stays.
+                error => console.warn("the editor of VS Code did not load:", error),
+            )
+    }
+
+    func setSource(code string) {
+        source = code
+        editor?.setValue(code)
+    }
 
     mount() {
         const observer = new IntersectionObserver(entries => {
             if entries.some(entry => entry.isIntersecting) {
-                shown = true
+                show()
                 observer.disconnect()
             }
         }, { rootMargin: "300px" })
         const section = document.getElementById("playground")
         if section == null {
-            shown = true
+            show()
         } else {
             observer.observe(section)
         }
-        return () => observer.disconnect()
+        return () => {
+            observer.disconnect()
+            editor?.dispose()
+        }
     }
 
     openHandler = func(code string) {
-        source = code
+        setSource(code)
         tab = "js"
-        shown = true
+        show()
         document.getElementById("playground")?.scrollIntoView({ behavior: "smooth" })
     }
 
@@ -71,7 +121,8 @@ export comp Playground() {
     }
 
     return <div class={styles.playground}>
-        <div class={styles.editor}>
+        <div ref={host} class={vscode ? styles.vscode : styles.hidden} />
+        <div class={vscode ? styles.hidden : styles.editor}>
             <pre class={styles.code} aria-hidden="true">{highlight(source, "mango")} </pre>
             <textarea
                 class={styles.input}
@@ -85,7 +136,7 @@ export comp Playground() {
         </div>
         <div class={styles.output}>
             <Tabs items={tabs} active={tab} onSelect={select(event)}>
-                <Button kind="ghost" size="sm" onClick={source = t.playgroundStart}>{t.reset}</Button>
+                <Button kind="ghost" size="sm" onClick={setSource(t.playgroundStart)}>{t.reset}</Button>
             </Tabs>
             {if tab == "js" {
                 <div>{shown ? compiledView(source) : loadingView()}</div>

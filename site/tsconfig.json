@@ -1,0 +1,13 @@
+{
+  // The code editor of the playground (src/editor) runs in the browser: it needs the types of the
+  // DOM and of what Vite imports (`?worker`, `?url`, `?raw`), which the rest of the project must not
+  // see, so it has a program of its own.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "types": ["vite/client"],
+    // The editor imports the compiler from ../src.
+    "rootDir": ".."
+  },
+  "include": ["src/editor"]
+}

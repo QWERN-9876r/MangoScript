@@ -46,6 +46,9 @@ npm run format                        # prettier --write, then eslint --fix for 
   `protected override`. A new area becomes a new layer file inserted into the chain.
 - `src/ast.ts` and `src/checker/types.ts` are barrels over `src/ast/` and `src/checker/types/`.
   `src/checker/types/model.ts` must not have runtime imports: that would create an ESM cycle.
+- The editor of the playground is Monaco (`site/src/editor/`, TypeScript with the DOM, checked by
+  `site/tsconfig.json`); it highlights with the grammar of `editors/vscode/syntaxes/`, so a change
+  of the grammar shows there too.
 - `src/browser.ts` is the compiler of the site's playground: it has no TypeScript compiler. Code in
   `src/typescript/` (types from `.d.ts` and `lib.dom`) is Node-only and must not be imported from
   it; without it the checker falls back to `src/checker/builtins.ts` and `src/checker/dom.ts`.

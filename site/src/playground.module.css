@@ -53,6 +53,20 @@
   background: color-mix(in srgb, var(--mui-accent) 30%, transparent);
 }
 
+.hidden {
+  display: none;
+}
+
+/* The editor of VS Code: it sets its height itself, from its code (src/editor/editor.ts). */
+.vscode {
+  min-height: 120px;
+  border: 1px solid var(--mui-line);
+  border-radius: var(--mui-radius-lg);
+  overflow: hidden;
+  background: var(--mui-code-bg);
+  box-shadow: var(--mui-shadow);
+}
+
 .output {
   align-self: start;
   border: 1px solid var(--mui-line);

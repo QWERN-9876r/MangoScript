@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { compile } from '../src/browser.ts';
+import { compile, complete } from '../src/browser.ts';
 import { build } from '../src/build.ts';
 
 // The documentation site (site/) is a real MangoScript program: building it checks the compiler on
@@ -89,9 +89,18 @@ describe('documentation site', () => {
     expect(sections('src/ru/guide.mango')).toEqual(sections('src/en/guide.mango'));
   });
 
-  it('reports errors with lines and columns', () => {
+  it('reports errors with lines and columns of their start and end', () => {
     expect(compile('let ok = true\nlet n number = "x"').diagnostics).toEqual([
-      { message: 'cannot use string as number', line: 2, column: 16 },
+      { message: 'cannot use string as number', line: 2, column: 16, endLine: 2, endColumn: 19 },
     ]);
+  });
+
+  // The editor of the playground completes as the language server does.
+  it('completes names in the browser compiler', () => {
+    const source = 'const fruits = ["mango"]\nfruits.pu';
+    const list = complete(source, source.length);
+
+    expect(source.slice(list.start, list.end)).toBe('pu');
+    expect(list.items).toContainEqual(expect.objectContaining({ name: 'push', kind: 'method' }));
   });
 });

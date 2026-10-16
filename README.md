@@ -126,6 +126,9 @@ and the bottom of the page has a playground.
   [site/src/playground.mango](site/src/playground.mango): the example with tabs and the playground,
   components with `state`, `bind:` and `{if}` / `{for}`;
 - [site/src/highlight.mango](site/src/highlight.mango): code highlighting with the compiler's lexer;
+- [site/src/editor/](site/src/editor/): the editor of the playground, the one of VS Code (Monaco)
+  with the grammar of the VS Code extension, the compiler's errors under the code and its
+  completion; TypeScript for the browser, checked with [site/tsconfig.json](site/tsconfig.json);
 - [site/server.mango](site/server.mango): a static server on `node:http` with a log through `defer`.
 
 Vite builds the site ([vite.config.ts](vite.config.ts)): the plugin [src/vite.ts](src/vite.ts)
@@ -134,7 +137,8 @@ compiles `.mango` modules with type checking, the playground's compiler comes st
 `virtual:examples/en` and `virtual:examples/ru` modules. The compiler is a chunk of its own,
 loaded by [site/src/compiler.ts](site/src/compiler.ts) on the first run, when a JavaScript tab is
 opened and when the playground comes into view: the page itself needs only the lexer, for
-highlighting.
+highlighting. The editor of the playground, some 3.5 MB, is loaded then too; until it is, and on
+touch screens, the playground has a text area of its own.
 
 ```sh
 npm run site:dev    # the Vite dev server: changes show up right away

@@ -125,6 +125,9 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
   [site/src/playground.mango](site/src/playground.mango) — пример с вкладками и песочница,
   компоненты со `state`, `bind:` и `{if}` / `{for}`;
 - [site/src/highlight.mango](site/src/highlight.mango) — подсветка кода лексером компилятора;
+- [site/src/editor/](site/src/editor/) — редактор песочницы, тот же, что в VS Code (Monaco), с
+  грамматикой расширения VS Code, ошибками компилятора прямо в коде и его автодополнением;
+  TypeScript для браузера, проверяется по [site/tsconfig.json](site/tsconfig.json);
 - [site/server.mango](site/server.mango) — статический сервер на `node:http` с логом через `defer`.
 
 Сайт собирает Vite ([vite.config.ts](vite.config.ts)): `.mango`-модули компилирует плагин
@@ -132,7 +135,9 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 [src/browser.ts](src/browser.ts), а код примеров попадает в бандл из модулей
 `virtual:examples/en` и `virtual:examples/ru`. Компилятор вынесен в отдельный чанк, его загружает
 [site/src/compiler.ts](site/src/compiler.ts) при первом запуске, при открытии вкладки JavaScript и
-когда песочница появляется на экране: самой странице нужен только лексер для подсветки.
+когда песочница появляется на экране: самой странице нужен только лексер для подсветки. Тогда же
+загружается редактор песочницы, около 3,5 МБ; до этого и на сенсорных экранах у песочницы свой
+textarea.
 
 ```sh
 npm run site:dev    # сервер разработки Vite: изменения видны сразу

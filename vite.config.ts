@@ -57,6 +57,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // The editor of VS Code in the playground is one chunk of some 3.5 MB, loaded only when the
+    // playground comes into view.
+    chunkSizeWarningLimit: 4000,
     rolldownOptions: { input: [join(site, 'index.html'), join(site, 'ru', 'index.html')] },
   },
   plugins: [mango(), examples()],
