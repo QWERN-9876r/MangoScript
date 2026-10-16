@@ -176,6 +176,37 @@ describe('types, markup and the places with nothing to complete', () => {
     expect(names('func f(na‸) {}')).toEqual([]);
   });
 
+  // Code being typed: the brackets of the declaration around the cursor are not closed yet.
+  it('lists types in a declaration that is not finished', () => {
+    const rest = '\n\nconst fruits = [1, 2]\nconsole.log(fruits.length)';
+
+    for (const text of [
+      'comp Card(title str‸',
+      'comp Card(title string, count nu‸',
+      'func f(a string) st‸',
+      'comp Card() {\n    state count nu‸',
+      'interface User {\n    name st‸',
+    ]) {
+      expect(names(text + rest)).toEqual(expect.arrayContaining(['string', 'number']));
+    }
+  });
+
+  it('lists the words that start a statement only where they can', () => {
+    const component = names('comp Card() {\n    st‸\n    return <p />\n}');
+
+    expect(component).toEqual(
+      expect.arrayContaining(['state', 'derived', 'ref', 'style', 'effect', 'mount', 'select']),
+    );
+    expect(names('comp Card() {\n    st‸')).toContain('state');
+    expect(names('dec logged() {\n    st‸\n}')).toContain('state');
+    expect(names('se‸')).toEqual(expect.arrayContaining(['select', 'dec']));
+    expect(names('func f() {\n    st‸\n}')).not.toContain('state');
+    expect(
+      names('comp Card() {\n    if true {\n        st‸\n    }\n    return <p />\n}'),
+    ).not.toContain('state');
+    expect(names('comp Card() {\n    let n = st‸\n    return <p />\n}')).not.toContain('state');
+  });
+
   it('gives keywords where the code cannot be understood', () => {
     expect(names('if (((( ‸')).toContain('return');
   });
