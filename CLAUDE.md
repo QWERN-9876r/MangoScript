@@ -1,6 +1,6 @@
-# MangoScript — rules for Claude Code
+# Rook — rules for Claude Code
 
-MangoScript is a language with JavaScript semantics, Go-style syntax and static types. It compiles
+Rook is a language with JavaScript semantics, Go-style syntax and static types. It compiles
 to readable JavaScript without a runtime library. The compiler is written in TypeScript and runs on
 Node 24. The specification with the reasons for its decisions is in `docs/spec.md`, the design of
 markup and components in `docs/components.md`.
@@ -11,9 +11,9 @@ markup and components in `docs/components.md`.
 - **The maintainer decides the syntax.** Do not invent syntax or change the meaning of existing
   constructs on your own: offer a few options side by side, with a recommendation, and ask.
 - Commit and push only when asked. Pushing to `main` deploys the site
-  (https://qwern-9876r.github.io/MangoScript/) through `.github/workflows/pages.yml`, so confirm
+  (https://qwern-9876r.github.io/RookLang/) through `.github/workflows/pages.yml`, so confirm
   before every push.
-- The working tree may hold the maintainer's own uncommitted edits (e.g. `examples/hello.mango`).
+- The working tree may hold the maintainer's own uncommitted edits (e.g. `examples/hello.rk`).
   Do not commit, stash or revert them: stage files by name, not with `git add -A`.
 - Commit messages: an English subject in the imperative ("Add @html-tag: ..."), then a body that
   says what changed and why.
@@ -23,8 +23,8 @@ markup and components in `docs/components.md`.
 ```sh
 npm run check                         # tsc, eslint, prettier --check, vitest: run before saying "done"
 npx vitest run tests/html-tag.test.ts # one test file
-npm run mango -- build app.mango      # compile (app.js next to the source); `run` compiles and runs
-node src/cli.ts ast file.mango        # print the AST
+npm run rook -- build app.rk      # compile (app.js next to the source); `run` compiles and runs
+node src/cli.ts ast file.rk        # print the AST
 npm run site:dev / site:build / site  # the docs site: Vite dev server / build / build and serve
 npm run vscode:build                  # bundle the VS Code extension and its language server
 npm run vscode:install                # rebuild and install the VS Code extension
@@ -33,7 +33,7 @@ npm run format                        # prettier --write, then eslint --fix for 
 
 ## Code rules
 
-- **No code file is longer than 400 lines** (`.ts`, `.js`, `.mango`, `.css`, `.html`, `.json`;
+- **No code file is longer than 400 lines** (`.ts`, `.js`, `.rk`, `.css`, `.html`, `.json`;
   Markdown is not counted). ESLint `max-lines` and `tests/repository.test.ts` enforce it. Split by
   responsibility before a file reaches the limit, as the existing code does.
 - Node runs the `.ts` files directly (type stripping): only erasable TypeScript (no `enum`,
@@ -50,13 +50,13 @@ npm run format                        # prettier --write, then eslint --fix for 
   `site/tsconfig.json`); it highlights with the grammar of `editors/vscode/syntaxes/`, so a change
   of the grammar shows there too.
 - Markup and components are off unless the package turns them on (`src/config.ts`): this
-  repository does, with `"mangoscript": { "markup": true }` in `package.json`, and tests in
+  repository does, with `"rook": { "markup": true }` in `package.json`, and tests in
   temporary directories use `markupProject()` of `tests/project.ts`. The browser compiler takes
   `{ markup: true }`.
 - `src/browser.ts` is the compiler of the site's playground: it has no TypeScript compiler. Code in
   `src/typescript/` (types from `.d.ts` and `lib.dom`) is Node-only and must not be imported from
   it; without it the checker falls back to `src/checker/builtins.ts` and `src/checker/dom.ts`.
-- Names in generated JS start with `$$`; MangoScript code cannot use such names. Runtime helpers
+- Names in generated JS start with `$$`; Rook code cannot use such names. Runtime helpers
   are in `src/codegen/helpers.ts`, with their dependencies in `HELPER_NEEDS`.
 - Diagnostics: English, lowercase, and say how to fix the problem, with an example where it helps:
   `"page" ... must have a hyphen; give one, e.g. @html-tag("app-page")`.
@@ -76,12 +76,12 @@ npm run format                        # prettier --write, then eslint --fix for 
   | `docs/spec.md`            | `docs/spec.ru.md`            |
   | `docs/components.md`      | `docs/components.ru.md`      |
   | `site/src/en/` (site `/`) | `site/src/ru/` (site `/ru/`) |
-  | `site/examples/*.mango`   | `site/examples/ru/*.mango`   |
+  | `site/examples/*.rk`      | `site/examples/ru/*.rk`      |
 
-- The site is itself a MangoScript program (`site/src`, server `site/server.mango`), built by Vite
+- The site is itself a Rook program (`site/src`, server `site/server.rk`), built by Vite
   with the plugin `src/vite.ts`. `tests/site.test.ts` compiles it, compiles every example with the
   browser compiler and checks that each example exists in both languages and is used by the guide
-  (`site/src/<lang>/guide*.mango`).
+  (`site/src/<lang>/guide*.rk`).
 
 ## Adding a language feature
 
@@ -95,6 +95,6 @@ Go through the whole list; tests must cover each layer that changed.
 5. `docs/spec.md` (and `docs/components.md` for markup and components), in both languages.
 6. A guide section and an example on the site, in both languages.
 7. Highlighting: the VS Code grammar in `editors/vscode/syntaxes/` with a case in
-   `tests/vscode-grammar.test.ts`, and the site highlighter `site/src/highlight.mango`.
-8. The playground (`site/src/sandbox.mango`) if the generated code needs something from the page.
+   `tests/vscode-grammar.test.ts`, and the site highlighter `site/src/highlight.rk`.
+8. The playground (`site/src/sandbox.rk`) if the generated code needs something from the page.
 9. `npm run check`; for site changes also `npm run site:build`.

@@ -3,7 +3,7 @@ import { ANY, STRING, type ClassInfo, type FunctionType, type Member, type Type 
 
 // Classes: the built-in Error, inheritance and members.
 
-/** JS `Error`. The MangoScript type `error` is `?Error`. */
+/** JS `Error`. The Rook type `error` is `?Error`. */
 export const ERROR_CLASS = createClass('Error');
 ERROR_CLASS.members.set('message', property(STRING, ERROR_CLASS));
 ERROR_CLASS.members.set('name', property(STRING, ERROR_CLASS));

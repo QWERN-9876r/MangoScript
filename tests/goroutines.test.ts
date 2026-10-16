@@ -23,17 +23,17 @@ function compiled(source: string): { code: string; worker: string | undefined } 
 
 const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
-/** Runs a program with `mango run`, or builds it and runs the `.js`; returns its output. */
+/** Runs a program with `rook run`, or builds it and runs the `.js`; returns its output. */
 function run(source: string, how: 'run' | 'build'): { stdout: string; stderr: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-go-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-go-'));
 
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }');
-  writeFileSync(join(dir, 'main.mango'), source);
+  writeFileSync(join(dir, 'main.rk'), source);
 
   const options = { cwd: dir, encoding: 'utf8' as const, timeout: 20_000 };
 
   if (how === 'build') {
-    const built = spawnSync(process.execPath, [cli, 'build', 'main.mango'], options);
+    const built = spawnSync(process.execPath, [cli, 'build', 'main.rk'], options);
 
     expect(built.stderr).toBe('');
     expect(readFileSync(join(dir, 'main.worker.js'), 'utf8')).toContain('$$serve($$goroutines);');
@@ -41,7 +41,7 @@ function run(source: string, how: 'run' | 'build'): { stdout: string; stderr: st
     return spawnSync(process.execPath, ['main.js'], options);
   }
 
-  return spawnSync(process.execPath, [cli, 'run', 'main.mango'], options);
+  return spawnSync(process.execPath, [cli, 'run', 'main.rk'], options);
 }
 
 const work = `func square(n number) number {

@@ -1,4 +1,4 @@
-/* MangoUI drawer: a panel that slides in from the left over a dimmed page. */
+/* RookUI drawer: a panel that slides in from the left over a dimmed page. */
 
 .drawer {
   position: fixed;
@@ -30,8 +30,8 @@
   width: min(320px, 86vw);
   padding: 16px;
   overflow-y: auto;
-  background: var(--mui-surface);
-  box-shadow: var(--mui-shadow);
+  background: var(--rui-surface);
+  box-shadow: var(--rui-shadow);
   transform: translateX(-100%);
   transition: transform 0.25s;
 }

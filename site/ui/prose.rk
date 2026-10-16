@@ -1,0 +1,8 @@
+// RookUI prose: text written as plain elements, <p>, <ul>, <code>, <table>, with the typography of
+// the kit.
+
+import styles from "./prose.module.css"
+
+export comp Prose(children Content) {
+    return <div class={styles.prose}>{children}</div>
+}

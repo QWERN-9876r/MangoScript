@@ -26,7 +26,7 @@ describe('component styles', () => {
 
     expect(head.childNodes).toHaveLength(1);
     expect(style!.tagName).toBe('style');
-    expect(String(style!.id)).toMatch(/^mango-meter-\w+$/);
+    expect(String(style!.id)).toMatch(/^rook-meter-\w+$/);
     expect(String(style!.textContent)).toContain(`.fill.${String(style!.id)} {`);
     expect(String(body.find('div').className)).toBe(`meter ${String(style!.id)}`);
     expect(String(body.find('button').className)).toBe(String(style!.id));
@@ -67,8 +67,8 @@ document.body.append(<Card />)
     const frame = body.find('div');
 
     expect(ids).toHaveLength(2);
-    expect(String(frame.className)).toMatch(/^frame mango-framed-\w+$/);
-    expect(String(frame.find('p').className)).toMatch(/^mango-card-\w+$/);
+    expect(String(frame.className)).toMatch(/^frame rook-framed-\w+$/);
+    expect(String(frame.find('p').className)).toMatch(/^rook-card-\w+$/);
     expect(Object.values(frame.style)).toContain('3px');
   });
 
@@ -85,7 +85,7 @@ document.body.append(document.createElement("app-badge"))
     const root = body.find('app-badge').shadowRoot!;
 
     expect(root.childNodes[0]!.tagName).toBe('style');
-    expect(String(root.childNodes[0]!.textContent)).toMatch(/^span\.mango-badge-\w+ \{/);
-    expect(String(root.find('span').className)).toMatch(/^mango-badge-\w+$/);
+    expect(String(root.childNodes[0]!.textContent)).toMatch(/^span\.rook-badge-\w+ \{/);
+    expect(String(root.find('span').className)).toMatch(/^rook-badge-\w+$/);
   });
 });

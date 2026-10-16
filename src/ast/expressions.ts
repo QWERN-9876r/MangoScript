@@ -35,7 +35,7 @@ export type Expression =
   | MakeExpression;
 
 /**
- * `[]byte("mango")`: the UTF-8 bytes of a string. `string(data)`, the way back, is a call, since
+ * `[]byte("rook")`: the UTF-8 bytes of a string. `string(data)`, the way back, is a call, since
  * `string` may be the name of a value.
  */
 export interface ConversionExpression extends NodeBase {

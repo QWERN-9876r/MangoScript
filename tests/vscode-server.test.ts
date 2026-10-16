@@ -7,7 +7,7 @@ import { compile, complete } from '../src/index.ts';
 // The language server of the VS Code extension: what it sends for the results of the compiler.
 
 function document(text: string): TextDocument {
-  return TextDocument.create('file:///app.mango', 'mangoscript', 1, text);
+  return TextDocument.create('file:///app.rk', 'rooklang', 1, text);
 }
 
 describe('language server', () => {
@@ -18,7 +18,7 @@ describe('language server', () => {
     expect(error).toEqual({
       message: 'cannot use number as string',
       severity: DiagnosticSeverity.Error,
-      source: 'mango',
+      source: 'rook',
       range: { start: { line: 1, character: 15 }, end: { line: 1, character: 16 } },
     });
 

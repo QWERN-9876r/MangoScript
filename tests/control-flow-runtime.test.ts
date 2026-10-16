@@ -20,7 +20,7 @@ describe('runtime behavior', () => {
     return <li>{title}: {price}</li>
 }
 comp Shop() {
-    state products []Item = [{ title: "Манго", price: 120 }]
+    state products []Item = [{ title: "Гуава", price: 120 }]
     state cheap = false
     return <div>
         <button onClick={products.push({ title: "Папайя", price: 90 })}>+</button>
@@ -45,13 +45,13 @@ document.body.append(<Shop />)`;
     const [push, cheap, remove, sale] = body.findAll('button');
     const content = () => html(body.find('div')).replace(/<button>[^<]*<\/button>/g, '');
 
-    expect(content()).toBe('<div><ul><li>Манго: 120</li></ul></div>');
+    expect(content()).toBe('<div><ul><li>Гуава: 120</li></ul></div>');
     push!.click();
-    expect(content()).toBe('<div><ul><li>Манго: 120</li><li>Папайя: 90</li></ul></div>');
+    expect(content()).toBe('<div><ul><li>Гуава: 120</li><li>Папайя: 90</li></ul></div>');
     cheap!.click();
     expect(content()).toBe('<div><ul><li>Папайя: 90</li></ul></div>');
     sale!.click();
-    expect(content()).toBe('<div><ul><li>Манго: 50</li><li>Папайя: 90</li></ul></div>');
+    expect(content()).toBe('<div><ul><li>Гуава: 50</li><li>Папайя: 90</li></ul></div>');
     remove!.click();
     remove!.click();
     expect(content()).toBe('<div><p>Пусто</p></div>');

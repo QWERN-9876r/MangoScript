@@ -1,4 +1,4 @@
-/* MangoUI prose: the typography of text, for elements written without classes. */
+/* RookUI prose: the typography of text, for elements written without classes. */
 
 .prose {
   font-size: 1.02rem;
@@ -27,8 +27,8 @@
 .prose code {
   padding: 1px 6px;
   border-radius: 6px;
-  background: var(--mui-inline-code);
-  font-family: var(--mui-mono);
+  background: var(--rui-inline-code);
+  font-family: var(--rui-mono);
   font-size: 0.88em;
 }
 
@@ -41,8 +41,8 @@
 .prose table {
   width: 100%;
   margin: 18px 0;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius);
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
@@ -51,14 +51,14 @@
 .prose th,
 .prose td {
   padding: 9px 12px;
-  border-bottom: 1px solid var(--mui-line);
+  border-bottom: 1px solid var(--rui-line);
   text-align: left;
   vertical-align: top;
 }
 
 .prose th {
-  background: var(--mui-surface-2);
-  color: var(--mui-muted);
+  background: var(--rui-surface-2);
+  color: var(--rui-muted);
   font-size: 0.85rem;
   font-weight: 700;
 }

@@ -2,20 +2,20 @@ import * as monaco from 'monaco-editor/editor/editor.api';
 import * as oniguruma from 'vscode-oniguruma';
 import onigUrl from 'vscode-oniguruma/release/onig.wasm?url';
 import * as textmate from 'vscode-textmate';
-import mainGrammar from '../../../editors/vscode/syntaxes/mangoscript.tmLanguage.json?raw';
-import cssGrammar from '../../../editors/vscode/syntaxes/mangoscript-css.tmLanguage.json?raw';
-import markupGrammar from '../../../editors/vscode/syntaxes/mangoscript-markup.tmLanguage.json?raw';
+import mainGrammar from '../../../editors/vscode/syntaxes/rook.tmLanguage.json?raw';
+import cssGrammar from '../../../editors/vscode/syntaxes/rook-css.tmLanguage.json?raw';
+import markupGrammar from '../../../editors/vscode/syntaxes/rook-markup.tmLanguage.json?raw';
 
 // Highlighting in the editor of the playground: the grammar of the VS Code extension, run by the
 // engine of VS Code (vscode-textmate with the Oniguruma regular expressions in WebAssembly). Its
-// scopes become the classes of site/src/highlight.mango, so the playground has the colors of the
+// scopes become the classes of site/src/highlight.rk, so the playground has the colors of the
 // examples (theme.ts).
 
 /** The grammar of a scope; the main one includes those of markup and styles, as in VS Code. */
 const GRAMMARS: Record<string, string> = {
-  'source.mango': mainGrammar,
-  'source.mango.markup': markupGrammar,
-  'source.mango.css': cssGrammar,
+  'source.rook': mainGrammar,
+  'source.rook.markup': markupGrammar,
+  'source.rook.css': cssGrammar,
 };
 
 /** Classes of tokens by the start of their scope; the first match from the innermost scope wins. */
@@ -93,9 +93,9 @@ async function loadGrammar(): Promise<textmate.IGrammar> {
       );
     },
   });
-  const grammar = await registry.loadGrammar('source.mango');
+  const grammar = await registry.loadGrammar('source.rook');
 
-  if (!grammar) throw new Error('the grammar of MangoScript did not load');
+  if (!grammar) throw new Error('the grammar of Rook did not load');
 
   return grammar;
 }

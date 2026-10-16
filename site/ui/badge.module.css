@@ -1,4 +1,4 @@
-/* MangoUI badges: a short label. */
+/* RookUI badges: a short label. */
 
 .badge {
   display: inline-flex;
@@ -13,16 +13,16 @@
 }
 
 .accent {
-  background: var(--mui-accent-soft);
-  color: var(--mui-accent-strong);
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
 }
 
 .leaf {
-  background: var(--mui-leaf-soft);
-  color: var(--mui-leaf);
+  background: var(--rui-leaf-soft);
+  color: var(--rui-leaf);
 }
 
 .muted {
-  background: var(--mui-surface-2);
-  color: var(--mui-muted);
+  background: var(--rui-surface-2);
+  color: var(--rui-muted);
 }

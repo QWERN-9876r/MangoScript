@@ -1,0 +1,12 @@
+// The entry module of the Russian page (ru/index.html).
+
+import { EXAMPLES } from "virtual:examples/ru"
+import { applyTheme } from "../../ui/theme.rk"
+import { renderPage } from "../app.rk"
+import { setLanguage } from "../i18n.rk"
+import { SECTIONS } from "./guide.rk"
+import { STRINGS } from "./strings.rk"
+
+applyTheme()
+setLanguage(STRINGS, EXAMPLES)
+renderPage(SECTIONS)

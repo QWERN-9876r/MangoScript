@@ -106,7 +106,7 @@ describe('strings', () => {
 
   it('decodes escape sequences', () => {
     expect(single(String.raw`"a\n\t\"\\\'"`)).toMatchObject({ value: 'a\n\t"\\\'' });
-    expect(single(String.raw`"\x41B\u{1F96D}"`)).toMatchObject({ value: 'AB🥭' });
+    expect(single(String.raw`"\x41B\u{265C}"`)).toMatchObject({ value: 'AB♜' });
   });
 
   it.each([
@@ -298,8 +298,8 @@ it('records token offsets', () => {
   ]);
 });
 
-it('tokenizes examples/hello.mango without errors', () => {
-  const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
+it('tokenizes examples/hello.rk without errors', () => {
+  const source = readFileSync(new URL('../examples/hello.rk', import.meta.url), 'utf8');
 
   expect(tokenize(source).diagnostics).toEqual([]);
 });

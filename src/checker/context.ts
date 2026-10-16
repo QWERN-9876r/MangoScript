@@ -44,7 +44,7 @@ export interface Library {
 }
 
 export interface CheckOptions {
-  /** Called for imports of `.mango` modules; without it, every import is untyped (`any`). */
+  /** Called for imports of `.rk` modules; without it, every import is untyped (`any`). */
   importModule?: (specifier: string) => ImportResult;
   /**
    * Called for the other imports (packages, `node:` modules, `.ts` files): their types come from
@@ -95,7 +95,7 @@ export interface Completion {
     | 'keyword'
     | 'tag'
     | 'attribute';
-  /** The type, as MangoScript writes it. */
+  /** The type, as Rook writes it. */
   detail?: string;
 }
 

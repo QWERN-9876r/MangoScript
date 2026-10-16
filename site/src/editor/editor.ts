@@ -8,9 +8,9 @@ import { followPageTheme } from './theme.ts';
 // The editor of the playground: the one of VS Code (Monaco), with the grammar of the VS Code
 // extension, the errors of the compiler under the code and the completion of the language server.
 // It is loaded with load.ts when the playground comes into view; until then, and on touch screens,
-// playground.mango shows its own text area.
+// playground.rk shows its own text area.
 
-const LANGUAGE = 'mango';
+const LANGUAGE = 'rook';
 /** The editor grows with its code up to this height, then scrolls. */
 const MAX_HEIGHT = 440;
 /** Errors are checked once the typing stops for this long. */
@@ -49,7 +49,7 @@ let ready: Promise<void> | null = null;
 function setUp(): Promise<void> {
   ready ??= (async () => {
     self.MonacoEnvironment = { getWorker: () => new EditorWorker() };
-    monaco.languages.register({ id: LANGUAGE, extensions: ['.mango'] });
+    monaco.languages.register({ id: LANGUAGE, extensions: ['.rk'] });
     // What editors/vscode/language-configuration.json gives VS Code, but for its regular
     // expressions.
     monaco.languages.setLanguageConfiguration(LANGUAGE, {
@@ -134,7 +134,7 @@ export async function createEditor(host: HTMLElement, options: EditorOptions): P
     language: LANGUAGE,
     ariaLabel: options.label,
     automaticLayout: true,
-    fontFamily: style.getPropertyValue('--mui-mono'),
+    fontFamily: style.getPropertyValue('--rui-mono'),
     fontSize: 13.5,
     lineHeight: 1.6,
     tabSize: 4,

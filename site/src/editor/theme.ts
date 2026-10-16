@@ -4,7 +4,7 @@ import * as monaco from 'monaco-editor/editor/editor.api';
 // site/src/highlight.module.css), so it changes with the theme of the page. They are light-dark()
 // pairs, which only an element resolves: a hidden probe takes each one as its color.
 
-const THEME = 'mango';
+const THEME = 'rook';
 
 /** The colors of the classes of tokens, see textmate.ts. */
 const TOKENS: Record<string, string> = {
@@ -62,7 +62,7 @@ function defineTheme(): void {
     base: isDark() ? 'vs-dark' : 'vs',
     inherit: true,
     rules: [
-      { token: '', foreground: variable('--mui-code-text') },
+      { token: '', foreground: variable('--rui-code-text') },
       ...Object.entries(TOKENS).map(([token, name]) => ({
         token,
         foreground: variable(name),
@@ -70,25 +70,25 @@ function defineTheme(): void {
       })),
     ],
     colors: {
-      'editor.background': variable('--mui-code-bg'),
-      'editor.foreground': variable('--mui-code-text'),
-      'editorCursor.foreground': variable('--mui-text'),
-      'editor.selectionBackground': mixed('--mui-accent', 30),
-      'editor.inactiveSelectionBackground': mixed('--mui-accent', 18),
-      'editor.lineHighlightBackground': mixed('--mui-accent', 7),
+      'editor.background': variable('--rui-code-bg'),
+      'editor.foreground': variable('--rui-code-text'),
+      'editorCursor.foreground': variable('--rui-text'),
+      'editor.selectionBackground': mixed('--rui-accent', 30),
+      'editor.inactiveSelectionBackground': mixed('--rui-accent', 18),
+      'editor.lineHighlightBackground': mixed('--rui-accent', 7),
       'editor.lineHighlightBorder': '#00000000',
-      'editorLineNumber.foreground': mixed('--mui-muted', 60),
-      'editorLineNumber.activeForeground': variable('--mui-muted'),
-      'editorIndentGuide.background1': variable('--mui-line'),
-      'editorError.foreground': variable('--mui-danger'),
-      'editorWarning.foreground': variable('--mui-accent'),
-      'editorWidget.background': variable('--mui-surface'),
-      'editorWidget.border': variable('--mui-line-strong'),
-      'editorSuggestWidget.background': variable('--mui-surface'),
-      'editorSuggestWidget.border': variable('--mui-line-strong'),
-      'editorSuggestWidget.selectedBackground': variable('--mui-accent-soft'),
-      'editorHoverWidget.background': variable('--mui-surface'),
-      'editorHoverWidget.border': variable('--mui-line-strong'),
+      'editorLineNumber.foreground': mixed('--rui-muted', 60),
+      'editorLineNumber.activeForeground': variable('--rui-muted'),
+      'editorIndentGuide.background1': variable('--rui-line'),
+      'editorError.foreground': variable('--rui-danger'),
+      'editorWarning.foreground': variable('--rui-accent'),
+      'editorWidget.background': variable('--rui-surface'),
+      'editorWidget.border': variable('--rui-line-strong'),
+      'editorSuggestWidget.background': variable('--rui-surface'),
+      'editorSuggestWidget.border': variable('--rui-line-strong'),
+      'editorSuggestWidget.selectedBackground': variable('--rui-accent-soft'),
+      'editorHoverWidget.background': variable('--rui-surface'),
+      'editorHoverWidget.border': variable('--rui-line-strong'),
       focusBorder: '#00000000',
     },
   });

@@ -1,0 +1,51 @@
+// select ждёт первую из нескольких операций с каналами;
+// after(ms) — канал, в который один раз приходит время, через ms
+
+// out chan<- string только отправляет: search не может из него получать
+async func search(query string, ms number, out chan<- string) {
+    <-after(ms) // как будто по сети
+    out <- `результаты для «${query}» за ${ms} мс`
+}
+
+// Ожиданию не нужен другой поток: async-вызов без await работает в этом же потоке.
+// Место для одного ответа: поиск, которого никто не ждёт, всё равно сможет закончиться
+const fast = chan<string>(1)
+const slow = chan<string>(1)
+search("гуава", 100, fast)
+search("папайя", 2000, slow)
+
+// Побеждает первый ответ; тайм-аут прекращает ожидание
+for let i = 0; i < 2; i++ {
+    select {
+    case text = <-fast:
+        console.log(text)
+    case text = <-slow:
+        console.log(text)
+    case <-after(500):
+        console.log("тайм-аут: 500 мс")
+    }
+}
+
+// default срабатывает, когда сразу ничего не готово
+select {
+case text = <-slow:
+    console.log(text)
+default:
+    console.log("slow ещё не готов")
+}
+
+// Канал null выключает свою ветку: каждый поиск ждём один раз
+let lime ?chan string = chan<string>(1)
+let kiwi ?chan string = chan<string>(1)
+search("лайм", 80, lime)
+search("киви", 40, kiwi)
+for lime != null || kiwi != null {
+    select {
+    case text = <-lime:
+        console.log(text)
+        lime = null
+    case text = <-kiwi:
+        console.log(text)
+        kiwi = null
+    }
+}

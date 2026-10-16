@@ -1,0 +1,16 @@
+// []byte is a Uint8Array; []byte("...") gives the UTF-8 bytes of a string
+const bytes = []byte("rook ♜")
+console.log(bytes.length, "bytes:", bytes.join(" "))
+
+// string(bytes) reads them back as text
+console.log(string(bytes))
+
+// Numbers where a []byte is expected make a Uint8Array
+let header []byte = [0x89, 0x50, 0x4e, 0x47]
+console.log(string(header.subarray(1)))
+
+// It goes to a goroutine without a copy, with transfer
+func checksum(data []byte) number {
+    return data.reduce((sum, b) => (sum + b) % 256, 0)
+}
+console.log("checksum:", await go checksum(transfer(bytes)), "left here:", bytes.length)

@@ -11,7 +11,7 @@ export const THREAD_HELPERS: Readonly<Record<ThreadHelper, readonly string[]>> =
     '// The state of this thread that its modules share: the channels it made, its ports to the other',
     '// threads by their keys, and the requests that wait for an answer.',
     'function $$registry() {',
-    '  return (globalThis[Symbol.for("mangoscript.threads")] ??= {',
+    '  return (globalThis[Symbol.for("rook.threads")] ??= {',
     '    key: Math.random().toString(36).slice(2),',
     '    channels: 0,',
     '    states: new Map(),',

@@ -20,13 +20,13 @@ import { isStyleModule, styleModule, unusedClasses, type StyleModule } from './s
 // Node adds reading imported modules from disk (src/index.ts).
 
 export interface CoreCompileOptions {
-  /** Replace `.mango` with `.js` in relative import paths. Defaults to `true`. */
+  /** Replace `.rk` with `.js` in relative import paths. Defaults to `true`. */
   rewriteImports?: boolean;
   /** Check types before generating code. Defaults to `true`. */
   typeCheck?: boolean;
   /** Markup and components; read unless false (the entries decide it, see src/config.ts). */
   markup?: boolean;
-  /** The exports of an imported `.mango` module; without it, imports are untyped (`any`). */
+  /** The exports of an imported `.rk` module; without it, imports are untyped (`any`). */
   importModule?: ((specifier: string) => ImportResult) | undefined;
   /** The exports of other imports, from TypeScript declarations; without it, they are untyped. */
   importDeclarations?: ((specifier: string) => ImportResult) | undefined;
@@ -41,14 +41,14 @@ export interface CoreCompileOptions {
 }
 
 /**
- * Where the worker module of a module is: a `.worker.js` next to its `.js`, or, where `.mango`
- * files are imported as they are (`mango run`), the module itself with `?goroutines`. Vite drops
+ * Where the worker module of a module is: a `.worker.js` next to its `.js`, or, where `.rk`
+ * files are imported as they are (`rook run`), the module itself with `?goroutines`. Vite drops
  * the query of a worker's URL, so its plugin gives another path (vite.ts).
  */
 export function workerUrl(file: string, rewriteImports: boolean): string {
-  const base = file.replace(/^.*[\\/]/, '').replace(/\.mango$/, '');
+  const base = file.replace(/^.*[\\/]/, '').replace(/\.rk$/, '');
 
-  return rewriteImports ? `./${base}.worker.js` : `./${base}.mango?goroutines`;
+  return rewriteImports ? `./${base}.worker.js` : `./${base}.rk?goroutines`;
 }
 
 export interface CompileResult {
@@ -57,7 +57,7 @@ export interface CompileResult {
   diagnostics: Diagnostic[];
   /** Problems that do not stop compilation, sorted by position. */
   warnings: Diagnostic[];
-  /** Relative paths of the `.mango` modules and CSS modules this file imports, as written. */
+  /** Relative paths of the `.rk` modules and CSS modules this file imports, as written. */
   dependencies: string[];
   /** The `.d.ts` for the module, with the `declarations` option. */
   declarations?: string;
@@ -103,7 +103,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
   };
   const code = generateJs(program, {
     ...jsOptions,
-    goroutines: { workerUrl: options.workerUrl ?? workerUrl('main.mango', rewriteImports) },
+    goroutines: { workerUrl: options.workerUrl ?? workerUrl('main.rk', rewriteImports) },
   });
   const targets = [
     ...new Set(goroutines(program).flatMap((node) => goTarget(program, node) ?? [])),
@@ -154,7 +154,7 @@ export function prepareCheck(
 }
 
 /**
- * What the module imports from other `.mango` modules for the generator: decorators, whose code is
+ * What the module imports from other `.rk` modules for the generator: decorators, whose code is
  * inlined, and components, which are called or inlined.
  */
 function importedCode(
@@ -168,7 +168,7 @@ function importedCode(
   const components = new Map<string, ImportedComponent>();
 
   for (const statement of program.body) {
-    if (statement.kind !== 'ImportDeclaration' || !statement.source.value.endsWith('.mango')) {
+    if (statement.kind !== 'ImportDeclaration' || !statement.source.value.endsWith('.rk')) {
       continue;
     }
 
@@ -223,7 +223,7 @@ function readStyleModules(
       problem(
         read
           ? `cannot read the CSS module "${source.value}"`
-          : 'CSS modules need files: build the program with mango build or Vite',
+          : 'CSS modules need files: build the program with rook build or Vite',
       );
       continue;
     }
@@ -271,7 +271,7 @@ function unusedStyleClasses(
   return found;
 }
 
-/** The relative imports of `.mango` modules and CSS modules: what the module depends on. */
+/** The relative imports of `.rk` modules and CSS modules: what the module depends on. */
 function localImports(program: ast.Program): string[] {
   const specifiers = new Set<string>();
 
@@ -280,7 +280,7 @@ function localImports(program: ast.Program): string[] {
 
     const path = statement.source.value;
 
-    if (/^\.{1,2}\//.test(path) && (path.endsWith('.mango') || isStyleModule(path))) {
+    if (/^\.{1,2}\//.test(path) && (path.endsWith('.rk') || isStyleModule(path))) {
       specifiers.add(path);
     }
   }

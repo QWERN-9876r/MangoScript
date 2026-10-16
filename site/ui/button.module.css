@@ -1,4 +1,4 @@
-/* MangoUI buttons and links that look like buttons. */
+/* RookUI buttons and links that look like buttons. */
 
 .button {
   display: inline-flex;
@@ -43,33 +43,33 @@
 }
 
 .primary {
-  background: var(--mui-accent);
-  color: var(--mui-on-accent);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--mui-accent) 30%, transparent);
+  background: var(--rui-accent);
+  color: var(--rui-on-accent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--rui-accent) 30%, transparent);
 }
 
 .primary:hover {
-  background: var(--mui-accent-strong);
+  background: var(--rui-accent-strong);
 }
 
 .secondary {
-  border-color: var(--mui-line-strong);
-  background: var(--mui-surface);
-  color: var(--mui-text);
+  border-color: var(--rui-line-strong);
+  background: var(--rui-surface);
+  color: var(--rui-text);
 }
 
 .secondary:hover {
-  border-color: var(--mui-accent);
+  border-color: var(--rui-accent);
 }
 
 .ghost {
   background: transparent;
-  color: var(--mui-muted);
+  color: var(--rui-muted);
 }
 
 .ghost:hover {
-  background: var(--mui-accent-soft);
-  color: var(--mui-text);
+  background: var(--rui-accent-soft);
+  color: var(--rui-text);
 }
 
 /* A button with only an icon is round. */

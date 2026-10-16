@@ -6,7 +6,7 @@ import { markupProject } from './project.ts';
 
 const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
-function mango(cwd: string, ...args: string[]) {
+function rook(cwd: string, ...args: string[]) {
   return spawnSync(process.execPath, [cli, ...args], { cwd, encoding: 'utf8' });
 }
 
@@ -16,7 +16,7 @@ function node(cwd: string, file: string) {
 
 /** A temporary project: `files` maps relative paths to contents. */
 function project(files: Record<string, string>): string {
-  const dir = markupProject('mango-cli-');
+  const dir = markupProject('rook-cli-');
 
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(join(dir, path, '..'), { recursive: true });
@@ -41,33 +41,31 @@ const p Point = { x: 3, y: 4 }
 console.log(dist(p))
 `;
 
-describe('mango run', () => {
-  it('runs a program that imports another .mango module', () => {
-    const dir = project({ 'geom.mango': geom, 'main.mango': main('./geom.mango') });
-    const result = mango(dir, 'run', 'main.mango');
+describe('rook run', () => {
+  it('runs a program that imports another .rk module', () => {
+    const dir = project({ 'geom.rk': geom, 'main.rk': main('./geom.rk') });
+    const result = rook(dir, 'run', 'main.rk');
 
     expect(result.stderr).toBe('');
     expect(result.stdout).toBe('5\n');
   });
 
   it('reports compile errors and exits with code 1', () => {
-    const dir = project({ 'bad.mango': 'let = 1\n' });
-    const result = mango(dir, 'run', 'bad.mango');
+    const dir = project({ 'bad.rk': 'let = 1\n' });
+    const result = rook(dir, 'run', 'bad.rk');
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('bad.mango:1:5: error: expected variable name, found "="');
+    expect(result.stderr).toContain('bad.rk:1:5: error: expected variable name, found "="');
   });
 });
 
-describe('mango build', () => {
+describe('rook build', () => {
   it('writes .js files next to the sources, with the modules they import', () => {
-    const dir = project({ 'lib/geom.mango': geom, 'main.mango': main('./lib/geom.mango') });
-    const result = mango(dir, 'build', 'main.mango');
+    const dir = project({ 'lib/geom.rk': geom, 'main.rk': main('./lib/geom.rk') });
+    const result = rook(dir, 'build', 'main.rk');
 
     expect(result.stderr).toBe('');
-    expect(result.stdout).toBe(
-      'main.mango → main.js + .d.ts\nlib/geom.mango → lib/geom.js + .d.ts\n',
-    );
+    expect(result.stdout).toBe('main.rk → main.js + .d.ts\nlib/geom.rk → lib/geom.js + .d.ts\n');
     expect(readFileSync(join(dir, 'main.js'), 'utf8')).toContain(
       'import { dist } from "./lib/geom.js";',
     );
@@ -81,31 +79,31 @@ export declare function dist(p: Point): number;
   });
 
   it('writes no .d.ts without type checking', () => {
-    const dir = project({ 'geom.mango': geom });
-    const result = mango(dir, 'build', 'geom.mango', '--no-check');
+    const dir = project({ 'geom.rk': geom });
+    const result = rook(dir, 'build', 'geom.rk', '--no-check');
 
-    expect(result.stdout).toBe('geom.mango → geom.js\n');
+    expect(result.stdout).toBe('geom.rk → geom.js\n');
     expect(existsSync(join(dir, 'geom.d.ts'))).toBe(false);
   });
 
   it('writes to --out-dir, keeping the folder structure', () => {
-    const dir = project({ 'src/lib/geom.mango': geom, 'src/main.mango': main('./lib/geom.mango') });
+    const dir = project({ 'src/lib/geom.rk': geom, 'src/main.rk': main('./lib/geom.rk') });
 
-    mango(dir, 'build', 'src/main.mango', '--out-dir', 'build');
+    rook(dir, 'build', 'src/main.rk', '--out-dir', 'build');
     expect(existsSync(join(dir, 'build/main.js'))).toBe(true);
     expect(existsSync(join(dir, 'build/lib/geom.js'))).toBe(true);
     expect(existsSync(join(dir, 'src/main.js'))).toBe(false);
     expect(node(dir, 'build/main.js').stdout).toBe('5\n');
   });
 
-  it('builds every .mango file in a directory, except node_modules', () => {
+  it('builds every .rk file in a directory, except node_modules', () => {
     const dir = project({
-      'src/a.mango': 'console.log("a")\n',
-      'src/nested/b.mango': 'console.log("b")\n',
-      'src/node_modules/c.mango': 'console.log("c")\n',
+      'src/a.rk': 'console.log("a")\n',
+      'src/nested/b.rk': 'console.log("b")\n',
+      'src/node_modules/c.rk': 'console.log("c")\n',
     });
 
-    mango(dir, 'build', 'src', '--out-dir', 'out');
+    rook(dir, 'build', 'src', '--out-dir', 'out');
     expect(existsSync(join(dir, 'out/a.js'))).toBe(true);
     expect(existsSync(join(dir, 'out/nested/b.js'))).toBe(true);
     expect(existsSync(join(dir, 'out/node_modules/c.js'))).toBe(false);
@@ -113,44 +111,44 @@ export declare function dist(p: Point): number;
 
   it('writes nothing when a module has errors', () => {
     const dir = project({
-      'geom.mango': 'export func dist(p any) number {\n    return "x"\n}\n',
-      'main.mango': 'import { dist } from "./geom.mango"\nconsole.log(dist(1))\n',
+      'geom.rk': 'export func dist(p any) number {\n    return "x"\n}\n',
+      'main.rk': 'import { dist } from "./geom.rk"\nconsole.log(dist(1))\n',
     });
-    const result = mango(dir, 'build', 'main.mango');
+    const result = rook(dir, 'build', 'main.rk');
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('geom.mango:2:12: error: cannot use string as number');
+    expect(result.stderr).toContain('geom.rk:2:12: error: cannot use string as number');
     expect(existsSync(join(dir, 'main.js'))).toBe(false);
     expect(existsSync(join(dir, 'geom.js'))).toBe(false);
   });
 
   it('prints warnings and still writes the files', () => {
     const dir = project({
-      'card.mango':
+      'card.rk':
         'comp Card() {\n    style {\n        h1 { margin: 0 }\n    }\n    return <p />\n}\ndocument.body.append(<Card />)\n',
     });
-    const result = mango(dir, 'build', 'card.mango');
+    const result = rook(dir, 'build', 'card.rk');
 
     expect(result.status).toBe(0);
     expect(result.stderr).toContain(
-      'card.mango:3:9: warning: selector "h1" matches no element of Card',
+      'card.rk:3:9: warning: selector "h1" matches no element of Card',
     );
     expect(existsSync(join(dir, 'card.js'))).toBe(true);
   });
 
   it('prints the JS of one file with --stdout', () => {
-    const dir = project({ 'hello.mango': 'console.log("hi")\n' });
-    const result = mango(dir, 'build', 'hello.mango', '--stdout');
+    const dir = project({ 'hello.rk': 'console.log("hi")\n' });
+    const result = rook(dir, 'build', 'hello.rk', '--stdout');
 
     expect(result.stdout).toBe('console.log("hi");\n');
     expect(existsSync(join(dir, 'hello.js'))).toBe(false);
   });
 
-  it('rejects files that are not .mango', () => {
+  it('rejects files that are not .rk', () => {
     const dir = project({ 'notes.txt': 'hi' });
-    const result = mango(dir, 'build', 'notes.txt');
+    const result = rook(dir, 'build', 'notes.txt');
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toBe('mango: not a .mango file: notes.txt\n');
+    expect(result.stderr).toBe('rook: not a .rk file: notes.txt\n');
   });
 });

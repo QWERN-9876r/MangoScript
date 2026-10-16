@@ -276,7 +276,7 @@ document.body.append($$app1, $$input19);`,
 
   it('replaces changing nodes with the $$content helper, which evaluates them again', () => {
     const code = js(`comp Tags() {
-    state tags = ["mango"]
+    state tags = ["guava"]
     return <ul onClick={tags.push("x")}>{tags.map(tag => <li>{tag}</li>)}</ul>
 }
 document.body.append(<Tags />)`);
@@ -285,7 +285,7 @@ document.body.append(<Tags />)`);
     expect(code.slice(code.indexOf('// <Tags>'))).toBe(`// <Tags>
 let $$tags1;
 {
-  let tags = ["mango"];
+  let tags = ["guava"];
   const $$ul3 = document.createElement("ul");
   $$ul3.addEventListener("click", () => {
     tags.push("x");

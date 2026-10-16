@@ -1,9 +1,9 @@
 {
-  "name": "mangoscript",
+  "name": "rooklang",
   "version": "0.3.0",
   "description": "A language with JavaScript semantics, Go-style syntax, goroutines on real threads and static types that compiles to readable JavaScript",
   "keywords": [
-    "mangoscript",
+    "rooklang",
     "programming-language",
     "compiler",
     "javascript",
@@ -16,23 +16,23 @@
     "vite-plugin",
     "web-components"
   ],
-  "homepage": "https://qwern-9876r.github.io/MangoScript/",
-  "bugs": "https://github.com/QWERN-9876r/MangoScript/issues",
+  "homepage": "https://qwern-9876r.github.io/RookLang/",
+  "bugs": "https://github.com/QWERN-9876r/RookLang/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QWERN-9876r/MangoScript.git"
+    "url": "git+https://github.com/QWERN-9876r/RookLang.git"
   },
   "license": "MIT",
   "author": "Qwern9876r",
   "type": "module",
-  "mangoscript": {
+  "rook": {
     "markup": true
   },
   "engines": {
     "node": ">=24"
   },
   "bin": {
-    "mango": "./dist/cli.js"
+    "rook": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -53,13 +53,13 @@
     "dist"
   ],
   "scripts": {
-    "mango": "node src/cli.ts",
+    "rook": "node src/cli.ts",
     "site:dev": "vite",
     "site:build": "vite build",
-    "site": "npm run site:build && node src/cli.ts run site/server.mango",
+    "site": "npm run site:build && node src/cli.ts run site/server.rk",
     "vscode:build": "node scripts/build-vscode.ts",
-    "vscode:package": "npm run vscode:build && cd editors/vscode && npx --yes @vscode/vsce@4 package --no-dependencies --allow-missing-repository --skip-license --out mangoscript.vsix",
-    "vscode:install": "npm run vscode:package && code --install-extension editors/vscode/mangoscript.vsix --force",
+    "vscode:package": "npm run vscode:build && cd editors/vscode && npx --yes @vscode/vsce@4 package --no-dependencies --allow-missing-repository --skip-license --out rooklang.vsix",
+    "vscode:install": "npm run vscode:package && code --install-extension editors/vscode/rooklang.vsix --force",
     "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check",

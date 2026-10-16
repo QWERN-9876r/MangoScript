@@ -9,7 +9,7 @@ import { join } from 'node:path';
 export function markupProject(prefix: string): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
 
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ mangoscript: { markup: true } }));
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ rook: { markup: true } }));
 
   return dir;
 }

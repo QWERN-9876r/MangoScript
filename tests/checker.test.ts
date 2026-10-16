@@ -349,39 +349,37 @@ describe('JS interop', () => {
 });
 
 describe('modules', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-check-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-check-'));
 
   writeFileSync(
-    join(dir, 'geom.mango'),
+    join(dir, 'geom.rk'),
     'export interface Point {\n    x, y number\n}\n\nexport func dist(p Point) number {\n    return Math.sqrt(p.x ** 2 + p.y ** 2)\n}\n\nfunc hidden() {}\n',
   );
 
   const compileIn = (source: string) =>
-    compile(source, { filename: join(dir, 'main.mango') }).diagnostics.map((d) => d.message);
+    compile(source, { filename: join(dir, 'main.rk') }).diagnostics.map((d) => d.message);
 
   it('uses the types exported by imported modules', () => {
     expect(
-      compileIn(
-        'import { Point, dist } from "./geom.mango"\nconst n number = dist({ x: 3, y: 4 })',
-      ),
+      compileIn('import { Point, dist } from "./geom.rk"\nconst n number = dist({ x: 3, y: 4 })'),
     ).toEqual([]);
     expect(
-      compileIn('import { dist } from "./geom.mango"\nconst s string = dist({ x: 3, y: 4 })'),
+      compileIn('import { dist } from "./geom.rk"\nconst s string = dist({ x: 3, y: 4 })'),
     ).toEqual(['cannot use number as string']);
   });
 
   it('reports names that are not exported and missing modules', () => {
-    expect(compileIn('import { hidden } from "./geom.mango"')).toEqual([
-      '"hidden" is not exported by "./geom.mango"',
+    expect(compileIn('import { hidden } from "./geom.rk"')).toEqual([
+      '"hidden" is not exported by "./geom.rk"',
     ]);
-    expect(compileIn('import { x } from "./missing.mango"')).toEqual([
-      'cannot find module "./missing.mango"',
+    expect(compileIn('import { x } from "./missing.rk"')).toEqual([
+      'cannot find module "./missing.rk"',
     ]);
   });
 });
 
-it('accepts examples/hello.mango', () => {
-  const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
+it('accepts examples/hello.rk', () => {
+  const source = readFileSync(new URL('../examples/hello.rk', import.meta.url), 'utf8');
 
   expect(errors(source)).toEqual([]);
 });

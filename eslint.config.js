@@ -35,7 +35,7 @@ export default defineConfig(
       ],
       '@typescript-eslint/consistent-type-imports': 'error',
       // Files stay short: split one by responsibility before it grows past 400 lines (the same
-      // limit for .mango, CSS and JSON is checked by tests/repository.test.ts).
+      // limit for .rk, CSS and JSON is checked by tests/repository.test.ts).
       'max-lines': ['error', { max: 400 }],
     },
   },

@@ -21,7 +21,7 @@ export interface CompileOptions {
   /** Path of the source file; needed to check the types of imports. */
   filename?: string;
   /**
-   * Replace `.mango` with `.js` in relative import paths, for output written next to the sources.
+   * Replace `.rk` with `.js` in relative import paths, for output written next to the sources.
    * Defaults to `true`.
    */
   rewriteImports?: boolean;
@@ -45,7 +45,7 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
     ...filesOf(filename, options.typeCheck ?? true, options.markup),
     markup,
     rewriteImports,
-    workerUrl: options.workerUrl ?? workerUrl(filename ?? 'main.mango', rewriteImports),
+    workerUrl: options.workerUrl ?? workerUrl(filename ?? 'main.rk', rewriteImports),
     typeCheck: options.typeCheck ?? true,
     declarations: options.declarations ?? false,
   });
@@ -81,7 +81,7 @@ function filesOf(
       : undefined,
     readStyleModule: filename ? (specifier: string) => readNear(filename, specifier) : undefined,
     // Without a file name, `@types` packages are looked up from the current directory.
-    library: typeCheck ? libraryFor(filename ?? join(process.cwd(), 'main.mango')) : undefined,
+    library: typeCheck ? libraryFor(filename ?? join(process.cwd(), 'main.rk')) : undefined,
   };
 }
 

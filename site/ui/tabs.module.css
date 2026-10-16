@@ -1,4 +1,4 @@
-/* MangoUI tabs: a row of buttons, the selected one filled, with actions at the end. */
+/* RookUI tabs: a row of buttons, the selected one filled, with actions at the end. */
 
 .tabs {
   display: flex;
@@ -6,16 +6,16 @@
   align-items: center;
   gap: 4px;
   padding: 6px;
-  border-bottom: 1px solid var(--mui-line);
-  background: var(--mui-surface);
+  border-bottom: 1px solid var(--rui-line);
+  background: var(--rui-surface);
 }
 
 .tab {
   padding: 6px 12px;
   border: 0;
-  border-radius: var(--mui-radius-sm);
+  border-radius: var(--rui-radius-sm);
   background: transparent;
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
@@ -26,14 +26,14 @@
 }
 
 .tab:hover {
-  background: var(--mui-accent-soft);
-  color: var(--mui-text);
+  background: var(--rui-accent-soft);
+  color: var(--rui-text);
 }
 
 .active,
 .active:hover {
-  background: var(--mui-accent-soft);
-  color: var(--mui-accent-strong);
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
 }
 
 .actions {

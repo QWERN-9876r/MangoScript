@@ -308,16 +308,16 @@ document.body.append(<Cart start={0} />, <Cart start={5} />)`);
     state count = 0
     return <li>{name}{index}: {count}<button onClick={count++}>+</button><ul><Fruit name={name} index={index + 1} /></ul></li>
 }
-document.body.append(<ul><Fruit name="манго" /></ul>)`);
+document.body.append(<ul><Fruit name="гуава" /></ul>)`);
 
     expect(String(body)).toBe(
-      '<body><ul><li>манго0: 0<button>+</button><ul><li>манго1: 0<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
+      '<body><ul><li>гуава0: 0<button>+</button><ul><li>гуава1: 0<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
     );
     body.find('button', 1).click();
     body.find('button', 1).click();
     body.find('button').click();
     expect(String(body)).toBe(
-      '<body><ul><li>манго0: 1<button>+</button><ul><li>манго1: 2<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
+      '<body><ul><li>гуава0: 1<button>+</button><ul><li>гуава1: 2<button>+</button><ul><span>.</span></ul></li></ul></li></ul></body>',
     );
   });
 });

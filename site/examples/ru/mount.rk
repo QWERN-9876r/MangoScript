@@ -1,0 +1,16 @@
+// mount() выполняется у каждого экземпляра компонента — после всего синхронного кода программы,
+// когда разметка уже на странице
+comp Fruit(name string) {
+    const item = <li>{name}</li>
+    mount() {
+        console.log("mount:", name, "на странице —", item.isConnected)
+    }
+    return item
+}
+
+console.log("создаём список")
+document.body.append(<ul>
+    <Fruit name="Гуава" />
+    <Fruit name="Личи" />
+</ul>)
+console.log("список вставлен")

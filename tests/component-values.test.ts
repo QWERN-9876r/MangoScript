@@ -279,12 +279,12 @@ export comp Menu() {
 `;
 
   function compileMain(main: string) {
-    const dir = markupProject('mango-values-');
+    const dir = markupProject('rook-values-');
 
-    writeFileSync(join(dir, 'pages.mango'), pages);
-    writeFileSync(join(dir, 'main.mango'), main);
+    writeFileSync(join(dir, 'pages.rk'), pages);
+    writeFileSync(join(dir, 'main.rk'), main);
 
-    const filename = join(dir, 'main.mango');
+    const filename = join(dir, 'main.rk');
     const result = compile(readFileSync(filename, 'utf8'), { filename });
 
     expect(result.diagnostics).toEqual([]);
@@ -293,7 +293,7 @@ export comp Menu() {
   }
 
   it('imports the function of a component used as a value, not the component', () => {
-    const code = compileMain(`import { Card } from "./pages.mango"
+    const code = compileMain(`import { Card } from "./pages.rk"
 const all []comp(title string) = [Card]`);
 
     expect(code).toMatch(/^import \{ \$\$Card \} from "\.\/pages\.js";$/m);
@@ -301,7 +301,7 @@ const all []comp(title string) = [Card]`);
   });
 
   it('imports a variable of a component type like any other', () => {
-    const code = compileMain(`import { Default } from "./pages.mango"
+    const code = compileMain(`import { Default } from "./pages.rk"
 document.body.append(<Default title="a" />)`);
 
     expect(code).toMatch(/^import \{ Default \} from "\.\/pages\.js";$/m);
@@ -309,7 +309,7 @@ document.body.append(<Default title="a" />)`);
   });
 
   it('calls a component of another module whose code uses a component as a value', () => {
-    const code = compileMain(`import { Menu } from "./pages.mango"
+    const code = compileMain(`import { Menu } from "./pages.rk"
 document.body.append(<Menu />)`);
 
     expect(code).toMatch(/^import \{ \$\$Menu \} from "\.\/pages\.js";$/m);
@@ -317,8 +317,8 @@ document.body.append(<Menu />)`);
   });
 
   it('declares a component type as the type of its function', () => {
-    const dir = markupProject('mango-values-');
-    const filename = join(dir, 'pages.mango');
+    const dir = markupProject('rook-values-');
+    const filename = join(dir, 'pages.rk');
 
     writeFileSync(filename, pages);
 
@@ -330,7 +330,7 @@ document.body.append(<Menu />)`);
   });
 
   it('calls a property of an inlined component of another module', () => {
-    const code = compileMain(`import { Layout } from "./pages.mango"
+    const code = compileMain(`import { Layout } from "./pages.rk"
 comp Intro(title string) {
     return <p>{title}</p>
 }

@@ -7,18 +7,18 @@ import { isMainThread } from 'node:worker_threads';
 import { displayPath } from './build.ts';
 import { compileFile } from './compile-file.ts';
 
-// `mango run` imports this module first (`node --import`): Node then imports `.mango` files,
-// compiled when they load, and `app.mango?goroutines` is the worker module of `go` in app.mango.
+// `rook run` imports this module first (`node --import`): Node then imports `.rk` files,
+// compiled when they load, and `app.rk?goroutines` is the worker module of `go` in app.rk.
 // The worker threads of `go` import it too, since they get the `--import` of the process. The main
 // thread compiles a module before any worker needs it, so it leaves the code of each module and
-// of its worker module in MANGO_RUN_CACHE, a directory of the run, and the workers take it from
-// there: compiling again, with the types, would take each of them as long. MANGO_NO_CHECK turns
-// type checking off, and MANGO_MARKUP, 1 or 0, markup and components on or off for every file.
+// of its worker module in ROOK_RUN_CACHE, a directory of the run, and the workers take it from
+// there: compiling again, with the types, would take each of them as long. ROOK_NO_CHECK turns
+// type checking off, and ROOK_MARKUP, 1 or 0, markup and components on or off for every file.
 
-const typeCheck = process.env['MANGO_NO_CHECK'] === undefined;
-const markupSetting = process.env['MANGO_MARKUP'];
+const typeCheck = process.env['ROOK_NO_CHECK'] === undefined;
+const markupSetting = process.env['ROOK_MARKUP'];
 const markup = markupSetting === undefined ? undefined : markupSetting === '1';
-const cache = process.env['MANGO_RUN_CACHE'];
+const cache = process.env['ROOK_RUN_CACHE'];
 
 /** The file of the cache for the code of a URL, query included. */
 function cached(url: string): string | null {
@@ -29,7 +29,7 @@ registerHooks({
   load(url, context, nextLoad) {
     const { protocol, pathname, search } = new URL(url);
 
-    if (protocol !== 'file:' || !pathname.endsWith('.mango')) return nextLoad(url, context);
+    if (protocol !== 'file:' || !pathname.endsWith('.rk')) return nextLoad(url, context);
 
     const file = cached(url);
 

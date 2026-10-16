@@ -140,7 +140,7 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
   }
 }
 
-/** A type in MangoScript syntax. */
+/** A type in Rook syntax. */
 export function ty(node: ast.TypeNode): string {
   switch (node.kind) {
     case 'TypeReference':

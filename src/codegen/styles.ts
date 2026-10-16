@@ -94,7 +94,7 @@ export abstract class StyleEmitter extends RefEmitter {
 
     return [
       ...this.moduleObjects,
-      ...this.moduleStyles.map((module) => register(`mango-module-${module.id}`, module.css)),
+      ...this.moduleStyles.map((module) => register(`rook-module-${module.id}`, module.css)),
       ...[...this.usedStyles].map(({ style }) => register(style.scope, scopedCss(style))),
     ];
   }

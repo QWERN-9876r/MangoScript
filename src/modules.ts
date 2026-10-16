@@ -9,7 +9,7 @@ import { importDeclarations, libraryFor } from './typescript/importer.ts';
 const cache = new Map<string, { version: string; exports: ModuleExports }>();
 const loading = new Set<string>();
 
-/** Finds the types exported by a `.mango` module imported from the file `fromFile`. */
+/** Finds the types exported by a `.rk` module imported from the file `fromFile`. */
 export function loadModuleExports(
   fromFile: string,
   specifier: string,

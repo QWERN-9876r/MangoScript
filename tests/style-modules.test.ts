@@ -34,13 +34,13 @@ document.body.append(<Button kind="ghost" active>Hi</Button>)
 
 /** Compiles `main` in a directory with button.module.css. */
 function compileWithCss(main: string, files: Record<string, string> = {}) {
-  const dir = markupProject('mango-css-');
+  const dir = markupProject('rook-css-');
 
   writeFileSync(join(dir, 'button.module.css'), css);
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
-  writeFileSync(join(dir, 'main.mango'), main);
+  writeFileSync(join(dir, 'main.rk'), main);
 
-  return { dir, ...compile(main, { filename: join(dir, 'main.mango') }) };
+  return { dir, ...compile(main, { filename: join(dir, 'main.rk') }) };
 }
 
 describe('CSS', () => {
@@ -87,7 +87,7 @@ describe('types', () => {
     ).toEqual(['cannot read the CSS module "./card.module.css"']);
     expect(
       compileInBrowser('import styles from "./card.module.css"').diagnostics.map((d) => d.message),
-    ).toEqual(['CSS modules need files: build the program with mango build or Vite']);
+    ).toEqual(['CSS modules need files: build the program with rook build or Vite']);
   });
 });
 
@@ -100,7 +100,7 @@ describe('generated code', () => {
     expect(code).toContain(
       `const styles = { button: "button_${id}", primary: "primary_${id}", ghost: "ghost_${id}", "is-active": "is-active_${id}" };`,
     );
-    expect(code).toContain(`$$style("mango-module-${id}", \`:root {`);
+    expect(code).toContain(`$$style("rook-module-${id}", \`:root {`);
     expect(dependencies).toEqual(['./button.module.css']);
   });
 
@@ -110,13 +110,13 @@ describe('generated code', () => {
     const { id } = styleModule(css);
 
     expect(String(body.find('button').className)).toBe(`button_${id} ghost_${id} is-active_${id}`);
-    expect(head.childNodes.map((style) => style.id)).toEqual([`mango-module-${id}`]);
+    expect(head.childNodes.map((style) => style.id)).toEqual([`rook-module-${id}`]);
   });
 
   it('builds with the CLI', () => {
     const { dir } = compileWithCss(button);
     const cli = new URL('../src/cli.ts', import.meta.url).pathname;
-    const result = spawnSync(process.execPath, [cli, 'build', 'main.mango'], {
+    const result = spawnSync(process.execPath, [cli, 'build', 'main.rk'], {
       cwd: dir,
       encoding: 'utf8',
     });

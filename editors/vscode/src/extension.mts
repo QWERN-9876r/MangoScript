@@ -7,7 +7,7 @@ import {
   type ServerOptions,
 } from 'vscode-languageclient/node';
 
-// The extension starts the language server (server.mts) for `.mango` files.
+// The extension starts the language server (server.mts) for `.rk` files.
 
 let client: LanguageClient | undefined;
 
@@ -19,12 +19,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
     debug: { module, transport: TransportKind.ipc, options: { execArgv: ['--inspect=6009'] } },
   };
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ language: 'mangoscript' }],
+    documentSelector: [{ language: 'rook' }],
     // Changes on disk of the modules and the CSS a file imports.
-    synchronize: { fileEvents: workspace.createFileSystemWatcher('**/*.{mango,css}') },
+    synchronize: { fileEvents: workspace.createFileSystemWatcher('**/*.{rk,css}') },
   };
 
-  client = new LanguageClient('mangoscript', 'MangoScript', serverOptions, clientOptions);
+  client = new LanguageClient('rook', 'Rook', serverOptions, clientOptions);
   await client.start();
 }
 

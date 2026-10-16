@@ -25,7 +25,7 @@ import {
   type TypeParam,
 } from './types.ts';
 
-// Types of the JS standard library that MangoScript programs use most. Anything not listed here
+// Types of the JS standard library that Rook programs use most. Anything not listed here
 // can still be reached through the untyped globals below.
 
 function object(name: string, members: Record<string, Member>, call?: FunctionType): ObjectType {

@@ -74,7 +74,7 @@ export const RESERVED: ReadonlySet<string> = new Set(['map']);
 
 export const MODIFIERS: ReadonlySet<string> = new Set(['public', 'protected', 'private', 'static']);
 
-/** Words from JS that MangoScript spells differently. */
+/** Words from JS that Rook spells differently. */
 export const FOREIGN_KEYWORDS: ReadonlyMap<string, string> = new Map([
   ['function', 'declare functions with "func"'],
   ['var', 'declare variables with "let" or "const"'],

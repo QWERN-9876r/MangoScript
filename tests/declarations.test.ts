@@ -5,15 +5,15 @@ import ts from 'typescript';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { build } from '../src/build.ts';
 
-// `.d.ts` files that `mango build` writes next to the `.js`, so that TypeScript code can use
-// MangoScript modules with types. They are checked by the TypeScript compiler itself.
+// `.d.ts` files that `rook build` writes next to the `.js`, so that TypeScript code can use
+// Rook modules with types. They are checked by the TypeScript compiler itself.
 
 const GEOM = `export interface Point {
     x, y number
 }
 `;
 
-const TODOS = `import { Point } from "./geom.mango"
+const TODOS = `import { Point } from "./geom.rk"
 
 export type Filter "all" | "active" | "done"
 
@@ -102,11 +102,11 @@ export class Dog extends Animal {
 let dir: string;
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), 'mango-dts-'));
-  writeFileSync(join(dir, 'geom.mango'), GEOM);
-  writeFileSync(join(dir, 'todos.mango'), TODOS);
+  dir = mkdtempSync(join(tmpdir(), 'rook-dts-'));
+  writeFileSync(join(dir, 'geom.rk'), GEOM);
+  writeFileSync(join(dir, 'todos.rk'), TODOS);
 
-  const { outputs, errors } = build([join(dir, 'todos.mango')]);
+  const { outputs, errors } = build([join(dir, 'todos.rk')]);
 
   expect(errors).toEqual([]);
   for (const output of outputs) {
@@ -136,7 +136,7 @@ function typescriptErrors(source: string): string[] {
 }
 
 describe('declaration files', () => {
-  it('maps MangoScript types to TypeScript', () => {
+  it('maps Rook types to TypeScript', () => {
     expect(readFileSync(join(dir, 'todos.d.ts'), 'utf8')).toBe(`import { Point } from "./geom.js";
 export type Filter = "all" | "active" | "done";
 interface Internal {

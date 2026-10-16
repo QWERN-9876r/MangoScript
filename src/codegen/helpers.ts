@@ -85,7 +85,7 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
    * the components of another.
    */
   owner: [
-    'const $$owner = Symbol.for("mangoscript.owner");',
+    'const $$owner = Symbol.for("rook.owner");',
     '',
     'function $$owned(create) {',
     '  const owner = { removed: false, cleanups: [] };',

@@ -4,7 +4,7 @@ import { compile } from '../src/index.ts';
 import { errors as syntaxErrors, expr, sx } from './parser-helpers.ts';
 
 // `[]byte` is a Uint8Array, as a byte slice in Go, and `byte` a number from 0 to 255. Text and its
-// UTF-8 bytes convert as in Go: `[]byte("mango")` and `string(data)`.
+// UTF-8 bytes convert as in Go: `[]byte("guava")` and `string(data)`.
 
 function errors(source: string): string[] {
   return compile(source).diagnostics.map((d) => d.message);
@@ -55,18 +55,18 @@ console.log(first, data.length, empty.length, data instanceof Uint8Array)`),
   });
 
   it('converts to text and back in UTF-8', () => {
-    expect(expr('[]byte("mango")')).toMatchObject({ kind: 'ConversionExpression' });
+    expect(expr('[]byte("guava")')).toMatchObject({ kind: 'ConversionExpression' });
     expect(sx(expr('[]byte(name + "!")'))).toBe('([]byte (+ name "!"))');
     expect(syntaxErrors('const b = []byte')).toEqual([
       'expected "(" after the type: e.g. []byte("text") gives the bytes of a string, found newline',
     ]);
     expect(
       run(
-        js(`const bytes = []byte("манго")
+        js(`const bytes = []byte("ладья")
 const text string = string(bytes)
 console.log(bytes.length, text, string([]byte("ok")))`),
       ),
-    ).toEqual(['10 манго ok']);
+    ).toEqual(['10 ладья ok']);
   });
 
   it('checks what goes in and out', () => {

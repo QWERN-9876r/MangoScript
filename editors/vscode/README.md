@@ -1,14 +1,14 @@
-# MangoScript for VS Code
+# Rook for VS Code
 
 **English** · [Русский](README.ru.md)
 
-Support for MangoScript, a language with the semantics of JavaScript, Go-style syntax and static
-types, in `.mango` files: highlighting, errors as you type and completion.
+Support for Rook, a language with the semantics of JavaScript, Go-style syntax and static
+types, in `.rk` files: highlighting, errors as you type and completion.
 
 ## Errors and completion
 
-The extension starts a language server with the MangoScript compiler. While you type, it underlines
-the errors and warnings that `mango build` would print, and it completes:
+The extension starts a language server with the Rook compiler. While you type, it underlines
+the errors and warnings that `rook build` would print, and it completes:
 
 - names in scope: variables, parameters, functions, classes, components, globals such as `document`,
   and keywords;
@@ -19,9 +19,9 @@ the errors and warnings that `mango build` would print, and it completes:
   events of an element, `<input on|`.
 
 The types of the standard library and the DOM come from TypeScript's lib files, which the extension
-carries. Imports of other `.mango` files and of packages with types are checked as in `mango build`.
+carries. Imports of other `.rk` files and of packages with types are checked as in `rook build`.
 Markup and components are errors unless the nearest `package.json` turns them on with
-`"mangoscript": { "markup": true }`, as for `mango build`.
+`"rook": { "markup": true }`, as for `rook build`.
 
 ## Highlighting
 
@@ -44,7 +44,7 @@ npm run vscode:install
 ```
 
 The command bundles the client and the language server with the compiler into
-`editors/vscode/dist` (`npm run vscode:build`), packs `editors/vscode/mangoscript.vsix` and installs
+`editors/vscode/dist` (`npm run vscode:build`), packs `editors/vscode/rooklang.vsix` and installs
 it with `code`. After changes to the grammar or the compiler, run it again and reload the VS Code
 window.
 
@@ -67,8 +67,8 @@ Code uses (`vscode-textmate`). The scopes under the cursor are shown by the comm
 
 ## Limitations
 
-As with `mango build`, a file with a syntax error shows only its syntax errors: the types are
-checked once it parses. A file sees the other `.mango` files it imports as they are saved on disk.
+As with `rook build`, a file with a syntax error shows only its syntax errors: the types are
+checked once it parses. A file sees the other `.rk` files it imports as they are saved on disk.
 
 The highlighting is a TextMate grammar: it looks at the text of a line, not at a syntax tree. So:
 

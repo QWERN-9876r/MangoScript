@@ -1,4 +1,4 @@
-/* MangoUI cards and the grid that lays them out. The parts are selected through .card, so that the
+/* RookUI cards and the grid that lays them out. The parts are selected through .card, so that the
    typography of text around (Prose) does not override them. */
 
 .grid {
@@ -10,10 +10,10 @@
 
 .card {
   padding: 18px;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius-lg);
-  background: var(--mui-surface);
-  box-shadow: var(--mui-shadow);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
+  background: var(--rui-surface);
+  box-shadow: var(--rui-shadow);
 }
 
 .icon {
@@ -22,9 +22,9 @@
   width: 36px;
   height: 36px;
   margin-bottom: 10px;
-  border-radius: var(--mui-radius-sm);
-  background: var(--mui-accent-soft);
-  color: var(--mui-accent-strong);
+  border-radius: var(--rui-radius-sm);
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
 }
 
 .card .title {
@@ -33,6 +33,6 @@
 }
 
 .card .body {
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font-size: 0.925rem;
 }

@@ -7,13 +7,13 @@ import { compile as compileInBrowser } from '../src/browser.ts';
 import { compile } from '../src/index.ts';
 import { parse } from '../src/parser/parser.ts';
 
-// Markup and components are off unless the package turns them on, with "mangoscript":
+// Markup and components are off unless the package turns them on, with "rook":
 // { "markup": true } in its package.json, or the CLI and the Vite plugin for all files. So
-// MangoScript can be the language of the logic of an app whose views are in React or Vue.
+// Rook can be the language of the logic of an app whose views are in React or Vue.
 
 const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 const OFF = (what: string) =>
-  `${what} off: turn on markup and components with "mangoscript": { "markup": true } in package.json, or with --markup`;
+  `${what} off: turn on markup and components with "rook": { "markup": true } in package.json, or with --markup`;
 
 function offErrors(source: string): string[] {
   return parse(source, { markup: false }).diagnostics.map((d) => d.message);
@@ -21,12 +21,12 @@ function offErrors(source: string): string[] {
 
 /** A project with a package.json, and a module in it. */
 function project(settings: object | null, source: string, subdir = ''): string {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-markup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-markup-'));
 
   if (settings) writeFileSync(join(dir, 'package.json'), JSON.stringify(settings));
   mkdirSync(join(dir, subdir), { recursive: true });
 
-  const filename = join(dir, subdir, 'app.mango');
+  const filename = join(dir, subdir, 'app.rk');
 
   writeFileSync(filename, source);
 
@@ -67,12 +67,11 @@ async func read() {
 describe('the setting', () => {
   it('comes from the nearest package.json, off without the field', () => {
     expect(
-      compile(ELEMENT, { filename: project({ mangoscript: { markup: true } }, ELEMENT) })
-        .diagnostics,
+      compile(ELEMENT, { filename: project({ rook: { markup: true } }, ELEMENT) }).diagnostics,
     ).toEqual([]);
     expect(
       compile(ELEMENT, {
-        filename: project({ mangoscript: { markup: true } }, ELEMENT, 'src/views'),
+        filename: project({ rook: { markup: true } }, ELEMENT, 'src/views'),
       }).diagnostics,
     ).toEqual([]);
     expect(
@@ -83,7 +82,7 @@ describe('the setting', () => {
   });
 
   it('is given for all files by an option, over package.json', () => {
-    const on = project({ mangoscript: { markup: true } }, ELEMENT);
+    const on = project({ rook: { markup: true } }, ELEMENT);
     const off = project({ name: 'app' }, ELEMENT);
 
     expect(compile(ELEMENT, { filename: on, markup: false }).diagnostics).toHaveLength(1);
@@ -97,16 +96,16 @@ describe('the setting', () => {
 
   it('is given to the CLI with --markup and --no-markup', () => {
     const file = project({ name: 'app' }, `${ELEMENT}\nconsole.log(typeof title)`);
-    const mango = (...args: string[]) =>
+    const rook = (...args: string[]) =>
       spawnSync(process.execPath, [cli, ...args, file], { encoding: 'utf8' });
 
-    expect(mango('build', '--stdout').stderr).toContain('markup is off');
-    expect(mango('build', '--stdout', '--markup').stdout).toContain('createElement("h1")');
-    expect(mango('build', '--stdout', '--markup', '--no-markup').stderr).toContain(
+    expect(rook('build', '--stdout').stderr).toContain('markup is off');
+    expect(rook('build', '--stdout', '--markup').stdout).toContain('createElement("h1")');
+    expect(rook('build', '--stdout', '--markup', '--no-markup').stderr).toContain(
       '--markup and --no-markup cannot be used together',
     );
 
-    const on = project({ mangoscript: { markup: true } }, ELEMENT);
+    const on = project({ rook: { markup: true } }, ELEMENT);
 
     expect(
       spawnSync(process.execPath, [cli, 'build', '--stdout', '--no-markup', on], {

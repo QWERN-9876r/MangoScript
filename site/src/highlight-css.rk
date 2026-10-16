@@ -1,0 +1,40 @@
+// CSS inside `style { ... }`: the lexer gives it as CssText, as it is written, so it is marked
+// here with a few patterns: comments, strings, at-rules, property names, numbers and colors, and
+// the classes, ids and pseudo-classes of selectors.
+
+// A property is a name, a colon and a space or a value after it, as the compiler reads it.
+const CSS_TOKEN = new RegExp(
+    "(/\\*[\\s\\S]*?\\*/)|(\"[^\"]*\"|'[^']*')|(@[\\w-]+)|(-{0,2}[a-zA-Z_][\\w-]*)(?=\\s*:(?:\\s|[^\\w\\-:]|$))|(#[0-9a-fA-F]{3,8}\\b|-?\\d*\\.?\\d+(?:[a-zA-Z]+|%)?)|([.#][\\w-]+|::?[\\w-]+)",
+    "g",
+)
+
+// The class of each group of CSS_TOKEN.
+const CLASSES = ["com", "str", "kw", "attr", "num", "type"]
+
+export func highlightCss(text string) DocumentFragment {
+    const fragment = <></>
+    let pos = 0
+    CSS_TOKEN.lastIndex = 0
+    let match = CSS_TOKEN.exec(text)
+    for match != null {
+        if match.index > pos {
+            fragment.append(text.slice(pos, match.index))
+        }
+        // RegExpExecArray of TypeScript cannot be indexed in Rook yet.
+        const groups any = match
+        const whole string = groups[0]
+        let kind = ""
+        for i, name in CLASSES {
+            if groups[i + 1] != null {
+                kind = name
+            }
+        }
+        fragment.append(<span class={kind}>{whole}</span>)
+        pos = match.index + whole.length
+        match = CSS_TOKEN.exec(text)
+    }
+    if pos < text.length {
+        fragment.append(text.slice(pos))
+    }
+    return fragment
+}

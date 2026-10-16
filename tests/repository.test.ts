@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 const root = new URL('..', import.meta.url).pathname;
 
 /** Files with code: what people write and read, not generated files or prose. */
-const CODE = /\.(ts|js|mango|css|html|json)$/;
+const CODE = /\.(ts|js|rk|css|html|json)$/;
 const SKIPPED_DIRECTORIES = new Set(['node_modules', 'dist', 'coverage', '.git', '.vscode']);
 const SKIPPED_FILES = new Set(['package-lock.json']);
 

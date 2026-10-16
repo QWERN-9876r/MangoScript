@@ -4,11 +4,11 @@ coverage/
 *.log
 .DS_Store
 
-# Output of `mango build` next to the examples
+# Output of `rook build` next to the examples
 examples/**/*.js
 examples/**/*.d.ts
 
-# Output of `mango build` for the test site
+# Output of `rook build` for the test site
 site/dist/
 
 # Packaged VS Code extension

@@ -69,7 +69,7 @@ function write(path: string, text: string): void {
 }
 
 beforeAll(() => {
-  project = mkdtempSync(join(tmpdir(), 'mango-ts-'));
+  project = mkdtempSync(join(tmpdir(), 'rook-ts-'));
   write('node_modules/shapes/package.json', '{ "name": "shapes", "types": "index.d.ts" }');
   write('node_modules/shapes/index.d.ts', SHAPES);
   write('node_modules/legacy/package.json', '{ "name": "legacy", "types": "index.d.ts" }');
@@ -81,7 +81,7 @@ beforeAll(() => {
 });
 
 /** Errors of a module in the temporary project. */
-function errors(source: string, file = join(project, 'main.mango')): string[] {
+function errors(source: string, file = join(project, 'main.rk')): string[] {
   const { program, diagnostics } = parse(source);
 
   if (diagnostics.length > 0) return diagnostics.map((d) => d.message);
@@ -209,7 +209,7 @@ const wrong string = box.value`),
     ).toEqual(['cannot use number as string']);
   });
 
-  it('lets MangoScript classes extend declared ones', () => {
+  it('lets Rook classes extend declared ones', () => {
     expect(
       errors(`${shapes('Shape, Emitter')}class Square extends Shape {
     constructor() {
@@ -271,7 +271,7 @@ anything()`),
   });
 
   it('reads node: modules from @types/node', () => {
-    const file = join(import.meta.dirname, 'main.mango');
+    const file = join(import.meta.dirname, 'main.rk');
 
     expect(
       errors(
@@ -286,7 +286,7 @@ const path number = join("a", "b")`,
   });
 
   it('is used by compile() for files with a name', () => {
-    const file = join(project, 'app.mango');
+    const file = join(project, 'app.rk');
     const { diagnostics } = compile('import { distance } from "shapes"\ndistance(1, 2)', {
       filename: file,
     });
@@ -299,7 +299,7 @@ const path number = join("a", "b")`,
 
   it('prints only a few members of a big object type without a name', () => {
     const { diagnostics } = compile('const x = globalThis[Symbol.for("x")]', {
-      filename: join(project, 'globals.mango'),
+      filename: join(project, 'globals.rk'),
     });
     const [message = ''] = diagnostics.map((d) => d.message);
 

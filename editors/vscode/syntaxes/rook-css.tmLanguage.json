@@ -1,0 +1,186 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rook styles",
+  "scopeName": "source.rook.css",
+  "patterns": [
+    {
+      "include": "#style"
+    }
+  ],
+  "repository": {
+    "style": {
+      "comment": "`style { ... }` at the start of a statement in a component: CSS with `{value}` from code in declarations.",
+      "begin": "^\\s*(style)\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.style.rook"
+        },
+        "2": {
+          "name": "punctuation.section.block.begin.rook"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.block.end.rook"
+        }
+      },
+      "contentName": "source.css.embedded.rook",
+      "patterns": [
+        {
+          "include": "#css-body"
+        }
+      ]
+    },
+    "css-body": {
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#at-rule"
+        },
+        {
+          "include": "#declaration"
+        },
+        {
+          "include": "#block"
+        },
+        {
+          "include": "#selector"
+        }
+      ]
+    },
+    "comment": {
+      "begin": "/\\*",
+      "end": "\\*/",
+      "name": "comment.block.css.rook"
+    },
+    "at-rule": {
+      "match": "@[\\w-]+",
+      "name": "keyword.control.at-rule.css.rook"
+    },
+    "block": {
+      "comment": "The block of a rule; nested braces keep the `}` of the style block apart.",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.property-list.begin.css.rook"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.property-list.end.css.rook"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#css-body"
+        }
+      ]
+    },
+    "declaration": {
+      "comment": "`name:` followed by a space or a value is a declaration, as in the compiler; `a:hover` is a selector.",
+      "begin": "(--[\\w-]+|-?[A-Za-z_][\\w-]*)\\s*(:)(?=\\s|[^\\w\\-:\\\\]|$)",
+      "beginCaptures": {
+        "1": {
+          "name": "support.type.property-name.css.rook"
+        },
+        "2": {
+          "name": "punctuation.separator.key-value.css.rook"
+        }
+      },
+      "end": ";|(?=\\})",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.terminator.rule.css.rook"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#value-from-code"
+        },
+        {
+          "include": "#comment"
+        },
+        {
+          "match": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "name": "string.quoted.css.rook"
+        },
+        {
+          "match": "!important\\b",
+          "name": "keyword.other.important.css.rook"
+        },
+        {
+          "match": "#[0-9a-fA-F]{3,8}\\b",
+          "name": "constant.other.color.rgb-value.hex.css.rook"
+        },
+        {
+          "match": "[\\w-]+(?=\\()",
+          "name": "support.function.misc.css.rook"
+        },
+        {
+          "match": "-?(?:\\d*\\.)?\\d+(?:[a-zA-Z]+|%)?",
+          "name": "constant.numeric.css.rook"
+        },
+        {
+          "match": "--[\\w-]+",
+          "name": "variable.css.rook"
+        },
+        {
+          "match": "[A-Za-z][\\w-]*",
+          "name": "support.constant.property-value.css.rook"
+        }
+      ]
+    },
+    "value-from-code": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.rook"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.rook"
+        }
+      },
+      "contentName": "meta.embedded.expression.rook",
+      "patterns": [
+        {
+          "include": "source.rook#statements"
+        }
+      ]
+    },
+    "selector": {
+      "patterns": [
+        {
+          "match": "\\.[\\w-]+",
+          "name": "entity.other.attribute-name.class.css.rook"
+        },
+        {
+          "match": "#[\\w-]+",
+          "name": "entity.other.attribute-name.id.css.rook"
+        },
+        {
+          "match": "::?[\\w-]+",
+          "name": "entity.other.attribute-name.pseudo-class.css.rook"
+        },
+        {
+          "match": "&",
+          "name": "entity.name.tag.nesting.css.rook"
+        },
+        {
+          "match": "[A-Za-z][\\w-]*|\\*",
+          "name": "entity.name.tag.css.rook"
+        },
+        {
+          "match": "[>+~,]",
+          "name": "keyword.operator.combinator.css.rook"
+        }
+      ]
+    }
+  }
+}

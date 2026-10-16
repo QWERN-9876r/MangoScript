@@ -88,7 +88,7 @@ class DeclarationPrinter {
 
     if (parts.length === 0) return;
 
-    const source = node.source.value.replace(/\.mango$/, '.js');
+    const source = node.source.value.replace(/\.rk$/, '.js');
 
     this.lines.push(`import ${parts.join(', ')} from ${JSON.stringify(source)};`);
   }

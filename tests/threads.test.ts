@@ -10,9 +10,9 @@ import { describe, expect, it } from 'vitest';
 
 const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
-/** Builds the files of a program, `main.mango` first, and runs it with Node. */
+/** Builds the files of a program, `main.rk` first, and runs it with Node. */
 function run(files: Record<string, string>): { stdout: string; stderr: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-threads-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-threads-'));
   const options = { cwd: dir, encoding: 'utf8' as const, timeout: 30_000 };
 
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }');
@@ -35,7 +35,7 @@ const spin = `func spin(ms number) []number {
 describe('the pool', { timeout: 60_000 }, () => {
   it('gives a call to the first worker that is free, not to one that is still busy', () => {
     const { stdout, stderr } = run({
-      'main.mango': `${spin}
+      'main.rk': `${spin}
 const order []string = []
 const calls []Promise<number> = [(go spin(2000)).then(() => order.push("long"))]
 for let i = 1; i < navigator.hardwareConcurrency; i++ {
@@ -68,7 +68,7 @@ export async func spinAll(count number) [][]number {
 }
 `;
     const { stdout, stderr } = run({
-      'main.mango': `import { spinAll as other } from "./other.mango"
+      'main.rk': `import { spinAll as other } from "./other.rk"
 ${work}
 const size = navigator.hardwareConcurrency
 const first = spinAll(size)
@@ -82,7 +82,7 @@ for span in spans {
 }
 console.log(most <= size)
 `,
-      'other.mango': work,
+      'other.rk': work,
     });
 
     expect(stderr).toBe('');
@@ -93,7 +93,7 @@ console.log(most <= size)
 describe('channels between threads', { timeout: 60_000 }, () => {
   it('connects workers directly, also while the main thread is busy', () => {
     const { stdout, stderr } = run({
-      'main.mango': `async func produce(out chan chan number) {
+      'main.rk': `async func produce(out chan chan number) {
     const pipe = chan<number>()
     out <- pipe
     for let i = 1; i <= 100; i++ {
@@ -132,7 +132,7 @@ console.log(result[0], result[1] < busyUntil)
 
   it('runs selects whose cases wait in channels of several threads', () => {
     const { stdout, stderr } = run({
-      'main.mango': `async func sender(link chan number, own chan chan bool, count number) {
+      'main.rk': `async func sender(link chan number, own chan chan bool, count number) {
     const quit = chan<bool>()
     own <- quit
     for let i = 0; i < count; i++ {

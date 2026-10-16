@@ -1,10 +1,10 @@
-# MangoScript — draft specification v0
+# Rook — draft specification v0
 
 **English** · [Русский](spec.ru.md)
 
 > Status: a draft, anything may change. Unresolved questions are collected under "Open questions".
 
-MangoScript is a language with the semantics of JavaScript, Go-style syntax and static types. Its
+Rook is a language with the semantics of JavaScript, Go-style syntax and static types. Its
 main feature is goroutines: `go f(x)` runs a function as a goroutine, on another processor, and
 channels and `select` connect goroutines, as in Go (section 5). It compiles to readable JavaScript
 (ES modules), and the types are erased at compile time.
@@ -21,7 +21,7 @@ channels and `select` connect goroutines, as in Go (section 5). It compiles to r
    between threads can be copied.
 4. **Static types with null safety.** The compiler finds type errors; `null` can only be assigned
    to a type that explicitly allows it. JS code has no types.
-5. **Compatibility with JS.** MangoScript can import any JS module, and a compiled module can be
+5. **Compatibility with JS.** Rook can import any JS module, and a compiled module can be
    used from JS.
 
 ## 1. Lexical structure
@@ -95,7 +95,7 @@ Predeclared identifiers (not keywords, they can be redeclared): the types `numbe
 `bool`, `any`, `error` and the functions `error()` and `close()` (of channels).
 
 Names that start with `$$` are reserved for generated code (`$$defer`, `$$0`). Names that are valid
-in MangoScript but not in JS (`delete`, `static`, `function`…) get a `$` suffix in the output:
+in Rook but not in JS (`delete`, `static`, `function`…) get a `$` suffix in the output:
 `delete` → `delete$`.
 
 ## 2. Variables
@@ -174,7 +174,7 @@ const fib func(number) number = n => n < 2 ? n : fib(n - 1) + fib(n - 2)
 
 A use outside of functions reads the variable before it has a value: in JS that is a
 `ReferenceError`, here a compile error. In Go, `x := x + 1` in a nested scope uses the outer `x`;
-in MangoScript, as in JS, it is the new variable, so the compiler asks for another name:
+in Rook, as in JS, it is the new variable, so the compiler asks for another name:
 
 ```go
 const x = 1
@@ -188,7 +188,7 @@ only reports at compile time what would fail at run time.
 
 ## 3. Types
 
-| MangoScript       | Values                                       | In JS               |
+| Rook              | Values                                       | In JS               |
 | ----------------- | -------------------------------------------- | ------------------- |
 | `number`          | numbers                                      | `number`            |
 | `bigint`          | whole numbers of any size, `10n`             | `bigint`            |
@@ -249,14 +249,14 @@ const n = Number(big) + 0.5   // a number again
 ```go
 let header []byte = [0x89, 0x50, 0x4e, 0x47]
 let empty []byte
-const bytes = []byte("mango")
+const bytes = []byte("rook")
 const text = string(bytes)
 ```
 
 ```js
 let header = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 let empty = new Uint8Array();
-const bytes = new TextEncoder().encode("mango");
+const bytes = new TextEncoder().encode("rook");
 const text = new TextDecoder().decode(bytes);
 ```
 
@@ -293,7 +293,7 @@ const field = new Float64Array($$shared(8 * 1_000_000));
 The typed arrays of JS are written as slices of Go, as `[]byte` is: their lengths are fixed, and
 their elements are numbers of a fixed size, stored in a buffer without boxes.
 
-| MangoScript | JS               | Elements                     |
+| Rook        | JS               | Elements                     |
 | ----------- | ---------------- | ---------------------------- |
 | `[]int8`    | `Int8Array`      | `number`, from -128 to 127   |
 | `[]uint8`   | `Uint8Array`     | `number`, the same as `byte` |
@@ -412,7 +412,7 @@ let s Stack<number> = new Stack()
 
 ### null and null safety
 
-The language has one "empty" value, `null`; MangoScript has no `undefined`. An ordinary `==`
+The language has one "empty" value, `null`; Rook has no `undefined`. An ordinary `==`
 compiles to `===`, but a comparison with `null` stays loose: `x == null` → `x == null`. So it also
 catches `undefined` coming from JS code.
 
@@ -582,7 +582,7 @@ are collected in a stack and run in `finally`.
 
 ## 5. Concurrency
 
-JavaScript runs a program in one thread. MangoScript keeps that thread for waiting and gives the
+JavaScript runs a program in one thread. Rook keeps that thread for waiting and gives the
 work that keeps a processor busy to other threads, with the means of Go: an async function waits for
 a timer or the network in the same thread, `go f(x)` runs a function as a goroutine, on another
 processor, and channels and `select` pass values between goroutines in any thread. The compiler
@@ -699,8 +699,8 @@ Workers in the browser and worker threads in Node, and a worker can run several 
   forever to send to a channel nobody reads, and for a worker whose channel it waits for. `go`
   inside a goroutine runs in the same worker.
 
-The worker module goes next to the module: `mango build app.mango` writes `app.js` and
-`app.worker.js`, `mango run` compiles it on the fly, and the Vite plugin gives it to Vite, which
+The worker module goes next to the module: `rook build app.rk` writes `app.js` and
+`app.worker.js`, `rook run` compiles it on the fly, and the Vite plugin gives it to Vite, which
 bundles it as a worker.
 
 `go` is for work that keeps a processor busy. Waiting, for a timer or the network, needs no
@@ -756,7 +756,7 @@ would. After it, the array has what the body wrote into it.
   `transfer`, and goes into the array with `set`; the part of a `[]T` is copied there and back. If
   the body writes nothing into the array, nothing comes back. A typed array on a
   `SharedArrayBuffer`, `make([]float64, n, shared)`, is not copied: the workers write into it.
-  Only a page with cross-origin isolation (the COOP and COEP headers) can make one; GitHub Pages, where the site of MangoScript
+  Only a page with cross-origin isolation (the COOP and COEP headers) can make one; GitHub Pages, where the site of Rook
   is, cannot send them, so its playground copies.
 - Inside a goroutine, `go for` runs its parts in the same worker, as `go` does.
 
@@ -930,7 +930,7 @@ taken for the start of the block (the same rule as in Go).
 
 ### for, the only loop
 
-| MangoScript                      | JS                                          |
+| Rook                             | JS                                          |
 | -------------------------------- | ------------------------------------------- |
 | `for let i = 0; i < n; i++ { }`  | `for (let i = 0; i < n; i++) { }`           |
 | `for x in items { }`             | `for (const x of items) { }`                |
@@ -1248,7 +1248,7 @@ const p Point = { x: 1, y: 2 }        // the object literal fits Point
 import { readFileSync, writeFileSync as write } from "node:fs"
 import * as path from "node:path"
 import express from "express"
-import "./setup.mango"
+import "./setup.rk"
 
 export func greet(name string) string {
     return `Hello, ${name}`
@@ -1265,16 +1265,16 @@ compile time.
 
 - A name used only as a type (an imported interface, for example) is removed from the `import`:
   there is no such value at runtime.
-- `mango build main.mango` writes `main.js` (and `main.d.ts`, see below) next to the source and
-  compiles every `.mango` file it imports the same way. In imports, `.mango` is replaced with
-  `.js`: `"./geom.mango"` → `"./geom.js"`. `mango build src/` builds every `.mango` file of a
+- `rook build main.rk` writes `main.js` (and `main.d.ts`, see below) next to the source and
+  compiles every `.rk` file it imports the same way. In imports, `.rk` is replaced with
+  `.js`: `"./geom.rk"` → `"./geom.js"`. `rook build src/` builds every `.rk` file of a
   folder, and `--out-dir build/` puts the `.js` files into a separate folder with the same
   structure. If any file has errors, no file is written.
-- `mango run` compiles the imported `.mango` files on the fly.
+- `rook run` compiles the imported `.rk` files on the fly.
 
 ### Types from TypeScript
 
-The types of imports that are not `.mango` modules come from TypeScript declarations: packages with
+The types of imports that are not `.rk` modules come from TypeScript declarations: packages with
 `types` in `package.json` or with `@types/*`, `.ts` files and Node modules (`node:fs`, `node:http`
 from `@types/node`). The TypeScript compiler (the `typescript` package) reads them; it is loaded
 only when there is such an import. A module without declarations, such as a JS file without a
@@ -1292,9 +1292,9 @@ func handle(request IncomingMessage, response ServerResponse) {
 }
 ```
 
-How TypeScript types become MangoScript types:
+How TypeScript types become Rook types:
 
-| TypeScript                                      | MangoScript                                     |
+| TypeScript                                      | Rook                                            |
 | ----------------------------------------------- | ----------------------------------------------- |
 | `boolean`, `string`, `number`, literals, unions | `bool`, `string`, `number`, literals, unions    |
 | `T \| undefined`, `T \| null`, `x?: T`          | `?T`                                            |
@@ -1321,8 +1321,8 @@ How TypeScript types become MangoScript types:
 
 ### Declarations for TypeScript
 
-`mango build` with type checking writes a `.d.ts` next to each `.js`, so TypeScript code imports a
-MangoScript module with types. With `--no-check` there are no declarations: without checking, the
+`rook build` with type checking writes a `.d.ts` next to each `.js`, so TypeScript code imports a
+Rook module with types. With `--no-check` there are no declarations: without checking, the
 types are unknown.
 
 ```go
@@ -1355,21 +1355,21 @@ export declare class Stack<T> {
 - Interfaces, `type`s and classes are declared even when not exported: exported functions may use
   them. Components do not exist in JS, nor in the declarations; a value of type `comp(title string)`
   is the function of a component, `(title: string) => [Node, ...unknown[]]`.
-- Imports are repeated with `.js` instead of `.mango`, so that the imported names can be used in
+- Imports are repeated with `.js` instead of `.rk`, so that the imported names can be used in
   types.
 
 ### Markup
 
-**Markup and components are off by default,** so that MangoScript can be the language of the logic
+**Markup and components are off by default,** so that Rook can be the language of the logic
 of an app whose views are in React, Svelte or Vue. A package turns them on in its `package.json`:
 
 ```json
-{ "mangoscript": { "markup": true } }
+{ "rook": { "markup": true } }
 ```
 
 A file takes the setting of the nearest `package.json` above it, and so do the language server of
-VS Code and the Vite plugin. `mango build --markup` and `--no-markup` set it for all files, and so
-does `mango({ markup: true })` in Vite. Where it is off, markup, `comp`, `dec` and decorators are
+VS Code and the Vite plugin. `rook build --markup` and `--no-markup` set it for all files, and so
+does `rook({ markup: true })` in Vite. Where it is off, markup, `comp`, `dec` and decorators are
 errors that say how to turn them on; `state`, `ref` and the like are keywords only inside a
 component anyway. The browser compiler takes it as an option, `compile(source, null,
 { markup: true })`.
@@ -1460,7 +1460,7 @@ document.body.append(<Card title="Profile"><p>Text</p></Card>)
   Some use on the cycle must be under a condition (`if`, `for`, a branch of `?:`), or the recursion
   never ends: that is a compile error.
 - **Exported components** (`export comp Card`) are imported by name,
-  `import { Card } from "./card.mango"`, and used as tags. Their module compiles them to functions,
+  `import { Card } from "./card.rk"`, and used as tags. Their module compiles them to functions,
   `export function $$Card(...)`. The module that uses one calls it, or inlines it by the same
   100-line threshold, with the components of its module that it uses; the names of that module
   come through hidden exports, `export { PREFIX as $$Card$PREFIX }`. A component that assigns a
@@ -1685,7 +1685,7 @@ comp Badge(color string) {
 }
 ```
 
-- **Scope.** The elements of the component's own markup get the class `mango-badge-<hash>`, and so
+- **Scope.** The elements of the component's own markup get the class `rook-badge-<hash>`, and so
   does every compound selector, so the rules reach neither the rest of the page nor the markup of
   `children` and other components. `:global(...)` keeps a selector as it is.
 - **Values from code.** `{expr}` in the value of a declaration (`name:` followed by a space or a
@@ -1699,7 +1699,7 @@ classes get names of their own, `button_14zwdg2`, and `styles` is an object of t
 `string` field for each class, so `styles.buton` is a compile error, and `styles[kind]` with
 `kind "primary" | "ghost"` is checked too. Tags, `:root` and `:global(...)` stay global. The
 import becomes the object, and the module adds the CSS to the page with `$$style`; the file is
-not imported at runtime, so this works with `mango build` and with Vite. A class that the module
+not imported at runtime, so this works with `rook build` and with Vite. A class that the module
 never names is a warning, unless it reads `styles` with a key that is not known.
 
 **Web components.** `@html-tag` before `comp` makes a component a custom element as well, so it
@@ -1808,7 +1808,7 @@ comp Clicker(label string) {
   component: its code runs inside the component.
 - `dec` is a keyword only at the start of a declaration at the top level of a module.
 - **Modules.** `export dec` exports a decorator; another module imports it by its name,
-  `import { counter } from "./counter.mango"`, and applies it as usual. Its code is inlined there,
+  `import { counter } from "./counter.rk"`, and applies it as usual. Its code is inlined there,
   and the names of its own module that it uses come through hidden exports:
   `export { log as $$counter$log }` in its module, `import { $$counter$log } from "./counter.js"`
   where it is applied. So an exported decorator cannot assign the variables of its module (other
@@ -1849,7 +1849,7 @@ The full design, reactivity included, is in [docs/components.md](components.md).
 
 ## 11. Operators: differences from JS
 
-| MangoScript       | JS          | Note                                                      |
+| Rook              | JS          | Note                                                      |
 | ----------------- | ----------- | --------------------------------------------------------- |
 | `a == b`          | `a === b`   | the language has no loose comparison                      |
 | `a != b`          | `a !== b`   |                                                           |
@@ -1887,12 +1887,12 @@ const total = price
 ## 12. Type checking
 
 The compiler checks types before generating JS; a program with type errors does not compile
-(`mango build --no-check` skips the check).
+(`rook build --no-check` skips the check).
 
 ```
-hello.mango:4:17: error: cannot use ?User as User: it may be null, check it first
-hello.mango:7:13: error: "u" may be null: check it with "if u != null" or use "?."
-hello.mango:9:11: error: cannot add string and number: use a template string, e.g. `${a}${b}`
+hello.rk:4:17: error: cannot use ?User as User: it may be null, check it first
+hello.rk:7:13: error: "u" may be null: check it with "if u != null" or use "?."
+hello.rk:9:11: error: cannot add string and number: use a template string, e.g. `${a}${b}`
 ```
 
 ### What is checked
@@ -1963,12 +1963,12 @@ checked the same way in Node and in the browser.
 In the browser (the playground on the site) there is no TypeScript compiler: only the hand-written
 types work there, and the other globals (`document`, `fetch`, `Map`…) are `any`.
 
-The types from imported `.mango` modules are checked: the compiler reads those modules itself. The
+The types from imported `.rk` modules are checked: the compiler reads those modules itself. The
 types of other imports come from TypeScript declarations (section 10).
 
 ## 13. Example
 
-[examples/hello.mango](../examples/hello.mango)
+[examples/hello.rk](../examples/hello.rk)
 
 ## 14. Not in v0
 

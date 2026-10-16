@@ -103,11 +103,11 @@ let p;`);
     expect(js('interface I {\n  x number\n}\ntype T string\nexport interface J {}')).toBe('');
   });
 
-  it('drops imports used only as types and rewrites .mango paths', () => {
-    const source = `import { Point, dist } from "./geom.mango"
+  it('drops imports used only as types and rewrites .rk paths', () => {
+    const source = `import { Point, dist } from "./geom.rk"
 import * as path from "node:path"
-import Types from "./types.mango"
-import "./setup.mango"
+import Types from "./types.rk"
+import "./setup.rk"
 const p Point = { x: 1, y: 2 }
 console.log(dist(p), path.sep)
 let t Types`;
@@ -118,7 +118,7 @@ import "./setup.js";
 const p = { x: 1, y: 2 };
 console.log(dist(p), path.sep);
 let t;`);
-    expect(js(source, { rewriteImports: false })).toContain('import { dist } from "./geom.mango";');
+    expect(js(source, { rewriteImports: false })).toContain('import { dist } from "./geom.rk";');
   });
 
   it('keeps blank lines from the source', () => {

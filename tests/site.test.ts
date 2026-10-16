@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { compile, complete } from '../src/browser.ts';
 import { build } from '../src/build.ts';
 
-// The documentation site (site/) is a real MangoScript program: building it checks the compiler on
+// The documentation site (site/) is a real Rook program: building it checks the compiler on
 // real code. Its examples are compiled in the browser by src/browser.ts, so they are checked here
 // with the same entry point.
 
@@ -13,8 +13,8 @@ const site = (path: string) => new URL(`../site/${path}`, import.meta.url).pathn
 
 describe('documentation site', () => {
   it('compiles without errors', () => {
-    const outDir = mkdtempSync(join(tmpdir(), 'mango-site-'));
-    const result = build([site('src'), site('server.mango')], { outDir });
+    const outDir = mkdtempSync(join(tmpdir(), 'rook-site-'));
+    const result = build([site('src'), site('server.rk')], { outDir });
 
     expect(result.errors.flatMap((error) => error.diagnostics)).toEqual([]);
     expect(result.outputs.map((output) => output.output.slice(outDir.length + 1)).sort()).toEqual([
@@ -37,7 +37,7 @@ describe('documentation site', () => {
       'src/ru/main.js',
       'src/ru/strings.js',
       'src/sandbox.js',
-      // The MangoUI kit, which the pages import.
+      // The RookUI kit, which the pages import.
       'ui/badge.js',
       'ui/button.js',
       'ui/callout.js',
@@ -54,13 +54,12 @@ describe('documentation site', () => {
   }, 15_000);
 
   // English examples are in site/examples, Russian ones in site/examples/ru; the guide of a
-  // language is guide.mango with the modules of its sections.
+  // language is guide.rk with the modules of its sections.
   const languages = [
     { language: 'en', examples: 'examples', guide: 'src/en' },
     { language: 'ru', examples: 'examples/ru', guide: 'src/ru' },
   ];
-  const examplesOf = (dir: string) =>
-    readdirSync(site(dir)).filter((name) => name.endsWith('.mango'));
+  const examplesOf = (dir: string) => readdirSync(site(dir)).filter((name) => name.endsWith('.rk'));
   const all = languages.flatMap(({ examples }) =>
     examplesOf(examples).map((name) => `${examples}/${name}`),
   );
@@ -77,7 +76,7 @@ describe('documentation site', () => {
       .filter((name) => name.startsWith('guide'))
       .map((name) => readFileSync(site(`${language.guide}/${name}`), 'utf8'))
       .join('\n');
-    const used = [...guide.matchAll(/example\("([^"]+)"\)/g)].map((match) => `${match[1]}.mango`);
+    const used = [...guide.matchAll(/example\("([^"]+)"\)/g)].map((match) => `${match[1]}.rk`);
 
     expect(used.sort()).toEqual(examplesOf(language.examples).sort());
   });
@@ -88,7 +87,7 @@ describe('documentation site', () => {
     const sections = (path: string) =>
       [...readFileSync(site(path), 'utf8').matchAll(/\{ id: "([^"]+)"/g)].map((match) => match[1]);
 
-    expect(sections('src/ru/guide.mango')).toEqual(sections('src/en/guide.mango'));
+    expect(sections('src/ru/guide.rk')).toEqual(sections('src/en/guide.rk'));
   });
 
   it('reports errors with lines and columns of their start and end', () => {
@@ -99,7 +98,7 @@ describe('documentation site', () => {
 
   // The editor of the playground completes as the language server does.
   it('completes names in the browser compiler', () => {
-    const source = 'const fruits = ["mango"]\nfruits.pu';
+    const source = 'const fruits = ["guava"]\nfruits.pu';
     const list = complete(source, source.length);
 
     expect(source.slice(list.start, list.end)).toBe('pu');

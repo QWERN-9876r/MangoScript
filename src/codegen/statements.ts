@@ -120,8 +120,8 @@ export abstract class StatementEmitter extends ParallelLoopEmitter {
   protected importPath(source: ast.StringLiteral): string {
     const path = source.value;
 
-    if (this.options.rewriteImports && /^\.{1,2}\//.test(path) && path.endsWith('.mango')) {
-      return JSON.stringify(`${path.slice(0, -'.mango'.length)}.js`);
+    if (this.options.rewriteImports && /^\.{1,2}\//.test(path) && path.endsWith('.rk')) {
+      return JSON.stringify(`${path.slice(0, -'.rk'.length)}.js`);
     }
 
     return source.raw;

@@ -281,7 +281,7 @@ document.body.append(<Todos />)`);
     const { body } = mountWithDom(`comp Search() {
     state query = ""
     const input = <input bind:value={query} placeholder={query == "" ? "Найти" : ""} />
-    return <div>{input}<button onClick={query = "mango"}>Пример</button></div>
+    return <div>{input}<button onClick={query = "guava"}>Пример</button></div>
 }
 document.body.append(<Search />)`);
 
@@ -289,7 +289,7 @@ document.body.append(<Search />)`);
 
     const input = body.find('input');
 
-    expect(input.value).toBe('mango');
+    expect(input.value).toBe('guava');
     expect(input.placeholder).toBe('');
   });
 });

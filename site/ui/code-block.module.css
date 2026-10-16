@@ -1,11 +1,11 @@
-/* MangoUI code blocks: a header with a label and a copy button over the code. */
+/* RookUI code blocks: a header with a label and a copy button over the code. */
 
 .block {
   margin: 20px 0;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius);
   overflow: hidden;
-  background: var(--mui-code-bg);
+  background: var(--rui-code-bg);
 }
 
 .header {
@@ -13,9 +13,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 6px 4px 14px;
-  border-bottom: 1px solid var(--mui-line);
-  background: var(--mui-surface);
-  color: var(--mui-muted);
+  border-bottom: 1px solid var(--rui-line);
+  background: var(--rui-surface);
+  color: var(--rui-muted);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -26,8 +26,8 @@
   padding: 16px 18px;
   overflow: auto;
   max-height: 520px;
-  color: var(--mui-code-text);
-  font-family: var(--mui-mono);
+  color: var(--rui-code-text);
+  font-family: var(--rui-mono);
   font-size: 13.5px;
   line-height: 1.6;
   tab-size: 4;

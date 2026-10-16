@@ -142,7 +142,7 @@ export abstract class ParserBase {
   protected requireMarkup(what: string): void {
     if (this.markup) return;
     this.fail(
-      `${what} off: turn on markup and components with "mangoscript": { "markup": true } in package.json, or with --markup`,
+      `${what} off: turn on markup and components with "rook": { "markup": true } in package.json, or with --markup`,
     );
   }
 

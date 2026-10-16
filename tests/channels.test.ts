@@ -37,14 +37,14 @@ async function run(source: string): Promise<string[]> {
 
 const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
-/** Builds a program with `mango build` and runs it with Node, with workers. */
+/** Builds a program with `rook build` and runs it with Node, with workers. */
 function runBuilt(source: string): { stdout: string; stderr: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-chan-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-chan-'));
   const options = { cwd: dir, encoding: 'utf8' as const, timeout: 20_000 };
 
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }');
-  writeFileSync(join(dir, 'main.mango'), source);
-  expect(spawnSync(process.execPath, [cli, 'build', 'main.mango'], options).stderr).toBe('');
+  writeFileSync(join(dir, 'main.rk'), source);
+  expect(spawnSync(process.execPath, [cli, 'build', 'main.rk'], options).stderr).toBe('');
 
   return spawnSync(process.execPath, ['main.js'], options);
 }
@@ -247,7 +247,7 @@ close(ch)`);
     expect(code).toContain('const [w, ok] = await $$receive(ch, true);');
     expect(code).toContain('for await (const x of $$range(ch)) {');
     expect(code).toContain('$$close(ch);');
-    expect(code).toContain('return (globalThis[Symbol.for("mangoscript.threads")] ??= {');
+    expect(code).toContain('return (globalThis[Symbol.for("rook.threads")] ??= {');
   });
 
   it('gives the worker module the same helpers, which ask the thread that made a channel', () => {

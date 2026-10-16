@@ -1,0 +1,397 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rook",
+  "scopeName": "source.rook",
+  "fileTypes": ["rk"],
+  "patterns": [{ "include": "#statements" }],
+  "repository": {
+    "statements": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "source.rook.css#style" },
+        { "include": "#decorators" },
+        { "include": "source.rook.markup#markup" },
+        { "include": "#declarations" },
+        { "include": "#keywords" },
+        { "include": "#types" },
+        { "include": "#numbers" },
+        { "include": "#calls" },
+        { "include": "#object-key" },
+        { "include": "#block" },
+        { "include": "#operators" },
+        { "include": "#identifiers" }
+      ]
+    },
+
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.rook",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": { "0": { "name": "punctuation.definition.comment.rook" } }
+        },
+        {
+          "name": "comment.line.double-slash.rook",
+          "match": "(//).*",
+          "captures": { "1": { "name": "punctuation.definition.comment.rook" } }
+        }
+      ]
+    },
+
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rook",
+          "begin": "\"",
+          "end": "\"|$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.rook" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.rook" } },
+          "patterns": [{ "include": "#escape" }]
+        },
+        {
+          "name": "string.quoted.single.rook",
+          "begin": "'",
+          "end": "'|$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.rook" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.rook" } },
+          "patterns": [{ "include": "#escape" }]
+        },
+        {
+          "name": "string.template.rook",
+          "begin": "`",
+          "end": "`",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.template.begin.rook" }
+          },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.template.end.rook" } },
+          "patterns": [
+            { "include": "#escape" },
+            {
+              "name": "meta.template.expression.rook",
+              "begin": "\\$\\{",
+              "end": "\\}",
+              "beginCaptures": {
+                "0": { "name": "punctuation.definition.template-expression.begin.rook" }
+              },
+              "endCaptures": {
+                "0": { "name": "punctuation.definition.template-expression.end.rook" }
+              },
+              "contentName": "meta.embedded.line.rook",
+              "patterns": [{ "include": "#statements" }]
+            }
+          ]
+        }
+      ]
+    },
+
+    "escape": {
+      "name": "constant.character.escape.rook",
+      "match": "\\\\(?:x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]+\\}|u[0-9A-Fa-f]{4}|.)"
+    },
+
+    "decorators": {
+      "comment": "@html-tag and @visible(...) before a component, @visible.show() in it",
+      "match": "(@)([A-Za-z][\\w-]*)",
+      "captures": {
+        "1": { "name": "punctuation.decorator.rook" },
+        "2": { "name": "entity.name.function.decorator.rook" }
+      }
+    },
+
+    "declarations": {
+      "patterns": [
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(func)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.function.rook" },
+            "2": { "name": "entity.name.function.rook" }
+          }
+        },
+        {
+          "comment": "`dec` is a keyword only in a declaration: `dec visible(`.",
+          "match": "(?<![\\w$])(?<![^.]\\.)(dec)\\s+([A-Za-z_$][\\w$]*)(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "storage.type.decorator.rook" },
+            "2": { "name": "entity.name.function.decorator.rook" }
+          }
+        },
+        {
+          "comment": "`needs` is a keyword only after the parameters of a decorator: `dec cartBadge() needs cart, auth {`.",
+          "begin": "(?<=\\))\\s*(needs)(?=\\s+[A-Za-z_$])",
+          "beginCaptures": { "1": { "name": "storage.modifier.needs.rook" } },
+          "end": "(?=\\{)",
+          "patterns": [
+            { "name": "entity.name.function.decorator.rook", "match": "[A-Za-z_$][\\w$]*" },
+            { "name": "punctuation.separator.comma.rook", "match": "," }
+          ]
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(comp)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.component.rook" },
+            "2": { "name": "entity.name.type.component.rook" }
+          }
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(class)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.class.rook" },
+            "2": { "name": "entity.name.type.class.rook" }
+          }
+        },
+        {
+          "comment": "Separate from `class Name`: type parameters can come between, `class Stack<T> implements Source<T>`.",
+          "match": "(?<![\\w$])(?<![^.]\\.)(extends)\\s+([A-Za-z_$][\\w$.]*)",
+          "captures": {
+            "1": { "name": "storage.modifier.rook" },
+            "2": { "name": "entity.other.inherited-class.rook" }
+          }
+        },
+        {
+          "name": "storage.modifier.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)implements(?![\\w$])"
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(interface|type)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": { "name": "storage.type.rook" },
+            "2": { "name": "entity.name.type.rook" }
+          }
+        },
+        {
+          "comment": "`mount() {` in a component, like `state`, is a keyword only at the start of a statement.",
+          "match": "^\\s*(mount)(?=\\s*\\(\\s*\\)\\s*\\{)",
+          "captures": {
+            "1": { "name": "storage.type.mount.rook" }
+          }
+        },
+        {
+          "comment": "`effect {` in a component, like `mount() {`.",
+          "match": "^\\s*(effect)(?=\\s*\\{)",
+          "captures": {
+            "1": { "name": "storage.type.effect.rook" }
+          }
+        },
+        {
+          "comment": "`state`, `derived` and `ref` are keywords only at the start of a statement, followed by a name; a decorator's state may be `public state`.",
+          "match": "^\\s*(?:(public)\\s+)?(state|derived|ref)(?=\\s+[A-Za-z_$])",
+          "captures": {
+            "1": { "name": "storage.modifier.rook" },
+            "2": { "name": "storage.type.state.rook" }
+          }
+        },
+        {
+          "comment": "Modifiers of class members.",
+          "match": "^\\s*((?:(?:static|private|protected|public)\\s+)+)(?=[A-Za-z_$])",
+          "captures": { "1": { "name": "storage.modifier.rook" } }
+        },
+        {
+          "match": "(?<![\\w$])(?<![^.]\\.)(from)(?=\\s*[\"'])",
+          "captures": { "1": { "name": "keyword.control.import.rook" } }
+        },
+        {
+          "match": "(\\*)\\s*(as)(?![\\w$])",
+          "captures": {
+            "1": { "name": "constant.language.import-export-all.rook" },
+            "2": { "name": "keyword.control.as.rook" }
+          }
+        }
+      ]
+    },
+
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:if|else|switch|case|default|select(?=\\s*\\{))(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.loop.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:for|in|break|continue)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.flow.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:return|throw|defer|await|go)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.trycatch.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:try|catch|finally)(?![\\w$])"
+        },
+        {
+          "name": "keyword.control.import.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:import|export)(?![\\w$])"
+        },
+        {
+          "name": "storage.type.function.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)func(?![\\w$])"
+        },
+        {
+          "name": "storage.modifier.async.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)async(?![\\w$])"
+        },
+        {
+          "name": "storage.type.component.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)comp(?![\\w$])"
+        },
+        {
+          "name": "storage.type.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:let|const|type|interface|class|chan)(?![\\w$])"
+        },
+        {
+          "name": "storage.modifier.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)extends(?![\\w$])"
+        },
+        {
+          "name": "keyword.operator.new.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)new(?![\\w$])"
+        },
+        {
+          "name": "keyword.operator.expression.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:typeof|instanceof)(?![\\w$])"
+        },
+        {
+          "comment": "`value as Type`: `as` between a value and a type; a variable named `as` is a name.",
+          "name": "keyword.operator.expression.as.rook",
+          "match": "(?<=[\\w$)\\]\"'`]\\s)as(?=\\s+[\\[?{(A-Za-z_$\"'0-9])"
+        },
+        {
+          "comment": "`delete` at the start of a statement (also in a handler), followed by what it removes.",
+          "match": "(?:^|(?<=[{;]))\\s*(delete)(?=\\s+[A-Za-z_$])",
+          "captures": { "1": { "name": "keyword.operator.expression.delete.rook" } }
+        },
+        {
+          "name": "variable.language.this.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)this(?![\\w$])"
+        },
+        {
+          "name": "variable.language.super.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)super(?![\\w$])"
+        },
+        {
+          "name": "constant.language.null.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)null(?![\\w$])"
+        },
+        {
+          "name": "constant.language.boolean.true.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)true(?![\\w$])"
+        },
+        {
+          "name": "constant.language.boolean.false.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)false(?![\\w$])"
+        }
+      ]
+    },
+
+    "types": {
+      "patterns": [
+        {
+          "comment": "`[]Todo`, `[](A | B)`: the element type is coloured by the rules below.",
+          "name": "punctuation.definition.type.array.rook",
+          "match": "\\[\\](?=[A-Za-z_$?\\[(])"
+        },
+        {
+          "comment": "`?User`, `?(A | B)`; the ternary `?` has a space after it.",
+          "name": "keyword.operator.type.nullable.rook",
+          "match": "(?<![\\w$)\\]}\"'`])\\?(?=[A-Za-z_$\\[(])"
+        },
+        {
+          "name": "support.function.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)error(?=\\s*\\()"
+        },
+        {
+          "comment": "`get` is special only before a member of a decorator: `get(@visible.shown)`.",
+          "name": "support.function.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)get(?=\\s*\\(\\s*@)"
+        },
+        {
+          "name": "support.type.primitive.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:number|bigint|byte|u?int(?:8|16|32|64)|float(?:32|64)|string|bool|any|void|error|Content)(?![\\w$])"
+        },
+        {
+          "name": "variable.other.constant.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)[A-Z][A-Z0-9_]+(?![\\w$])"
+        },
+        {
+          "name": "entity.name.type.rook",
+          "match": "(?<![\\w$])(?<![^.]\\.)[A-Z][\\w$]*"
+        }
+      ]
+    },
+
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.rook",
+          "match": "(?<![\\w$])0[xX][0-9A-Fa-f][0-9A-Fa-f_]*n?(?![\\w$])"
+        },
+        {
+          "name": "constant.numeric.binary.rook",
+          "match": "(?<![\\w$])0[bB][01][01_]*n?(?![\\w$])"
+        },
+        {
+          "name": "constant.numeric.octal.rook",
+          "match": "(?<![\\w$])0[oO][0-7][0-7_]*n?(?![\\w$])"
+        },
+        {
+          "name": "constant.numeric.decimal.rook",
+          "match": "(?<![\\w$.])(?:\\d[\\d_]*n|(?:\\d[\\d_]*(?:\\.\\d[\\d_]*)?|\\.\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?)(?![\\w$])"
+        }
+      ]
+    },
+
+    "calls": {
+      "name": "entity.name.function.rook",
+      "match": "(?<![\\w$])[a-z_$][\\w$]*(?=\\s*\\()"
+    },
+
+    "object-key": {
+      "comment": "`{ id: 1, label: \"All\" }`: a name after `{` or `,` (or at the start of a line) followed by `:`.",
+      "match": "(?:(?<=[{,])|(?<=[{,]\\s)|^)\\s*(?!(?:case|default)(?![\\w$]))([A-Za-z_$][\\w$]*)\\s*(:)(?!:)",
+      "captures": {
+        "1": { "name": "meta.object-literal.key.rook" },
+        "2": { "name": "punctuation.separator.key-value.rook" }
+      }
+    },
+
+    "block": {
+      "name": "meta.block.rook",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.block.rook" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.block.rook" } },
+      "patterns": [{ "include": "#statements" }]
+    },
+
+    "operators": {
+      "patterns": [
+        { "name": "storage.type.function.arrow.rook", "match": "=>" },
+        { "name": "keyword.operator.spread.rook", "match": "\\.\\.\\." },
+        { "name": "punctuation.accessor.optional.rook", "match": "\\?\\." },
+        {
+          "name": "keyword.operator.assignment.compound.rook",
+          "match": "\\*\\*=|<<=|>>>=|>>=|&&=|\\|\\|=|\\?\\?=|[-+*/%&|^]="
+        },
+        { "name": "keyword.operator.channel.rook", "match": "<-" },
+        { "name": "keyword.operator.comparison.rook", "match": "===|!==|==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.logical.rook", "match": "&&|\\|\\||\\?\\?|!" },
+        { "name": "keyword.operator.increment.rook", "match": "\\+\\+|--" },
+        { "name": "keyword.operator.bitwise.rook", "match": ">>>|<<|>>|[&|^~]" },
+        { "name": "keyword.operator.arithmetic.rook", "match": "\\*\\*|[-+*/%]" },
+        { "name": "keyword.operator.assignment.rook", "match": "=" },
+        { "name": "keyword.operator.ternary.rook", "match": "\\?|:" },
+        { "name": "punctuation.accessor.rook", "match": "\\." },
+        { "name": "punctuation.separator.comma.rook", "match": "," },
+        { "name": "punctuation.terminator.statement.rook", "match": ";" }
+      ]
+    },
+
+    "identifiers": {
+      "patterns": [
+        { "name": "variable.other.property.rook", "match": "(?<=[^.]\\.)[A-Za-z_$][\\w$]*" },
+        { "name": "variable.other.readwrite.rook", "match": "[A-Za-z_$][\\w$]*" }
+      ]
+    }
+  }
+}

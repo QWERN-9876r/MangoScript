@@ -1,0 +1,15 @@
+// { [string]: T } — объект-словарь: любые ключи, значения типа T
+const prices { [string]: number } = { guava: 120, lychee: 250 }
+prices["papaya"] = 180
+delete prices.lychee                 // delete удаляет ключ
+
+// Тип функции можно записать стрелкой: (name string) => string
+const format (name string) => string = name => `${name}: ${prices[name]} ₽`
+
+for name in Object.keys(prices) {
+    console.log(format(name))
+}
+
+// as позволяет смотреть на значение как на связанный тип: JSON.parse даёт any
+const saved = JSON.parse(`{ "guava": 150 }`) as { [string]: number }
+console.log("сохранено:", saved["guava"])

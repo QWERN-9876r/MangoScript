@@ -317,8 +317,8 @@ console.log(counter.count)`),
     ).toEqual(['1']);
   });
 
-  it('runs examples/hello.mango', () => {
-    const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
+  it('runs examples/hello.rk', () => {
+    const source = readFileSync(new URL('../examples/hello.rk', import.meta.url), 'utf8');
 
     expect(run(source)).toEqual([
       '[divide]',

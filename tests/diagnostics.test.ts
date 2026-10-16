@@ -3,7 +3,7 @@ import { formatDiagnostic } from '../src/diagnostics.ts';
 import { SourceFile } from '../src/source.ts';
 
 describe('SourceFile', () => {
-  const file = new SourceFile('a.mango', 'ab\ncd\r\n\nef');
+  const file = new SourceFile('a.rk', 'ab\ncd\r\n\nef');
 
   it('maps offsets to lines and columns', () => {
     expect(file.position(0)).toEqual({ line: 1, column: 1 });
@@ -21,12 +21,12 @@ describe('SourceFile', () => {
 
 describe('formatDiagnostic', () => {
   it('points at the error in the source line', () => {
-    const file = new SourceFile('hello.mango', 'let a = 1\nlet s = "abc\n');
+    const file = new SourceFile('hello.rk', 'let a = 1\nlet s = "abc\n');
     const diagnostic = { message: 'unterminated string literal', start: 18, end: 22 };
 
     expect(formatDiagnostic(file, diagnostic)).toBe(
       [
-        'hello.mango:2:9: error: unterminated string literal',
+        'hello.rk:2:9: error: unterminated string literal',
         '2 | let s = "abc',
         '  | ' + ' '.repeat(8) + '^^^^',
       ].join('\n'),
@@ -34,7 +34,7 @@ describe('formatDiagnostic', () => {
   });
 
   it('keeps tabs so the caret lines up', () => {
-    const file = new SourceFile('a.mango', '\tx = @');
+    const file = new SourceFile('a.rk', '\tx = @');
     const output = formatDiagnostic(file, {
       message: 'unexpected character "@"',
       start: 5,

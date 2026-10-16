@@ -27,21 +27,21 @@ const { version } = JSON.parse(
   version: string;
 };
 
-const HELP = `MangoScript ${version}
+const HELP = `Rook ${version}
 
 Usage:
-  mango build <file.mango | dir>...   Compile to .js files, with the .mango files they import
-  mango run <file.mango>              Compile and run, with the .mango files it imports
-  mango tokens <file.mango>           Print lexer tokens (for debugging)
-  mango ast <file.mango>              Print the syntax tree (for debugging)
+  rook build <file.rk | dir>...   Compile to .js files, with the .rk files they import
+  rook run <file.rk>              Compile and run, with the .rk files it imports
+  rook tokens <file.rk>           Print lexer tokens (for debugging)
+  rook ast <file.rk>              Print the syntax tree (for debugging)
 
 Options:
       --out-dir <dir>   build: write the .js files to <dir>, keeping the folder structure
-                        (by default they go next to the .mango files)
+                        (by default they go next to the .rk files)
       --stdout          build: print the JS of a single file instead of writing files
       --no-check        Skip type checking
       --markup          Turn markup and components on; by default they are on where the
-                        package.json has "mangoscript": { "markup": true }
+                        package.json has "rook": { "markup": true }
       --no-markup       Turn them off
   -h, --help            Show this help
   -v, --version         Show version`;
@@ -100,7 +100,7 @@ function main(): void {
     case 'build':
       if (values.stdout) {
         if (files.length > 1 || statSync(file).isDirectory()) {
-          throw new UsageError('--stdout needs a single .mango file');
+          throw new UsageError('--stdout needs a single .rk file');
         }
 
         process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck, markup }).code);
@@ -130,8 +130,8 @@ function main(): void {
 /** Builds the files and directories and writes the `.js` files, or none if there are errors. */
 function buildFiles(entries: string[], options: BuildOptions): void {
   for (const entry of entries) {
-    if (!statSync(entry).isDirectory() && !entry.endsWith('.mango')) {
-      throw new UsageError(`not a .mango file: ${entry}`);
+    if (!statSync(entry).isDirectory() && !entry.endsWith('.rk')) {
+      throw new UsageError(`not a .rk file: ${entry}`);
     }
   }
 
@@ -169,16 +169,16 @@ function buildFiles(entries: string[], options: BuildOptions): void {
 function runFile(file: string, typeCheck: boolean, markup: boolean | undefined): number {
   const loader = new URL('./loader.ts', import.meta.url).href;
   const run = fileURLToPath(new URL('./run.ts', import.meta.url));
-  const cache = mkdtempSync(join(tmpdir(), 'mango-run-'));
+  const cache = mkdtempSync(join(tmpdir(), 'rook-run-'));
 
   try {
     const { status, signal } = spawnSync(process.execPath, ['--import', loader, run, file], {
       stdio: 'inherit',
       env: {
         ...process.env,
-        MANGO_RUN_CACHE: cache,
-        ...(typeCheck ? {} : { MANGO_NO_CHECK: '1' }),
-        ...(markup === undefined ? {} : { MANGO_MARKUP: markup ? '1' : '0' }),
+        ROOK_RUN_CACHE: cache,
+        ...(typeCheck ? {} : { ROOK_NO_CHECK: '1' }),
+        ...(markup === undefined ? {} : { ROOK_MARKUP: markup ? '1' : '0' }),
       },
     });
 
@@ -226,7 +226,7 @@ try {
   main();
 } catch (err: unknown) {
   if (err instanceof CompileError) console.error(err.message);
-  else if (err instanceof UsageError) console.error(`mango: ${err.message}`);
+  else if (err instanceof UsageError) console.error(`rook: ${err.message}`);
   else console.error(err);
   process.exitCode = 1;
 }

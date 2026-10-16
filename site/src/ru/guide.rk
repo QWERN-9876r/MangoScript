@@ -1,0 +1,365 @@
+// The Russian guide; the English one, en/guide.rk, has the same sections. Each section is a
+// component, which the page shows with <section.content />; the examples are files in
+// site/examples/ru.
+
+import { example } from "../example.rk"
+import { Callout } from "../../ui/callout.rk"
+import { Card, CardGrid } from "../../ui/card.rk"
+import { CodeBlock } from "../../ui/code-block.rk"
+import { REPOSITORY, Section, text } from "../i18n.rk"
+import { Components, Decorators, Markup, Mounting, Reactivity, Refs, Styles, WebComponents } from "./guide-components.rk"
+import { Async, Channels, Goroutines, Select } from "./guide-concurrency.rk"
+
+export const SECTIONS []Section = [
+    { id: "intro", title: "Что такое Rook", group: "Язык", content: Intro },
+    { id: "variables", title: "Переменные и типы", group: "Язык", content: Variables },
+    { id: "bigint", title: "bigint и типизированные массивы", group: "Язык", content: Numbers },
+    { id: "null", title: "null, union и сужение", group: "Язык", content: NullSafety },
+    { id: "functions", title: "Функции", group: "Язык", content: Functions },
+    { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
+    { id: "control", title: "Условия и циклы", group: "Язык", content: Control },
+    { id: "iterators", title: "Итераторы", group: "Язык", content: Iterators },
+    { id: "classes", title: "Классы и интерфейсы", group: "Язык", content: Classes },
+    { id: "generics", title: "Дженерики", group: "Язык", content: Generics },
+    { id: "modules", title: "Модули", group: "Язык", content: Modules },
+    { id: "async", title: "Асинхронные функции", group: "Горутины и каналы", content: Async },
+    { id: "goroutines", title: "Горутины", group: "Горутины и каналы", content: Goroutines },
+    { id: "channels", title: "Каналы", group: "Горутины и каналы", content: Channels },
+    { id: "select", title: "select", group: "Горутины и каналы", content: Select },
+    { id: "markup", title: "Разметка", group: "Разметка и компоненты", content: Markup },
+    { id: "components", title: "Компоненты", group: "Разметка и компоненты", content: Components },
+    { id: "state", title: "Состояние", group: "Разметка и компоненты", content: Reactivity },
+    { id: "mount", title: "Монтирование", group: "Разметка и компоненты", content: Mounting },
+    { id: "ref", title: "Ссылки на элементы", group: "Разметка и компоненты", content: Refs },
+    { id: "styles", title: "Стили", group: "Разметка и компоненты", content: Styles },
+    { id: "web-components", title: "Веб-компоненты", group: "Разметка и компоненты", content: WebComponents },
+    { id: "decorators", title: "Декораторы", group: "Разметка и компоненты", content: Decorators },
+    { id: "tools", title: "Инструменты", group: "Ещё", content: Tools },
+]
+
+comp Intro() {
+    return <>
+        <p>
+            Rook — язык с семантикой JavaScript, синтаксисом в духе Go и статической
+            типизацией. Его главная особенность — горутины: <code>go f(x)</code> запускает функцию в
+            отдельном потоке, на другом процессоре, а каналы передают значения между ними, как в Go.
+            Он компилируется в читаемый JavaScript без рантайма: что написано, то и выполняется.
+        </p>
+        <CardGrid>
+            <Card title="Горутины и каналы" icon="cpu">
+                <code>go f(x)</code> запускает функцию на другом процессоре, а каналы и
+                {" "}<code>select</code> связывают горутины: см. <a href="#goroutines">Горутины</a>.
+            </Card>
+            <Card title="Как в JavaScript" icon="layers">
+                Те же значения, объекты, массивы, классы и модули. Можно использовать любые
+                JS-библиотеки.
+            </Card>
+            <Card title="Как в Go" icon="code">
+                <code>func</code>, тип после имени, несколько результатов, ошибки вторым значением,
+                {" "}<code>defer</code> и один цикл <code>for</code>.
+            </Card>
+            <Card title="Типы" icon="shield">
+                Компилятор проверяет программу до запуска, включая <code>null</code>: значение типа
+                {" "}<code>?User</code> нельзя использовать без проверки.
+            </Card>
+            <Card title="Разметка и компоненты" icon="zap">
+                <code>&lt;button&gt;</code> в коде создаёт настоящий DOM-элемент, а компонент с
+                {" "}<code>state</code> сам обновляет свою разметку.
+            </Card>
+        </CardGrid>
+        <p>
+            У каждого примера есть вкладка <b>JavaScript</b> — это код, который генерирует
+            компилятор, запущенный прямо на этой странице. <b>Запустить</b> выполняет пример,
+            а <b>В песочницу</b> открывает его в редакторе внизу страницы.
+        </p>
+        {example("hello")}
+    </>
+}
+
+comp Variables() {
+    return <>
+        <p>
+            Переменные объявляются как в JavaScript — через <code>let</code> и <code>const</code>,
+            а тип пишется после имени, как в Go. Если есть значение, тип можно не писать:
+            компилятор выведет его сам.
+        </p>
+        <p>
+            У <code>let</code> без значения — нулевое значение типа, как в Go: <code>0</code>,
+            {" "}<code>""</code>, <code>false</code>, пустой массив или <code>null</code>.
+        </p>
+        {example("variables")}
+        <table>
+            <thead>
+                <tr><th>Тип</th><th>Что это</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>number</code>, <code>string</code>, <code>bool</code></td>
+                    <td>числа, строки и логические значения</td>
+                </tr>
+                <tr><td><code>[]T</code></td><td>массив значений типа <code>T</code></td></tr>
+                <tr><td><code>?T</code></td><td><code>T</code> или <code>null</code></td></tr>
+                <tr>
+                    <td><code>func(number) string</code></td>
+                    <td>функция с параметром <code>number</code> и результатом <code>string</code></td>
+                </tr>
+                <tr>
+                    <td><code>(name string) =&gt; bool</code></td>
+                    <td>такой же тип функции, записанный стрелкой</td>
+                </tr>
+                <tr>
+                    <td><code>interface User {"{ ... }"}</code></td>
+                    <td>объект с перечисленными полями и методами</td>
+                </tr>
+                <tr>
+                    <td><code>{"{ [string]: number }"}</code></td>
+                    <td>объект-словарь: любые ключи, значения <code>number</code></td>
+                </tr>
+                <tr><td><code>type ID number</code></td><td>другое имя для типа</td></tr>
+                <tr><td><code>any</code></td><td>что угодно, без проверок — например, значения из JS</td></tr>
+            </tbody>
+        </table>
+        {example("types")}
+        <p>
+            У объекта-словаря тип <code>{"{ [string]: T }"}</code>: ключи у него любые, а
+            {" "}<code>delete prices.lychee</code> удаляет ключ. <code>value as Type</code>
+            позволяет смотреть на значение как на связанный тип, например на результат
+            {" "}<code>JSON.parse</code>; несвязанные типы, как <code>count as string</code>, —
+            ошибка компиляции.
+        </p>
+        {example("maps")}
+    </>
+}
+
+comp Numbers() {
+    return <>
+        <p>
+            <code>bigint</code> хранит целые числа любого размера: <code>10n</code>,
+            {" "}<code>0xffn</code>, <code>2n ** 64n</code>. Как и в JS, bigint и number не
+            смешиваются в арифметике, где JS бросил бы исключение: компилятор просит перевести одно
+            из них через <code>BigInt(n)</code> или <code>Number(b)</code>. Сравнивать их через
+            {" "}<code>&lt;</code> можно, а <code>==</code> между ними — ошибка: результат всегда
+            false.
+        </p>
+        {example("bigint")}
+        <p>
+            <code>[]byte</code> — это <code>Uint8Array</code>, как срез байтов в Go, а
+            {" "}<code>byte</code> — число от 0 до 255. Список чисел там, где ждут
+            {" "}<code>[]byte</code>, становится им, <code>[]byte("текст")</code> даёт байты строки в
+            UTF-8, а <code>string(bytes)</code> читает их обратно.
+        </p>
+        {example("bytes")}
+        <p>
+            Остальные типизированные массивы тоже пишутся как срезы Go: <code>[]float64</code> — это
+            {" "}<code>Float64Array</code>, <code>[]int32</code> — <code>Int32Array</code>, а
+            {" "}<code>[]int64</code> — <code>BigInt64Array</code> из bigint.
+            {" "}<code>make([]float64, n)</code> создаёт такой из <code>n</code> нулей, а
+            {" "}<code>make([]float64, n, shared)</code> кладёт его на
+            {" "}<code>SharedArrayBuffer</code>, в который горутины <code>go for</code> пишут без
+            копий.
+        </p>
+        {example("typed-arrays")}
+    </>
+}
+
+comp NullSafety() {
+    return <>
+        <p>
+            Значение типа <code>?T</code> может быть <code>null</code>, а значение типа
+            {" "}<code>T</code> — нет. Обратиться к полям <code>?T</code> без проверки нельзя:
+            ошибка будет при компиляции, а не в браузере у пользователя.
+        </p>
+        <p>
+            После проверки <code>if todo != null</code> тип сужается до <code>Todo</code>. С
+            {" "}<code>?T</code> работают и привычные <code>?.</code> и <code>??</code>.
+        </p>
+        {example("null-safety")}
+        <p>
+            Тип может быть объединением нескольких: <code>string | number</code>. Литеральный тип
+            {" "}<code>"all"</code> допускает только это значение, поэтому
+            {" "}<code>{'type Filter "all" | "active" | "done"'}</code> ловит опечатки в строках.
+            Union сужают так же, как <code>?T</code>: через <code>typeof</code>,
+            {" "}<code>instanceof</code>, сравнение с литералом и <code>switch</code>.
+        </p>
+        {example("unions")}
+    </>
+}
+
+comp Functions() {
+    return <>
+        <p>
+            Функция объявляется через <code>func</code>. Параметры одного типа можно перечислить
+            через запятую, а результатов может быть несколько — их распаковывают в несколько
+            переменных.
+        </p>
+        <p>
+            Литералы <code>{"func(x number) number { ... }"}</code> и стрелочные функции
+            {" "}<code>x =&gt; x * 2</code> компилируются в стрелочные функции JS, поэтому
+            {" "}<code>this</code> в них — тот же, что снаружи. Такая функция в инициализаторе
+            переменной выполняется после него и поэтому может использовать переменную: это может
+            быть рекурсивный литерал или колбэк, который останавливает свой таймер. Если тип
+            функции зависит от её тела, как в <code>{"const f = () => f()"}</code>, тип переменной
+            нужно написать.
+        </p>
+        {example("functions")}
+    </>
+}
+
+comp Errors() {
+    return <>
+        <p>
+            Для обычных ошибок исключения не нужны: функция возвращает ошибку вторым значением, а
+            вызывающий код её проверяет. Ошибка создаётся функцией <code>error("...")</code>.
+        </p>
+        {example("errors")}
+        <p>
+            Исключения из JS-кода ловят через <code>try</code> / <code>catch</code>.
+            {" "}<code>defer</code> откладывает вызов до выхода из функции — удобно для очистки
+            ресурсов: вызов выполнится и после <code>return</code>, и после исключения.
+        </p>
+        {example("defer")}
+    </>
+}
+
+comp Control() {
+    return <>
+        <p>
+            Условия и циклы — как в Go: без скобок вокруг условия и всегда с фигурными скобками.
+            Цикл один — <code>for</code>: перебор массива, цикл с условием и классический цикл с
+            тремя частями. Он перебирает и <code>Map</code> — по ключам и значениям, — и
+            {" "}<code>Set</code>, и типизированный массив, к которому можно обращаться по индексу,
+            как к массиву. В <code>switch</code> нет <code>break</code>: каждая ветка заканчивается
+            сама.
+        </p>
+        {example("control")}
+    </>
+}
+
+comp Iterators() {
+    return <>
+        <p>
+            Итератор — это функция, единственный параметр которой называется <code>yield</code>,
+            как в Go 1.23: <code>{"func(yield func(number) bool)"}</code>. Она вызывает
+            {" "}<code>yield(v)</code> для каждого значения, а <code>for v in seq</code> проходит по
+            ним. Когда цикл останавливается, итератор тоже останавливается на своём
+            {" "}<code>yield</code>, как если бы тот вернул <code>false</code>, и его
+            {" "}<code>defer</code> выполняется. <code>yield</code> двух значений даёт ключ и
+            значение: <code>for place, fruit in numbered(fruits)</code>.
+        </p>
+        {example("iterators")}
+        <p>
+            Итератор компилируется в генератор JS, а <code>yield(v)</code> — в
+            {" "}<code>yield v</code>. Поэтому он ещё и ленивый итератор JS: <code>seq()</code> даёт
+            его, с <code>filter</code>, <code>map</code> и <code>take</code>, а код на JS проходит по
+            нему через <code>for...of</code>. По той же причине итератор вызывает
+            {" "}<code>yield</code> только в своём теле, а не в функции внутри него, и не бывает
+            async.
+        </p>
+    </>
+}
+
+comp Classes() {
+    return <>
+        <p>
+            Классы — как в TypeScript: поля с типами, <code>constructor</code>,
+            {" "}<code>extends</code>, модификаторы <code>private</code> и <code>protected</code>.
+        </p>
+        <p>
+            Интерфейсы структурные: класс или объект подходит, если у него есть нужные поля и
+            методы. <code>implements</code> только просит компилятор проверить это в объявлении
+            класса.
+        </p>
+        {example("classes")}
+    </>
+}
+
+comp Generics() {
+    return <>
+        <p>
+            Параметры типа пишутся в угловых скобках, ограничение — после каждого, как в Go:
+            {" "}<code>{"func last<T any>(xs []T) ?T"}</code>, <code>{"interface Box<T>"}</code>,
+            {" "}<code>{"class Stack<T>"}</code>. В типах аргументы тоже в угловых скобках:
+            {" "}<code>{"Box<number>"}</code>, <code>{"Stack<string>"}</code>.
+        </p>
+        <p>
+            При вызове аргументы типа не пишутся: компилятор выводит их из аргументов или из
+            ожидаемого типа. Ограничение <code>[T Named]</code> разрешает только подходящие типы
+            и даёт значениям <code>T</code> члены <code>Named</code>. В JS типы стираются.
+        </p>
+        {example("generics")}
+    </>
+}
+
+comp Modules() {
+    return <>
+        <p>
+            Модули — это ES-модули: <code>import</code> и <code>export</code> как в JS. Импорт
+            {" "}<code>.rk</code>-модуля проверяется: компилятор читает его экспорты и знает их
+            типы.
+        </p>
+        <p>
+            Типы npm-пакетов, <code>.ts</code>-файлов и модулей Node (<code>node:fs</code>) берутся
+            из объявлений TypeScript: <code>readFileSync(path, "utf8")</code> — это
+            {" "}<code>string</code>, а <code>request.url</code> у <code>IncomingMessage</code> —
+            {" "}<code>?string</code>. Модуль без объявлений имеет тип <code>any</code>. Песочница
+            работает без компилятора TypeScript, поэтому здесь такие импорты — <code>any</code>.
+        </p>
+        <p>
+            <code>rook build</code> компилирует файл вместе со всеми <code>.rk</code>-модулями,
+            которые он импортирует, и заменяет в путях <code>.rk</code> на <code>.js</code>.
+            Рядом с каждым <code>.js</code> он пишет <code>.d.ts</code>, так что модуль можно
+            импортировать из TypeScript с типами.
+        </p>
+        <Callout kind="note">
+            Песочница на этой странице модулей не загружает, поэтому пример ниже не запускается.
+        </Callout>
+        {example("modules")}
+    </>
+}
+
+const COMMANDS = `npm install --save-dev rooklang
+npx rook build app.rk            # app.js рядом с исходником
+npx rook build src --out-dir dist   # все модули папки
+npx rook run app.rk              # скомпилировать и запустить
+npx rook build app.rk --markup   # с разметкой и компонентами`
+
+const REPOSITORY_COMMANDS = `npm run site:dev         # этот сайт на сервере разработки Vite
+npm run vscode:install   # подсветка синтаксиса в VS Code`
+
+comp Tools() {
+    return <>
+        <p>
+            Компилятор — npm-пакет <code>rooklang</code>, он работает в Node.js 24:
+        </p>
+        <CodeBlock
+            code={COMMANDS}
+            label={text().terminal}
+            copyLabel={text().copy}
+            copiedLabel={text().copied}
+        >
+            {COMMANDS}
+        </CodeBlock>
+        <p>
+            Для проектов на Vite есть плагин <code>rooklang/vite</code>: с ним
+            {" "}<code>.rk</code>-модули импортируются как обычные, а ошибки типов показываются
+            поверх страницы. Этот сайт собран именно так; его <code>package.json</code> включает
+            разметку и компоненты.
+        </p>
+        <p>
+            Компилятор написан на TypeScript, исходный код — в
+            {" "}<a href={REPOSITORY}>репозитории на GitHub</a>. Спецификация языка с обоснованиями
+            решений — в <code>docs/spec.ru.md</code>, концепция компонентов — в
+            {" "}<code>docs/components.ru.md</code>. Эта страница тоже написана на Rook: её
+            код — в <code>site/src</code>, а сервер — <code>site/server.rk</code>. Из корня
+            репозитория:
+        </p>
+        <CodeBlock
+            code={REPOSITORY_COMMANDS}
+            label={text().terminal}
+            copyLabel={text().copy}
+            copiedLabel={text().copied}
+        >
+            {REPOSITORY_COMMANDS}
+        </CodeBlock>
+    </>
+}

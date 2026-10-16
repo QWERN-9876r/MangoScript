@@ -1,0 +1,94 @@
+import { Buffer } from "node:buffer"
+import { readFileSync } from "node:fs"
+import { createServer, IncomingMessage, ServerResponse } from "node:http"
+import { extname, resolve, sep } from "node:path"
+
+const ROOT = resolve("site/dist")
+const PORT = Number(process.env.PORT ?? "3000")
+
+func contentType(path string) string {
+    switch extname(path) {
+    case ".html":
+        return "text/html; charset=utf-8"
+    case ".css":
+        return "text/css; charset=utf-8"
+    case ".js":
+        return "text/javascript; charset=utf-8"
+    case ".svg":
+        return "image/svg+xml"
+    case ".wasm":
+        return "application/wasm"
+    case ".ttf":
+        return "font/ttf"
+    default:
+        return "application/octet-stream"
+    }
+}
+
+// The file path for the URL of a request; an error if the URL is malformed or leaves the site.
+func resolvePath(url string) (string, error) {
+    let pathname = url.split("?")[0]
+    if pathname.endsWith("/") {
+        pathname += "index.html"
+    }
+    let decoded string
+    try {
+        decoded = decodeURIComponent(pathname)
+    } catch {
+        return "", error("malformed URL")
+    }
+    const path string = resolve(ROOT, `.${decoded}`)
+    if !path.startsWith(ROOT + sep) {
+        return "", error("outside of the site")
+    }
+    return path, null
+}
+
+// readFileSync throws if there is no file; turn that into an error value.
+func readStatic(path string) (?Buffer, error) {
+    try {
+        return readFileSync(path), null
+    } catch e {
+        return null, error(e.message)
+    }
+}
+
+// Vite puts a hash of the content into the names of the files in assets/: a new version gets a new
+// name, so they can be cached forever. The rest (index.html) is no-cache: after a rebuild the
+// browser gets the new page right away.
+func cacheControl(path string) string {
+    if path.startsWith(ROOT + sep + "assets" + sep) {
+        return "public, max-age=31536000, immutable"
+    }
+    return "no-cache"
+}
+
+func send(response ServerResponse, status number, mime string, body string | Buffer, cache string) {
+    response.writeHead(status, { "Content-Type": mime, "Cache-Control": cache })
+    response.end(body)
+}
+
+func handle(request IncomingMessage, response ServerResponse) {
+    const started = Date.now()
+    // The block runs when the function exits, after the response is sent.
+    defer {
+        const time = Date.now() - started
+        console.log(`${request.method} ${request.url} → ${response.statusCode} (${time} ms)`)
+    }
+
+    const path, pathError = resolvePath(request.url ?? "/")
+    if pathError != null {
+        send(response, 400, "text/plain; charset=utf-8", `Bad request: ${pathError.message}`, "no-cache")
+        return
+    }
+    const body, readError = readStatic(path)
+    if readError != null || body == null {
+        send(response, 404, "text/plain; charset=utf-8", "Not found", "no-cache")
+        return
+    }
+    send(response, 200, contentType(path), body, cacheControl(path))
+}
+
+createServer(handle).listen(PORT, () => {
+    console.log(`Rook site: http://localhost:${PORT}`)
+})

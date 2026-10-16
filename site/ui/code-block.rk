@@ -1,0 +1,41 @@
+// RookUI code blocks: highlighted code (the children), with a button that copies its text.
+
+import styles from "./code-block.module.css"
+import { IconButton } from "./button.rk"
+
+/** A button that copies `text` and shows for a moment that it did. */
+export comp CopyButton(text string, label string = "Copy", doneLabel string = "Copied") {
+    state copied = false
+
+    func copy() {
+        navigator.clipboard.writeText(text).then(() => {
+            copied = true
+            setTimeout(() => {
+                copied = false
+            }, 1500)
+        })
+    }
+
+    return <IconButton
+        icon={copied ? "check" : "copy"}
+        label={copied ? doneLabel : label}
+        size="sm"
+        onClick={copy()}
+    />
+}
+
+export comp CodeBlock(
+    code string,
+    label string = "",
+    copyLabel string = "Copy",
+    copiedLabel string = "Copied",
+    children Content,
+) {
+    return <figure class={styles.block}>
+        <figcaption class={styles.header}>
+            <span>{label}</span>
+            <CopyButton text={code} label={copyLabel} doneLabel={copiedLabel} />
+        </figcaption>
+        <pre class={styles.code}>{children}</pre>
+    </figure>
+}

@@ -150,7 +150,7 @@ export abstract class AttributeEmitter extends UpdateEmitter {
     }
   }
 
-  /** The class of an element with the class of its style: `"card mango-card-1x9k2az"`. */
+  /** The class of an element with the class of its style: `"card rook-card-1x9k2az"`. */
   private scopedClass(
     element: string,
     value: ast.JsxAttribute['value'],

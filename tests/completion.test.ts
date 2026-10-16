@@ -216,7 +216,7 @@ describe('with the library', () => {
   it('lists the globals, the members and the tags of the DOM', () => {
     const at = (text: string) =>
       complete(text.replace('‸', ''), text.indexOf('‸'), {
-        filename: new URL('main.mango', import.meta.url).pathname,
+        filename: new URL('main.rk', import.meta.url).pathname,
       }).items.map((item) => item.name);
 
     expect(at('let x = doc‸')).toContain('document');

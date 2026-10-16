@@ -17,7 +17,7 @@ import {
 } from '../checker/types.ts';
 import type * as TS from 'typescript';
 
-// Types of TypeScript declarations as MangoScript types. Members are converted when they are
+// Types of TypeScript declarations as Rook types. Members are converted when they are
 // first used (see LazyMap): @types/node has thousands of them, and a program touches a few.
 //
 // What has no counterpart becomes `any`: symbol, `object`, `unknown`, and the conditional
@@ -190,7 +190,7 @@ export abstract class ConverterBase {
   }
 }
 
-/** Members that MangoScript code can name: not `[Symbol.iterator]` and the like. */
+/** Members that Rook code can name: not `[Symbol.iterator]` and the like. */
 export function propertyNames(checker: TS.TypeChecker, type: TS.Type): string[] {
   return checker
     .getPropertiesOfType(type)

@@ -8,7 +8,7 @@
 > the document, together with what is not decided yet.
 
 > Markup and components are off by default; a package turns them on with
-> `"mangoscript": { "markup": true }` in its `package.json` (see "Markup" in [spec.md](spec.md)).
+> `"rook": { "markup": true }` in its `package.json` (see "Markup" in [spec.md](spec.md)).
 
 ## Goals
 
@@ -80,7 +80,7 @@ What can be passed as a child in `{...}`:
 - a `[]T` of such values is inserted item by item;
 - a `?T`: `null` shows nothing.
 
-`bool` is an error: in MangoScript `&&` works only with `bool` anyway, so the JSX idiom
+`bool` is an error: in Rook `&&` works only with `bool` anyway, so the JSX idiom
 `{ok && <b/>}` is impossible. Instead, `{ok ? <b /> : null}` or `{if ok { <b /> }}` (see below).
 
 ### Attributes and properties
@@ -113,7 +113,7 @@ The rule (as in Vue):
 
 Unlike JSX, `onClick={save(todo)}` calls `save` on a click, not when the element is created. The
 classic JSX mistake is simply impossible here. The rule fits the language well: `count++` and
-assignment are statements in MangoScript anyway, not expressions.
+assignment are statements in Rook anyway, not expressions.
 
 `event` is typed by the event (`onInput` → `InputEvent`), and `event.currentTarget` has the type of
 the element itself. So `onInput={title = event.currentTarget.value}` passes type checking without
@@ -145,7 +145,7 @@ link.append("Link ", name);
 
 If an element is inside an expression, the code that creates it is moved before the statement into
 temporaries. The element (and the expressions inside it) is created before the rest of the
-statement. In MangoScript only calls have side effects in expressions, so this is noticeable only if
+statement. In Rook only calls have side effects in expressions, so this is noticeable only if
 the calls of one statement depend on each other. Inside the markup itself the order is kept.
 
 ```go
@@ -499,7 +499,7 @@ Proxies appear only where they are not:
   the variable, and that is visible.
 - **An array or an object** that does not leave the component (including going into inlined child
   components) is tracked statically.
-- **If a value is passed to a MangoScript function,** the compiler checks whether it changes it:
+- **If a value is passed to a Rook function,** the compiler checks whether it changes it:
   assignments through the parameter, `push` and the like, passing it further to changing functions.
   If it does not, no proxy is needed. For example, `save(todos)` in the example below only calls
   `JSON.stringify`.
@@ -706,14 +706,14 @@ comp Meter(color string) {
   `&`, `@media` and the rest. `style` is a keyword only at the start of a statement in a component,
   followed by `{`.
 - **Scope.** Every element of the component's own markup gets the class of its style,
-  `mango-<name>-<hash of the CSS>`, and so does every compound selector, before its
-  pseudo-elements: `.fill` becomes `.fill.mango-meter-1n5i250`. So the rules reach neither other
+  `rook-<name>-<hash of the CSS>`, and so does every compound selector, before its
+  pseudo-elements: `.fill` becomes `.fill.rook-meter-1n5i250`. So the rules reach neither other
   components nor the markup passed in as `children`, which is the parent's. `:global(...)` keeps a
   selector as it is: `:global(.dark) .fill`. A selector with `&` refers to the rule around it and is
   not given the class again. The names of `@keyframes` stay global for now.
 - **Values from code.** `{expr}` is allowed only in the value of a declaration: `name:` followed by
   a space or a value is a declaration (`color: {c}`), `name:name` is a selector (`a:hover {`).
-  The whole value becomes a CSS variable, `--mango-meter-1n5i250-0`, which the compiler sets on the
+  The whole value becomes a CSS variable, `--rook-meter-1n5i250-0`, which the compiler sets on the
   element the component returns: when it is created, and again when what the value reads
   changes. So such a component returns an element, not a fragment. Values are strings or numbers,
   and they see the whole body, as the markup does.
@@ -724,15 +724,15 @@ comp Meter(color string) {
   from the decorator.
 
 ```js
-$$style("mango-meter-1n5i250", `.meter.mango-meter-1n5i250 {
+$$style("rook-meter-1n5i250", `.meter.rook-meter-1n5i250 {
   display: grid;
   gap: 8px;
 }
-.fill.mango-meter-1n5i250 {
-  width: var(--mango-meter-1n5i250-0);
-  background: var(--mango-meter-1n5i250-1);
+.fill.rook-meter-1n5i250 {
+  width: var(--rook-meter-1n5i250-0);
+  background: var(--rook-meter-1n5i250-1);
 }
-button:hover.mango-meter-1n5i250 {
+button:hover.rook-meter-1n5i250 {
   opacity: 0.8;
 }`);
 
@@ -740,13 +740,13 @@ button:hover.mango-meter-1n5i250 {
 // ...
 $$button5.addEventListener("click", () => {
   percent += 10;
-  $$meter1.style.setProperty("--mango-meter-1n5i250-0", `${percent}%`);
+  $$meter1.style.setProperty("--rook-meter-1n5i250-0", `${percent}%`);
 });
-$$button5.className = "mango-meter-1n5i250";
+$$button5.className = "rook-meter-1n5i250";
 // ...
 $$meter1 = $$div3;
-$$meter1.style.setProperty("--mango-meter-1n5i250-0", `${percent}%`);
-$$meter1.style.setProperty("--mango-meter-1n5i250-1", color);
+$$meter1.style.setProperty("--rook-meter-1n5i250-0", `${percent}%`);
+$$meter1.style.setProperty("--rook-meter-1n5i250-1", color);
 ```
 
 `$$style` is a helper of a few lines: it adds a `<style>` with the CSS to `<head>` once, whichever
@@ -782,7 +782,7 @@ export comp Button(kind Kind = "primary", children Content) {
   theme.
 - **The import is not imported.** It becomes `const styles = { button: "button_14zwdg2", ... }`,
   and the CSS is added to the page with `$$style`, like the styles of components. So CSS modules
-  work with `mango build` and with Vite alike, but not in the playground, which has no files.
+  work with `rook build` and with Vite alike, but not in the playground, which has no files.
 - **Warnings:** a class that the module never names is reported, unless it reads `styles` with a
   key that is not known (`styles[name]` with a `string`).
 - **Several classes** are joined with a template string: there is no special syntax for it.
@@ -916,7 +916,7 @@ interface Section {
 }
 
 comp Intro() {
-    return <p>MangoScript compiles to JavaScript.</p>
+    return <p>Rook compiles to JavaScript.</p>
 }
 
 const SECTIONS []Section = [{ title: "Introduction", content: Intro }]
@@ -1177,11 +1177,11 @@ cannot declare higher-order decorators of its own.
 
 ### Example: the test site with components
 
-The same task list that was in `site/src/app.mango` (about 90 lines of manual DOM work):
+The same task list that was in `site/src/app.rk` (about 90 lines of manual DOM work):
 
 ```go
-import { Todo, parseTitle } from "./todos.mango"
-import { load, save } from "./storage.mango"
+import { Todo, parseTitle } from "./todos.rk"
+import { load, save } from "./storage.rk"
 
 const FILTERS = [
     { id: "all", label: "All" },
@@ -1261,7 +1261,7 @@ body of `for`: the code of one row of the list is written there once, and no ext
 
 ## How this differs from known approaches
 
-|                                | React (JSX)               | Svelte / Solid                 | MangoScript                                                       |
+|                                | React (JSX)               | Svelte / Solid                 | Rook                                                              |
 | ------------------------------ | ------------------------- | ------------------------------ | ----------------------------------------------------------------- |
 | The result of `<div>`          | a description (VDOM)      | a DOM node (Solid)             | a DOM node                                                        |
 | A component at runtime         | a function                | a function                     | none: the code is inlined (a function only if large or recursive) |
@@ -1345,7 +1345,7 @@ body of `for`: the code of one row of the list is written there once, and no ext
    inserted. The function `mount` returns runs when `{if}`, `{switch}` or `{for}` removes the
    markup. For that, blocks are created with an "owner" that collects the cleanup of the block's
    components and of the nested blocks. The owner of the current block is shared by the modules of a
-   page (`Symbol.for("mangoscript.owner")`), because a block of one module can hold components of
+   page (`Symbol.for("rook.owner")`), because a block of one module can hold components of
    another. Removing markup by the program's own code is not tracked: that would need an observer of
    the whole document all the time, and the cleanup would run asynchronously.
 9. **Web components are `@html-tag comp ...`.** The tag comes from the component's name in kebab
@@ -1404,7 +1404,7 @@ body of `for`: the code of one row of the list is written there once, and no ext
 ## Not decided yet
 
 1. **Whether to report where the compiler did not inline.** Function components and proxies are
-   implicit decisions that affect the output. I propose a `mango build --explain` flag that lists
+   implicit decisions that affect the output. I propose a `rook build --explain` flag that lists
    them: "`Card` became a function: 140 extra lines", "`options` is wrapped in a proxy: passed to
    `confetti`".
 2. **The 100-line threshold: a constant or a setting.** I propose a constant for now, and a setting

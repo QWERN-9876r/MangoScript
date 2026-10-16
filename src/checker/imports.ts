@@ -3,14 +3,14 @@ import { CheckerBase } from './base.ts';
 import type { DecoratorInfo } from './context.ts';
 import { ANY, LazyMap, memberNames, UNKNOWN, type Member, type Type } from './types.ts';
 
-// Imports: the names of other modules, typed by their exports (`importModule` for `.mango` modules,
+// Imports: the names of other modules, typed by their exports (`importModule` for `.rk` modules,
 // `importDeclarations` for the rest), or untyped when nothing is known about them.
 
 export abstract class ImportChecker extends CheckerBase {
   protected declareImport(node: ast.ImportDeclaration): void {
     const specifier = node.source.value;
-    const isMango = specifier.endsWith('.mango');
-    const result = isMango
+    const isRook = specifier.endsWith('.rk');
+    const result = isRook
       ? this.options.importModule?.(specifier)
       : this.options.importDeclarations?.(specifier);
 
@@ -18,7 +18,7 @@ export abstract class ImportChecker extends CheckerBase {
 
     const exports = result && 'exports' in result ? result.exports : null;
 
-    if (node.defaultImport && exports && !isMango) {
+    if (node.defaultImport && exports && !isRook) {
       // `import fs from "node:fs"`: the default export of a module with types.
       const value = exports.values.get('default');
       const type = exports.types.get('default');
@@ -31,10 +31,7 @@ export abstract class ImportChecker extends CheckerBase {
       if (type !== undefined) this.declareType(node.defaultImport, type);
     } else if (node.defaultImport) {
       if (exports) {
-        this.error(
-          'MangoScript modules have no default export: use import { ... }',
-          node.defaultImport,
-        );
+        this.error('Rook modules have no default export: use import { ... }', node.defaultImport);
       }
 
       this.declareValue(node.defaultImport, 'import', exports ? UNKNOWN : ANY);
@@ -84,7 +81,7 @@ export abstract class ImportChecker extends CheckerBase {
     }
   }
 
-  /** `import { visible } from "./visible.mango"`: decorators have a namespace of their own. */
+  /** `import { visible } from "./visible.rk"`: decorators have a namespace of their own. */
   private importDecorator(node: ast.ImportSpecifier, info: DecoratorInfo): void {
     const { imported, local } = node;
 

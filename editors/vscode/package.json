@@ -1,13 +1,13 @@
 {
-  "name": "mangoscript",
-  "displayName": "MangoScript",
-  "description": "MangoScript support: highlighting, errors as you type and completion",
+  "name": "rooklang",
+  "displayName": "Rook",
+  "description": "Rook support: highlighting, errors as you type and completion",
   "version": "0.1.0",
-  "publisher": "mangoscript",
+  "publisher": "rooklang",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/QWERN-9876r/MangoScript.git",
+    "url": "https://github.com/QWERN-9876r/RookLang.git",
     "directory": "editors/vscode"
   },
   "engines": {
@@ -18,44 +18,40 @@
     "Linters"
   ],
   "activationEvents": [
-    "onLanguage:mangoscript"
+    "onLanguage:rook"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "mangoscript",
+        "id": "rook",
         "aliases": [
-          "MangoScript",
-          "mango"
+          "Rook",
+          "rook"
         ],
         "extensions": [
-          ".mango"
+          ".rk"
         ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./icons/mango.svg",
-          "dark": "./icons/mango.svg"
-        }
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "mangoscript",
-        "scopeName": "source.mango",
-        "path": "./syntaxes/mangoscript.tmLanguage.json"
+        "language": "rook",
+        "scopeName": "source.rook",
+        "path": "./syntaxes/rook.tmLanguage.json"
       },
       {
-        "scopeName": "source.mango.markup",
-        "path": "./syntaxes/mangoscript-markup.tmLanguage.json"
+        "scopeName": "source.rook.markup",
+        "path": "./syntaxes/rook-markup.tmLanguage.json"
       },
       {
-        "scopeName": "source.mango.css",
-        "path": "./syntaxes/mangoscript-css.tmLanguage.json"
+        "scopeName": "source.rook.css",
+        "path": "./syntaxes/rook-css.tmLanguage.json"
       }
     ],
     "configurationDefaults": {
-      "[mangoscript]": {
+      "[rook]": {
         "editor.tabSize": 4,
         "editor.insertSpaces": true
       }

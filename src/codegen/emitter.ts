@@ -14,9 +14,9 @@ import type { Helper } from './helpers.ts';
 import { JS_RESERVED, JS_UNDECLARABLE } from './syntax.ts';
 
 export interface JsOptions {
-  /** The MangoScript source, used to keep the blank lines between statements. */
+  /** The Rook source, used to keep the blank lines between statements. */
   source: string;
-  /** Replace `.mango` with `.js` in relative import paths, for output written next to the sources. */
+  /** Replace `.rk` with `.js` in relative import paths, for output written next to the sources. */
   rewriteImports: boolean;
   /** Types from the checker, when it ran; without them the generated code is more general. */
   types?: WeakMap<ast.Expression, Type> | undefined;
@@ -338,7 +338,7 @@ export abstract class Emitter {
     return undefined;
   }
 
-  /** The JS name for a MangoScript name. */
+  /** The JS name for a Rook name. */
   protected name(name: string): string {
     const rename =
       JS_RESERVED.has(name) || (JS_UNDECLARABLE.has(name) && this.lookup(name) !== undefined);

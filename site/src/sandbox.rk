@@ -1,0 +1,290 @@
+// Compiling and running code right on the page. The compiler is the same as in rook build: Vite
+// builds it for the browser from src/browser.ts. It does not check imports: there are no modules
+// on disk here.
+
+import { loadCompiler } from "./compiler.ts"
+import { highlight } from "./highlight.rk"
+import { text } from "./i18n.rk"
+import styles from "./sandbox.module.css"
+
+export interface Compiled {
+    code string
+    errors []string
+    /** The worker module of `go`; empty without `go`. */
+    worker string
+}
+
+/** Compiles a program whose worker module of `go` will be at the URL; "" means next to it. */
+type Compile func(string, string) Compiled
+
+// The compiler is loaded on the first run, when a JavaScript tab is opened and when the playground
+// comes into view; null until then. Compilations asked for while it loads wait in `waiting`.
+let compiler ?Compile = null
+let waiting []func(?Compile) = []
+
+/** Compiles `source` once the compiler is loaded: right away if it already is. */
+export func compileRook(source string, done func(Compiled)) {
+    withCompiler(compile => {
+        if compile == null {
+            done({ code: "", errors: [text().compilerFailed], worker: "" })
+        } else {
+            done(compile(source, ""))
+        }
+    })
+}
+
+/** Calls `use` with the compiler, or with null if it could not be loaded. */
+func withCompiler(use func(?Compile)) {
+    if compiler != null {
+        use(compiler)
+        return
+    }
+    waiting.push(use)
+    if waiting.length > 1 {
+        return
+    }
+    loadCompiler().then(
+        module => {
+            compiler = (source, workerUrl) => {
+                // The page is the DOM: its programs have markup and components.
+                const url = workerUrl == "" ? null : workerUrl
+                const result = module.compile(source, url, { markup: true })
+                return {
+                    code: result.code,
+                    errors: result.diagnostics.map(d => `${text().position(d.line, d.column)}: ${d.message}`),
+                    worker: result.worker ?? "",
+                }
+            }
+            resolveWaiting(compiler)
+        },
+        // Without the compiler the waiting ones get an error, and the next compilation tries again.
+        () => resolveWaiting(null),
+    )
+}
+
+func resolveWaiting(compile ?Compile) {
+    const callbacks = waiting
+    waiting = []
+    for use in callbacks {
+        use(compile)
+    }
+}
+
+interface Owner {
+    removed bool
+    cleanups []func()
+}
+
+// The program runs as the owner of its components, with the same key as {if} and {for} in
+// compiled code (owner in src/codegen/helpers.ts). Before the next run, what the mount() of the
+// previous one returned runs, so its timers stop.
+const OWNER = Symbol.for("rook.owner")
+let owners Map<HTMLElement, Owner> = new Map()
+
+func runOwned(preview HTMLElement, run func()) {
+    const previous = owners.get(preview)
+    if previous != null {
+        previous.removed = true
+        for let i = previous.cleanups.length - 1; i >= 0; i-- {
+            previous.cleanups[i]()
+        }
+    }
+    const owner Owner = { removed: false, cleanups: [] }
+    owners.set(preview, owner)
+    const global any = globalThis
+    const parent = global[OWNER]
+    global[OWNER] = owner
+    defer {
+        global[OWNER] = parent
+    }
+    run()
+}
+
+// The number of the last run in each result area: output of earlier runs is dropped.
+let runs Map<HTMLElement, number> = new Map()
+
+// A custom element cannot be defined twice, so each run has its own tags: <app-card> of the
+// program is <app-card-3> on the page.
+let allRuns = 0
+
+/**
+ * Runs a program: document.body is `preview`, and the lines of console.log go to `output` right
+ * after the run and then with every new line. Compile errors and exceptions are lines too.
+ */
+export func runProgram(source string, preview HTMLElement, output func([]string)) {
+    compileRook(source, compiled => {
+        if compiled.errors.length > 0 {
+            output(compiled.errors)
+        } else if source.includes("import ") {
+            output([text().noImports])
+        } else if compiled.worker == "" {
+            runCompiled(compiled.code, null, preview, output)
+        } else {
+            // `go` runs functions in workers whose module is a Blob: the program is compiled again
+            // with its URL. What the workers print comes back through a channel of the run.
+            channels++
+            const channel = `rooklang-sandbox-${channels}`
+            const worker = workerConsole(channel) + compiled.worker
+            const url = URL.createObjectURL(new Blob([worker], { type: "text/javascript" }))
+            withCompiler(compile => {
+                if compile != null {
+                    runCompiled(compile(source, url).code, channel, preview, output)
+                }
+            })
+        }
+    })
+}
+
+let channels = 0
+
+// What the previous run of each result area left: the channel of its workers.
+let workerChannels Map<HTMLElement, BroadcastChannel> = new Map()
+
+/** The `console` of the worker module: its lines go to the channel, formatted as by show(). */
+func workerConsole(channel string) string {
+    return `const console = (() => {
+    const output = new BroadcastChannel(${JSON.stringify(channel)});
+    const bigints = (key, value) => (typeof value === "bigint" ? \`\${value}n\` : value);
+    const show = (value) =>
+        typeof value === "string"
+            ? value
+            : typeof value === "bigint" ? \`\${value}n\` : JSON.stringify(value, bigints);
+    const log = (...values) => output.postMessage(values.map(show).join(" "));
+    return { log, info: log, warn: log, error: log };
+})();
+`
+}
+
+func runCompiled(code string, channel ?string, preview HTMLElement, output func([]string)) {
+    const run = (runs.get(preview) ?? 0) + 1
+    runs.set(preview, run)
+    const lines []string = []
+    // Output after the run, from mount() and timers, is shown right away, line by line.
+    let finished = false
+    const addLine = (line string) => {
+        if runs.get(preview) != run {
+            return
+        }
+        lines.push(line)
+        if finished {
+            output(lines.slice())
+        }
+    }
+    // The language has no ...rest parameters yet, so extra arguments of console.log are dropped.
+    const print = func(a any, b any, c any, d any, e any, f any) {
+        const values []any = [a, b, c, d, e, f]
+        let count = values.length
+        for count > 0 && typeof values[count - 1] == "undefined" {
+            count--
+        }
+        addLine(values.slice(0, count).map(show).join(" "))
+    }
+    workerChannels.get(preview)?.close()
+    workerChannels.delete(preview)
+    if channel != null {
+        const listener = new BroadcastChannel(channel)
+        listener.onmessage = func(event MessageEvent) {
+            addLine(event.data)
+        }
+        workerChannels.set(preview, listener)
+    }
+    const sandboxConsole = { log: print, info: print, warn: print, error: print }
+    allRuns++
+    const suffix = `-${allRuns}`
+    const pageTag = (tag string) => tag.includes("-") ? tag + suffix : tag
+    const sandboxElements = {
+        define: (tag string, element any) => customElements.define(pageTag(tag), element),
+        get: (tag string) => customElements.get(pageTag(tag)),
+    }
+    // The styles of the program go into the result area too: the next run removes them with it.
+    const sandboxDocument = {
+        body: preview,
+        head: preview,
+        getElementById: (id string) => preview.querySelector(`[id="${id}"]`),
+        createElement: (tag string) => document.createElement(pageTag(tag)),
+        createElementNS: (namespace string, tag string) => document.createElementNS(namespace, tag),
+        createTextNode: (text string) => document.createTextNode(text),
+        createDocumentFragment: () => document.createDocumentFragment(),
+        querySelector: (selector string) => preview.querySelector(selector),
+    }
+
+    // An exception of the program: thrown right away, or later, after an await.
+    const fail = (e any) => addLine(`${text().exception}: ${e.message}`)
+
+    preview.replaceChildren()
+    try {
+        // An async function, so that the program may await at the top level, as a module can.
+        const AsyncFunction = globalThis.Object.getPrototypeOf(async func() {}).constructor
+        const program = new AsyncFunction("console", "document", "customElements", code)
+        runOwned(preview, () => {
+            program(sandboxConsole, sandboxDocument, sandboxElements).catch(fail)
+        })
+    } catch e {
+        fail(e)
+    }
+    finished = true
+    output(lines.slice())
+}
+
+func show(value any) string {
+    if typeof value == "string" {
+        return value
+    }
+    if value != null && typeof value == "object" && typeof value.nodeName == "string" {
+        return `<${value.nodeName.toLowerCase()}>`
+    }
+    // JSON has no bigints: they are written as Node writes them, 10n.
+    if typeof value == "bigint" {
+        return `${value}n`
+    }
+    return JSON.stringify(value, (key, item) => typeof item == "bigint" ? `${item}n` : item)
+}
+
+/**
+ * The generated JS, highlighted, or the compile errors. While the compiler loads, the view shows a
+ * note; once it is loaded, the view is filled before it is returned.
+ */
+export func compiledView(source string) Node {
+    const view = <div>{loadingView()}</div>
+    compileRook(source, compiled => view.replaceChildren(compiledNode(compiled)))
+    return view
+}
+
+/** What a tab shows until the compiler is loaded. */
+export func loadingView() Node {
+    return <p class={styles.loading}>{text().loadingCompiler}</p>
+}
+
+func compiledNode(compiled Compiled) Node {
+    if compiled.errors.length > 0 {
+        return <ul class={styles.errors}>
+            {for message in compiled.errors {
+                <li>{message}</li>
+            }}
+        </ul>
+    }
+    return <pre class={styles.code}>{highlight(compiled.code, "js")}</pre>
+}
+
+/** What the program printed to the console. */
+export func consoleView(lines []string) Node {
+    if lines.length == 0 {
+        return <p class={styles.empty}>{text().emptyConsole}</p>
+    }
+    return <pre class={styles.console}>{lines.join("\n")}</pre>
+}
+
+/** The area where a program shows what it adds to `document.body`. */
+export func previewArea() HTMLDivElement {
+    return <div class={styles.preview} data-empty={text().emptyPreview} />
+}
+
+/** The result tab: the result area and the console under it. */
+export func resultView(preview HTMLElement, lines []string) Node {
+    return <div class={styles.result}>{preview}{consoleView(lines)}</div>
+}
+
+/** Highlighted Rook code. */
+export func codeView(code string) Node {
+    return <pre class={styles.code}>{highlight(code, "rook")}</pre>
+}

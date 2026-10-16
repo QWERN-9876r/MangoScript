@@ -193,9 +193,9 @@ func show(value Shape) string {
     }
     return value.toFixed(1)
 }
-for value in [new Point(2), "манго", 3] {
+for value in [new Point(2), "гуава", 3] {
     console.log(show(value))
 }`),
-    ).toEqual(['точка 2', 'МАНГО', '3.0']);
+    ).toEqual(['точка 2', 'ГУАВА', '3.0']);
   });
 });

@@ -72,9 +72,9 @@ describe('syntax', () => {
     );
 
     expect(code).toContain('content: "{";');
-    expect(code).toContain('.card.mango-card-');
-    expect(code).toContain('a:not(.x).mango-card-');
-    expect(code).toMatch(/margin: var\(--mango-card-\w+-1\);/);
+    expect(code).toContain('.card.rook-card-');
+    expect(code).toContain('a:not(.x).rook-card-');
+    expect(code).toMatch(/margin: var\(--rook-card-\w+-1\);/);
   });
 });
 
@@ -118,8 +118,8 @@ describe('types and warnings', () => {
     const source = card('        h1 { color: red }');
     const [warning] = compile(source).warnings;
 
-    expect(formatDiagnostic(new SourceFile('a.mango', source), warning!, 'warning')).toMatch(
-      /^a\.mango:3:9: warning: selector "h1" matches no element of Card/,
+    expect(formatDiagnostic(new SourceFile('a.rk', source), warning!, 'warning')).toMatch(
+      /^a\.rk:3:9: warning: selector "h1" matches no element of Card/,
     );
   });
 
@@ -182,7 +182,7 @@ describe('CSS', () => {
 describe('generated code', () => {
   it('adds the CSS once at the start of the module and the class to every element', () => {
     const code = js(card('        .card { padding: 8px }\n        p { margin: 0 }'));
-    const [, scope] = /\$\$style\("(mango-card-\w+)"/.exec(code)!;
+    const [, scope] = /\$\$style\("(rook-card-\w+)"/.exec(code)!;
 
     expect(code).toContain(
       `$$style("${scope}", \`.card.${scope} {\n  padding: 8px;\n}\np.${scope} {`,
@@ -200,7 +200,7 @@ describe('generated code', () => {
       ),
     );
 
-    expect(code).toMatch(/className = `\$\{on \? "on" : ""\} mango-card-\w+`;/);
+    expect(code).toMatch(/className = `\$\{on \? "on" : ""\} rook-card-\w+`;/);
   });
 
   it('sets the class of SVG elements and of the element of a ref', () => {
@@ -213,9 +213,9 @@ describe('generated code', () => {
     );
 
     expect(code).toMatch(
-      /const box = document\.createElement\("div"\);\n {2}box\.className = "box mango-card-\w+";/,
+      /const box = document\.createElement\("div"\);\n {2}box\.className = "box rook-card-\w+";/,
     );
-    expect(code).toMatch(/\$\$svg\d+\.setAttribute\("class", "mango-card-\w+"\);/);
+    expect(code).toMatch(/\$\$svg\d+\.setAttribute\("class", "rook-card-\w+"\);/);
   });
 
   it('sets values from code as CSS variables and updates them', () => {
@@ -227,11 +227,11 @@ describe('generated code', () => {
       ),
     );
 
-    expect(code).toMatch(/\$\$card1\.style\.setProperty\("--mango-card-\w+-0", `\$\{width\}px`\);/);
-    expect(code).toMatch(/\$\$card1\.style\.setProperty\("--mango-card-\w+-1", accent\);/);
+    expect(code).toMatch(/\$\$card1\.style\.setProperty\("--rook-card-\w+-0", `\$\{width\}px`\);/);
+    expect(code).toMatch(/\$\$card1\.style\.setProperty\("--rook-card-\w+-1", accent\);/);
     // Only the value that reads the state is updated.
-    expect(code.match(/setProperty\("--mango-card-\w+-1"/g)).toHaveLength(1);
-    expect(code.match(/setProperty\("--mango-card-\w+-0"/g)).toHaveLength(2);
+    expect(code.match(/setProperty\("--rook-card-\w+-1"/g)).toHaveLength(1);
+    expect(code.match(/setProperty\("--rook-card-\w+-0"/g)).toHaveLength(2);
   });
 
   it('has no styles when no component has them', () => {

@@ -10,7 +10,7 @@ export interface Diagnostic {
 /**
  * Formats a diagnostic in the usual compiler style:
  *
- *     hello.mango:2:9: error: unterminated string literal
+ *     hello.rk:2:9: error: unterminated string literal
  *     2 | let s = "abc
  *       |         ^^^^
  *

@@ -245,7 +245,7 @@ export comp Tree(item Item) {
     return <ul class="tree">{item.name}{for child in item.children { <Tree item={child} /> }}</ul>
 }
 `;
-  const main = `import { Card, Tree } from "./card.mango"
+  const main = `import { Card, Tree } from "./card.rk"
 comp App() {
     ref card
     ref tree
@@ -259,12 +259,12 @@ document.body.append(<App />)
 `;
 
   it('creates the element of a component of another module, inlined or called', () => {
-    const dir = markupProject('mango-ref-');
+    const dir = markupProject('rook-ref-');
 
-    writeFileSync(join(dir, 'card.mango'), card);
-    writeFileSync(join(dir, 'main.mango'), main);
+    writeFileSync(join(dir, 'card.rk'), card);
+    writeFileSync(join(dir, 'main.rk'), main);
 
-    const filename = join(dir, 'main.mango');
+    const filename = join(dir, 'main.rk');
     const { code, diagnostics } = compile(readFileSync(filename, 'utf8'), { filename });
 
     expect(diagnostics).toEqual([]);

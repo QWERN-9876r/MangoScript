@@ -7,8 +7,8 @@
   padding: 16px 18px;
   overflow: auto;
   max-height: 520px;
-  color: var(--mui-code-text);
-  font-family: var(--mui-mono);
+  color: var(--rui-code-text);
+  font-family: var(--rui-mono);
   font-size: 13.5px;
   line-height: 1.6;
   tab-size: 4;
@@ -17,15 +17,15 @@
 .errors {
   margin: 0;
   padding: 16px 18px 16px 36px;
-  color: var(--mui-danger);
-  font-family: var(--mui-mono);
+  color: var(--rui-danger);
+  font-family: var(--rui-mono);
   font-size: 13.5px;
 }
 
 .loading {
   margin: 0;
   padding: 16px 18px;
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font-size: 0.9rem;
 }
 
@@ -36,41 +36,41 @@
 .console {
   margin: 12px 0 0;
   padding: 10px 14px;
-  border-left: 3px solid var(--mui-leaf);
+  border-left: 3px solid var(--rui-leaf);
   border-radius: 6px;
-  background: var(--mui-surface);
-  font-family: var(--mui-mono);
+  background: var(--rui-surface);
+  font-family: var(--rui-mono);
   font-size: 13.5px;
   white-space: pre-wrap;
 }
 
 .empty {
   margin: 12px 0 0;
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font-size: 0.9rem;
 }
 
 /* The result area: the program adds elements here through document.body. */
 .preview {
   padding: 14px;
-  border: 1px dashed var(--mui-line-strong);
-  border-radius: var(--mui-radius-sm);
-  background: var(--mui-surface);
+  border: 1px dashed var(--rui-line-strong);
+  border-radius: var(--rui-radius-sm);
+  background: var(--rui-surface);
 }
 
 .preview:empty::before {
   content: attr(data-empty);
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font-size: 0.9rem;
 }
 
 .preview button,
 .preview input:not([type]) {
   padding: 4px 10px;
-  border: 1px solid var(--mui-line-strong);
-  border-radius: var(--mui-radius-sm);
-  background: var(--mui-bg);
-  color: var(--mui-text);
+  border: 1px solid var(--rui-line-strong);
+  border-radius: var(--rui-radius-sm);
+  background: var(--rui-bg);
+  color: var(--rui-text);
   font: inherit;
 }
 
@@ -81,13 +81,13 @@
 .preview :global(.card) {
   margin: 8px 0;
   padding: 10px 14px;
-  border-left: 4px solid var(--mui-leaf);
-  border-radius: var(--mui-radius-sm);
-  background: var(--mui-bg);
+  border-left: 4px solid var(--rui-leaf);
+  border-radius: var(--rui-radius-sm);
+  background: var(--rui-bg);
 }
 
 .preview :global(.card.warning) {
-  border-left-color: var(--mui-accent);
+  border-left-color: var(--rui-accent);
 }
 
 .preview :global(.card) h4 {

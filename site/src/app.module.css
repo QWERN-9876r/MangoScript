@@ -9,8 +9,8 @@
   gap: 12px;
   height: 60px;
   padding: 0 20px;
-  border-bottom: 1px solid var(--mui-line);
-  background: color-mix(in srgb, var(--mui-bg) 82%, transparent);
+  border-bottom: 1px solid var(--rui-line);
+  background: color-mix(in srgb, var(--rui-bg) 82%, transparent);
   backdrop-filter: blur(12px);
 }
 
@@ -22,7 +22,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--mui-text);
+  color: var(--rui-text);
   font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: -0.01em;
@@ -32,7 +32,7 @@
 
 .tagline {
   overflow: hidden;
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -78,7 +78,7 @@
 
 .section + .section {
   padding-top: 36px;
-  border-top: 1px solid var(--mui-line);
+  border-top: 1px solid var(--rui-line);
 }
 
 /* The last section can be scrolled to the top: "Open in playground" shows the whole editor. */
@@ -92,8 +92,8 @@
   gap: 10px;
   margin-top: 48px;
   padding-top: 24px;
-  border-top: 1px solid var(--mui-line);
-  color: var(--mui-muted);
+  border-top: 1px solid var(--rui-line);
+  color: var(--rui-muted);
   font-size: 0.9rem;
 }
 

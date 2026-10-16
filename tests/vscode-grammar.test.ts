@@ -10,9 +10,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 const root = new URL('..', import.meta.url).pathname;
 // The grammars of markup and styles are separate files that the main one includes, as in VS Code.
 const grammarPaths: Record<string, string> = {
-  'source.mango': join(root, 'editors/vscode/syntaxes/mangoscript.tmLanguage.json'),
-  'source.mango.markup': join(root, 'editors/vscode/syntaxes/mangoscript-markup.tmLanguage.json'),
-  'source.mango.css': join(root, 'editors/vscode/syntaxes/mangoscript-css.tmLanguage.json'),
+  'source.rook': join(root, 'editors/vscode/syntaxes/rook.tmLanguage.json'),
+  'source.rook.markup': join(root, 'editors/vscode/syntaxes/rook-markup.tmLanguage.json'),
+  'source.rook.css': join(root, 'editors/vscode/syntaxes/rook-css.tmLanguage.json'),
 };
 
 let grammar: textmate.IGrammar;
@@ -37,7 +37,7 @@ beforeAll(async () => {
       );
     },
   });
-  const loaded = await registry.loadGrammar('source.mango');
+  const loaded = await registry.loadGrammar('source.rook');
 
   if (!loaded) throw new Error('the grammar did not load');
   grammar = loaded;
@@ -70,7 +70,7 @@ function tokenize(source: string): { tokens: Token[]; stack: textmate.StateStack
 function scopesOf(source: string, text: string): string[] {
   return tokenize(source)
     .tokens.filter((token) => token.text === text)
-    .map((token) => token.scopes.at(-1)!.replace(/\.mango$/, ''));
+    .map((token) => token.scopes.at(-1)!.replace(/\.rook$/, ''));
 }
 
 function scopeOf(source: string, text: string): string {
@@ -100,7 +100,7 @@ describe('VS Code grammar', () => {
     expect(scopesOf('let big bigint = 10n * 0xffn', 'bigint')).toEqual(['support.type.primitive']);
     expect(scopeOf('let big = 10n * 0xffn', '10n')).toBe('constant.numeric.decimal');
     expect(scopeOf('let big = 10n * 0xffn', '0xffn')).toBe('constant.numeric.hex');
-    expect(scopeOf('let data []byte = []byte("mango")', 'byte')).toBe('support.type.primitive');
+    expect(scopeOf('let data []byte = []byte("guava")', 'byte')).toBe('support.type.primitive');
     expect(scopeOf('const xs = make([]float64, n)', 'float64')).toBe('support.type.primitive');
     expect(scopeOf('let ids []uint32', 'uint32')).toBe('support.type.primitive');
     expect(scopeOf('const int32s = 1', 'int32s')).not.toBe('support.type.primitive');
@@ -365,12 +365,12 @@ describe('VS Code grammar', () => {
     expect(tokenize(source).stack.depth).toBe(textmate.INITIAL.depth);
   });
 
-  it('closes every construct in the MangoScript files of the repository', () => {
+  it('closes every construct in the Rook files of the repository', () => {
     const files = [
       ...readdirSync(join(root, 'examples')).map((name) => join(root, 'examples', name)),
       ...readdirSync(join(root, 'site/src')).map((name) => join(root, 'site/src', name)),
-      join(root, 'site/server.mango'),
-    ].filter((path) => path.endsWith('.mango'));
+      join(root, 'site/server.rk'),
+    ].filter((path) => path.endsWith('.rk'));
 
     expect(files.length).toBeGreaterThan(3);
     for (const path of files) {

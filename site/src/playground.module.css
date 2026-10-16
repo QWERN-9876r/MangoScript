@@ -15,10 +15,10 @@
   grid-template-columns: minmax(100%, max-content);
   max-height: 440px;
   overflow: auto;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius-lg);
-  background: var(--mui-code-bg);
-  box-shadow: var(--mui-shadow);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
+  background: var(--rui-code-bg);
+  box-shadow: var(--rui-shadow);
 }
 
 .code,
@@ -27,7 +27,7 @@
   margin: 0;
   padding: 16px 18px;
   border: 0;
-  font-family: var(--mui-mono);
+  font-family: var(--rui-mono);
   font-size: 13.5px;
   line-height: 1.6;
   tab-size: 4;
@@ -36,7 +36,7 @@
 }
 
 .code {
-  color: var(--mui-code-text);
+  color: var(--rui-code-text);
   pointer-events: none;
 }
 
@@ -46,11 +46,11 @@
   outline: none;
   background: transparent;
   color: transparent;
-  caret-color: var(--mui-text);
+  caret-color: var(--rui-text);
 }
 
 .input::selection {
-  background: color-mix(in srgb, var(--mui-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--rui-accent) 30%, transparent);
 }
 
 .hidden {
@@ -60,17 +60,17 @@
 /* The editor of VS Code: it sets its height itself, from its code (src/editor/editor.ts). */
 .vscode {
   min-height: 120px;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius-lg);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
   overflow: hidden;
-  background: var(--mui-code-bg);
-  box-shadow: var(--mui-shadow);
+  background: var(--rui-code-bg);
+  box-shadow: var(--rui-shadow);
 }
 
 .output {
   align-self: start;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius-lg);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
   overflow: hidden;
-  background: var(--mui-code-bg);
+  background: var(--rui-code-bg);
 }

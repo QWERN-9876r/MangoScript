@@ -1,14 +1,14 @@
-/* The first screen: what MangoScript is, where to go, and tabs of code with what it gives. */
+/* The first screen: what Rook is, where to go, and tabs of code with what it gives. */
 
 .hero {
   position: relative;
   overflow: hidden;
-  border-bottom: 1px solid var(--mui-line);
+  border-bottom: 1px solid var(--rui-line);
   background:
-    radial-gradient(60% 80% at 85% 0%, var(--mui-bg-glow), transparent 70%),
+    radial-gradient(60% 80% at 85% 0%, var(--rui-bg-glow), transparent 70%),
     radial-gradient(
       50% 60% at 0% 100%,
-      color-mix(in srgb, var(--mui-leaf-soft) 70%, transparent),
+      color-mix(in srgb, var(--rui-leaf-soft) 70%, transparent),
       transparent 70%
     );
 }
@@ -33,14 +33,9 @@
   letter-spacing: -0.03em;
 }
 
-.mango {
-  font-size: 0.9em;
-  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--mui-accent) 35%, transparent));
-}
-
 .tagline {
   margin: 0 0 14px;
-  color: var(--mui-accent-strong);
+  color: var(--rui-accent-strong);
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -49,7 +44,7 @@
 .lead {
   max-width: 34em;
   margin: 0 0 28px;
-  color: var(--mui-muted);
+  color: var(--rui-muted);
   font-size: 1.08rem;
 }
 
@@ -68,10 +63,10 @@
 /* The tabs as a pill of their own above the panels. */
 .switch {
   justify-self: center;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius-lg);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
   overflow: hidden;
-  box-shadow: var(--mui-shadow);
+  box-shadow: var(--rui-shadow);
 }
 
 .switch > div {
@@ -138,18 +133,18 @@
 .panel {
   width: 100%;
   margin: 0;
-  border: 1px solid var(--mui-line);
-  border-radius: var(--mui-radius-lg);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
   overflow: hidden;
-  background: var(--mui-code-bg);
-  box-shadow: var(--mui-shadow);
+  background: var(--rui-code-bg);
+  box-shadow: var(--rui-shadow);
 }
 
 .label {
   padding: 8px 14px;
-  border-bottom: 1px solid var(--mui-line);
-  background: var(--mui-surface);
-  color: var(--mui-muted);
+  border-bottom: 1px solid var(--rui-line);
+  background: var(--rui-surface);
+  color: var(--rui-muted);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -159,8 +154,8 @@
   margin: 0;
   padding: 14px 16px;
   overflow: auto;
-  color: var(--mui-code-text);
-  font-family: var(--mui-mono);
+  color: var(--rui-code-text);
+  font-family: var(--rui-mono);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -171,8 +166,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--mui-accent-soft);
-  color: var(--mui-accent-strong);
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
   transform: rotate(90deg);
 }
 

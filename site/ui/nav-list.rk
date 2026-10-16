@@ -1,0 +1,41 @@
+// RookUI navigation: links to the parts of a page, in groups. The parent knows which part is
+// current, e.g. by scrolling.
+
+import styles from "./nav-list.module.css"
+
+export interface NavLink {
+    id string
+    title string
+}
+
+export interface NavGroup {
+    title string
+    links []NavLink
+}
+
+export comp NavList(
+    groups []NavGroup,
+    active string,
+    label string,
+    onNavigate func() = func() {},
+) {
+    return <nav class={styles.nav} aria-label={label}>
+        {for group in groups {
+            <div>
+                <p class={styles.heading}>{group.title}</p>
+                <div class={styles.links}>
+                    {for link in group.links {
+                        <a
+                            class={link.id == active ? `${styles.link} ${styles.active}` : styles.link}
+                            href={`#${link.id}`}
+                            aria-current={link.id == active ? "location" : null}
+                            onClick={onNavigate()}
+                        >
+                            {link.title}
+                        </a>
+                    }}
+                </div>
+            </div>
+        }}
+    </nav>
+}

@@ -6,7 +6,7 @@ import type { ImportResult, Library } from '../checker/checker.ts';
 import { TypeConverter, type SharedTypes } from './convert.ts';
 import { LibraryTypes } from './library.ts';
 
-// Types of imports that are not `.mango` modules: npm packages, `node:` modules and `.ts` files.
+// Types of imports that are not `.rk` modules: npm packages, `node:` modules and `.ts` files.
 // The TypeScript compiler finds and reads their declarations; it is loaded only when such an
 // import is checked, and an import without declarations stays untyped (`any`).
 

@@ -9,7 +9,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { compile, complete } from '../../../src/index.ts';
 import { toCompletionItems, toDiagnostics } from './convert.mts';
 
-// The language server of MangoScript: errors and warnings of the compiler for the open files, and
+// The language server of Rook: errors and warnings of the compiler for the open files, and
 // completion. It runs in a process of its own, since the first check of a file loads the types of
 // the DOM from TypeScript, which takes a while.
 
@@ -37,7 +37,7 @@ function validate(document: TextDocument): void {
   const path = filename(document.uri);
 
   try {
-    // The same errors as `mango build` gives; the generated code is not needed here.
+    // The same errors as `rook build` gives; the generated code is not needed here.
     const result = compile(document.getText(), path ? { filename: path } : {});
 
     void connection.sendDiagnostics({

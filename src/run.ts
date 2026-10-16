@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CompileError } from './compile-file.ts';
 
-// The process of `mango run`, started with `--import` of loader.ts: it runs the program and shows
+// The process of `rook run`, started with `--import` of loader.ts: it runs the program and shows
 // compile errors without a stack trace.
 
 try {

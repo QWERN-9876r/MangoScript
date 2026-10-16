@@ -147,6 +147,6 @@ describe('running', () => {
 }
 document.body.append(<Tag class="big" />)`);
 
-    expect(String(body.find('span').className)).toMatch(/^big mango-tag-\w+$/);
+    expect(String(body.find('span').className)).toMatch(/^big rook-tag-\w+$/);
   });
 });

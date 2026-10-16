@@ -11,7 +11,7 @@ import { forEachChild } from './walk.ts';
 // element at the top of the component's markup. The checker and the generator share these.
 
 export interface ComponentStyle {
-  /** `mango-product-card-1x9k2az`: the class of the elements of the component's own markup. */
+  /** `rook-product-card-1x9k2az`: the class of the elements of the component's own markup. */
   scope: string;
   nodes: CssNode[];
   /** Problems of the CSS, with offsets in the source of the module. */
@@ -59,7 +59,7 @@ export function componentStyle(name: string, body: ast.BlockStatement): Componen
 
     return segment.offset + offset - segment.at;
   };
-  const scope = `mango-${kebabCase(name)}-${hash(text)}`;
+  const scope = `rook-${kebabCase(name)}-${hash(text)}`;
   const sheet = parseCss(text);
   const variables = new Map<CssDeclaration, string>();
 

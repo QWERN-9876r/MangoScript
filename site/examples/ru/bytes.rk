@@ -1,0 +1,16 @@
+// []byte — это Uint8Array; []byte("...") даёт байты строки в UTF-8
+const bytes = []byte("ладья ♜")
+console.log(bytes.length, "байт:", bytes.join(" "))
+
+// string(bytes) читает их обратно как текст
+console.log(string(bytes))
+
+// Числа там, где ждут []byte, дают Uint8Array
+let header []byte = [0x89, 0x50, 0x4e, 0x47]
+console.log(string(header.subarray(1)))
+
+// В горутину он уходит без копии, через transfer
+func checksum(data []byte) number {
+    return data.reduce((sum, b) => (sum + b) % 256, 0)
+}
+console.log("сумма:", await go checksum(transfer(bytes)), "осталось здесь:", bytes.length)

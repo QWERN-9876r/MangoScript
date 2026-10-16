@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
-import { mango } from './src/vite.ts';
+import { rook } from './src/vite.ts';
 
-// The documentation site (site/): its pages are MangoScript modules compiled by the plugin from
+// The documentation site (site/): its pages are Rook modules compiled by the plugin from
 // src/vite.ts. `npm run site:dev` serves it with Vite, `npm run site:build` builds it to site/dist.
 // The English page is index.html, the Russian one ru/index.html.
 
@@ -25,7 +25,7 @@ function examples(): Plugin {
   const prefix = 'virtual:examples/';
 
   return {
-    name: 'mangoscript-examples',
+    name: 'rooklang-examples',
     resolveId: (source) =>
       source.startsWith(prefix) && source.slice(prefix.length) in EXAMPLES ? `\0${source}` : null,
     load(id) {
@@ -33,7 +33,7 @@ function examples(): Plugin {
 
       const dir = EXAMPLES[id.slice(prefix.length + 1)]!;
       const files = readdirSync(dir)
-        .filter((name) => name.endsWith('.mango'))
+        .filter((name) => name.endsWith('.rk'))
         .sort();
       const code: Record<string, string> = {};
 
@@ -41,7 +41,7 @@ function examples(): Plugin {
         const path = join(dir, file);
 
         this.addWatchFile(path);
-        code[file.slice(0, -'.mango'.length)] = readFileSync(path, 'utf8').trimEnd();
+        code[file.slice(0, -'.rk'.length)] = readFileSync(path, 'utf8').trimEnd();
       }
 
       return `export const EXAMPLES = ${JSON.stringify(code)};\n`;
@@ -52,7 +52,7 @@ function examples(): Plugin {
 export default defineConfig({
   root: site,
   // Relative paths to the assets: GitHub Pages serves the site from /<repository>/, and
-  // site/server.mango from the root.
+  // site/server.rk from the root.
   base: './',
   build: {
     outDir: 'dist',
@@ -62,5 +62,5 @@ export default defineConfig({
     chunkSizeWarningLimit: 4000,
     rolldownOptions: { input: [join(site, 'index.html'), join(site, 'ru', 'index.html')] },
   },
-  plugins: [mango(), examples()],
+  plugins: [rook(), examples()],
 });

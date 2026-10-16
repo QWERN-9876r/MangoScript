@@ -25,15 +25,13 @@ const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
 /** Builds a program, with or without checking its types, and runs it with Node. */
 function run(source: string, check = true): { stdout: string; stderr: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-go-for-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-go-for-'));
   const options = { cwd: dir, encoding: 'utf8' as const, timeout: 20_000 };
   const flags = check ? [] : ['--no-check'];
 
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }');
-  writeFileSync(join(dir, 'main.mango'), source);
-  expect(spawnSync(process.execPath, [cli, 'build', ...flags, 'main.mango'], options).stderr).toBe(
-    '',
-  );
+  writeFileSync(join(dir, 'main.rk'), source);
+  expect(spawnSync(process.execPath, [cli, 'build', ...flags, 'main.rk'], options).stderr).toBe('');
 
   return spawnSync(process.execPath, ['main.js'], options);
 }

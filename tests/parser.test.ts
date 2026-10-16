@@ -164,7 +164,7 @@ describe('variables', () => {
     ['const x number', 'constants need a value'],
     ['let a, b = 1, 2, 3', 'assignment mismatch: 2 variables but 3 values'],
     ['let a = 1, 2', 'assignment mismatch: 1 variable but 2 values'],
-    ['var x = 1', '"var" is not a MangoScript keyword: declare variables with "let" or "const"'],
+    ['var x = 1', '"var" is not a Rook keyword: declare variables with "let" or "const"'],
   ])('reports %j', (source, message) => {
     expect(errors(source)).toEqual([message]);
   });

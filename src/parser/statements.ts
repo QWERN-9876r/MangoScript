@@ -107,7 +107,7 @@ export abstract class StatementParser extends SimpleStatementParser {
     const hint = token.kind === 'Identifier' ? FOREIGN_KEYWORDS.get(token.text) : undefined;
 
     if (hint !== undefined && this.peek(1).kind === 'Identifier') {
-      this.fail(`"${token.text}" is not a MangoScript keyword: ${hint}`);
+      this.fail(`"${token.text}" is not a Rook keyword: ${hint}`);
     }
 
     // `select` is a keyword only before `{`: elsewhere it is a name, such as a function's.

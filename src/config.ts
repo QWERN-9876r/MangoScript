@@ -1,15 +1,15 @@
 import { readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-// The settings of a package, in the "mangoscript" field of its package.json:
+// The settings of a package, in the "rook" field of its package.json:
 //
-//     "mangoscript": { "markup": true }
+//     "rook": { "markup": true }
 //
-// Markup and components are off unless the package turns them on, so that MangoScript can be the
+// Markup and components are off unless the package turns them on, so that Rook can be the
 // language of the logic of an app whose views are in React, Svelte or Vue. A file takes the
 // settings of the nearest package.json above it, with or without the field; a file without a
 // name, those of the current directory. The CLI (--markup, --no-markup) and the Vite plugin
-// (`mango({ markup: true })`) may set them for all files instead.
+// (`rook({ markup: true })`) may set them for all files instead.
 
 interface PackageSettings {
   markup: boolean;
@@ -54,7 +54,7 @@ function readSettings(path: string): PackageSettings | null {
   let field: unknown;
 
   try {
-    field = (JSON.parse(readFileSync(path, 'utf8')) as { mangoscript?: unknown }).mangoscript;
+    field = (JSON.parse(readFileSync(path, 'utf8')) as { rook?: unknown }).rook;
   } catch {
     field = undefined;
   }

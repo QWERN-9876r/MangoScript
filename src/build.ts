@@ -16,7 +16,7 @@ export interface BuildOptions {
 }
 
 export interface BuildOutput {
-  /** Absolute path of the `.mango` file. */
+  /** Absolute path of the `.rk` file. */
   source: string;
   /** Absolute path of its `.js` file. */
   output: string;
@@ -42,7 +42,7 @@ export interface BuildResult {
 }
 
 /**
- * Compiles `.mango` files and directories (recursively), together with every `.mango` file they
+ * Compiles `.rk` files and directories (recursively), together with every `.rk` file they
  * import, since the generated imports refer to the `.js` files of those modules.
  */
 export function build(entries: readonly string[], options: BuildOptions = {}): BuildResult {
@@ -52,7 +52,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   const queue = entries.flatMap((entry) => {
     const path = resolve(entry);
 
-    return directories.includes(path) ? findMangoFiles(path) : [path];
+    return directories.includes(path) ? findRookFiles(path) : [path];
   });
   const seen = new Set(queue);
   const typeCheck = options.typeCheck ?? true;
@@ -101,7 +101,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
       // A missing module is reported by the type checker.
       const dependency = resolve(dirname(source), specifier);
 
-      if (dependency.endsWith('.mango') && !seen.has(dependency) && existsSync(dependency)) {
+      if (dependency.endsWith('.rk') && !seen.has(dependency) && existsSync(dependency)) {
         seen.add(dependency);
         queue.push(dependency);
       }
@@ -114,7 +114,7 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   const root = commonDirectory(queue, directories);
   const outputs = compiled.map(({ source, code, declarations: types, worker }): BuildOutput => {
     const target = options.outDir ? join(resolve(options.outDir), relative(root, source)) : source;
-    const base = target.replace(/\.mango$/, '');
+    const base = target.replace(/\.rk$/, '');
 
     return {
       source,
@@ -128,8 +128,8 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   return { outputs, errors, warnings };
 }
 
-/** The `.mango` files in a directory and its subdirectories, except `node_modules` and hidden ones. */
-function findMangoFiles(directory: string): string[] {
+/** The `.rk` files in a directory and its subdirectories, except `node_modules` and hidden ones. */
+function findRookFiles(directory: string): string[] {
   const files: string[] = [];
   const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -140,9 +140,9 @@ function findMangoFiles(directory: string): string[] {
 
     if (entry.isDirectory()) {
       if (entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
-        files.push(...findMangoFiles(path));
+        files.push(...findRookFiles(path));
       }
-    } else if (entry.name.endsWith('.mango')) {
+    } else if (entry.name.endsWith('.rk')) {
       files.push(path);
     }
   }

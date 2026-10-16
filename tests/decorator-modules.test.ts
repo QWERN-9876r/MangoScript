@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { build } from 'vite';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index.ts';
-import { mango } from '../src/vite.ts';
+import { rook } from '../src/vite.ts';
 import { mountJsWithDom } from './fake-dom.ts';
 import { markupProject } from './project.ts';
 
@@ -41,7 +41,7 @@ document.body.append(<Clicker />)
 
 /** Writes the files to a new directory. */
 function project(files: Record<string, string>): string {
-  const dir = markupProject('mango-dec-');
+  const dir = markupProject('rook-dec-');
 
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
 
@@ -60,22 +60,22 @@ function errorsIn(files: Record<string, string>, name: string): string[] {
 
 describe('types', () => {
   const main = (decorators?: string, body?: string, imports = 'counter, badge') =>
-    `import { ${imports} } from "./counter.mango"\n${clicker(decorators, body)}`;
+    `import { ${imports} } from "./counter.rk"\n${clicker(decorators, body)}`;
 
   it('applies imported decorators with their members and wrappers', () => {
-    expect(errorsIn({ 'counter.mango': counter, 'main.mango': main() }, 'main.mango')).toEqual([]);
+    expect(errorsIn({ 'counter.rk': counter, 'main.rk': main() }, 'main.rk')).toEqual([]);
     // The names of the decorator's module do not clash with the component's.
     expect(
       errorsIn(
-        { 'counter.mango': counter, 'main.mango': main(undefined, '\n    const log = 1') },
-        'main.mango',
+        { 'counter.rk': counter, 'main.rk': main(undefined, '\n    const log = 1') },
+        'main.rk',
       ),
     ).toEqual([]);
   });
 
   it('reports wrong imports and uses', () => {
     const errors = (text: string) =>
-      errorsIn({ 'counter.mango': counter, 'main.mango': text }, 'main.mango');
+      errorsIn({ 'counter.rk': counter, 'main.rk': text }, 'main.rk');
 
     expect(errors(main(undefined, '', 'counter as c, badge'))).toEqual([
       'renaming decorators is not supported yet: import { counter }',
@@ -88,31 +88,31 @@ describe('types', () => {
     expect(
       errorsIn(
         {
-          'greet.mango': 'export dec greet() {\n    console.log("hi")\n}\n',
-          'main.mango': `import { greet } from "./greet.mango"\n@greet\ncomp A() {\n    const console = 1\n    return <p />\n}`,
+          'greet.rk': 'export dec greet() {\n    console.log("hi")\n}\n',
+          'main.rk': `import { greet } from "./greet.rk"\n@greet\ncomp A() {\n    const console = 1\n    return <p />\n}`,
         },
-        'main.mango',
+        'main.rk',
       ),
     ).toEqual(['@greet uses the global "console", but here it is another declaration: rename it']);
     expect(
       errorsIn(
         {
-          'greet.mango': 'export dec greet() {\n    console.log("hi")\n}\n',
-          'main.mango': `import { greet } from "./greet.mango"\nconst console = 1\n@greet\ncomp A() {\n    return <p />\n}`,
+          'greet.rk': 'export dec greet() {\n    console.log("hi")\n}\n',
+          'main.rk': `import { greet } from "./greet.rk"\nconst console = 1\n@greet\ncomp A() {\n    return <p />\n}`,
         },
-        'main.mango',
+        'main.rk',
       ),
     ).toEqual(['@greet uses the global "console", but here it is another declaration: rename it']);
     expect(
       errorsIn(
-        { 'a.mango': 'dec hidden() {\n}\n', 'main.mango': 'import { hidden } from "./a.mango"' },
-        'main.mango',
+        { 'a.rk': 'dec hidden() {\n}\n', 'main.rk': 'import { hidden } from "./a.rk"' },
+        'main.rk',
       ),
-    ).toEqual(['"hidden" is not exported by "./a.mango"']);
+    ).toEqual(['"hidden" is not exported by "./a.rk"']);
   });
 
   it('checks that an exported decorator works in other modules', () => {
-    const errors = (text: string) => errorsIn({ 'a.mango': text }, 'a.mango');
+    const errors = (text: string) => errorsIn({ 'a.rk': text }, 'a.rk');
 
     expect(errors('dec a() {\n}\nexport dec b() needs a {\n}')).toEqual([
       '@b is exported, so @a that it needs must be exported too: export dec a(...)',
@@ -124,11 +124,11 @@ describe('types', () => {
     expect(
       errorsIn(
         {
-          'badge.mango': 'export comp Badge() {\n    return <b />\n}\n',
-          'a.mango':
-            'import { Badge } from "./badge.mango"\nexport dec a() {\n    return (c Element) => <div>{c}<Badge /></div>\n}\n',
+          'badge.rk': 'export comp Badge() {\n    return <b />\n}\n',
+          'a.rk':
+            'import { Badge } from "./badge.rk"\nexport dec a() {\n    return (c Element) => <div>{c}<Badge /></div>\n}\n',
         },
-        'a.mango',
+        'a.rk',
       ),
     ).toEqual([
       '@a is exported, so its code goes into other modules with the components it uses: they cannot use components or decorators that this module imports yet, nor assign variables of this module',
@@ -171,7 +171,7 @@ export dec marked(label string) {
 }
 `;
 
-const page = `import { marked } from "./marked.mango"
+const page = `import { marked } from "./marked.rk"
 
 comp Badge() {
     return <i>mine</i>
@@ -187,9 +187,9 @@ document.body.append(<Page />, <Badge />)
 
 describe('components in decorators', () => {
   it('brings the components of the decorator with its code', () => {
-    const dir = project({ 'marked.mango': marked, 'main.mango': page });
-    const exporter = compileIn(dir, 'marked.mango');
-    const user = compileIn(dir, 'main.mango');
+    const dir = project({ 'marked.rk': marked, 'main.rk': page });
+    const exporter = compileIn(dir, 'marked.rk');
+    const user = compileIn(dir, 'main.rk');
 
     expect(exporter.diagnostics).toEqual([]);
     expect(exporter.code).toContain('export { MARK as $$marked$MARK, $$Tree };');
@@ -201,16 +201,16 @@ describe('components in decorators', () => {
 
   it('works when Vite bundles the modules', async () => {
     const dir = project({
-      'index.html': '<script type="module" src="./main.mango"></script>',
-      'marked.mango': marked,
-      'main.mango': page,
+      'index.html': '<script type="module" src="./main.rk"></script>',
+      'marked.rk': marked,
+      'main.rk': page,
     });
 
     await build({
       configFile: false,
       root: dir,
       logLevel: 'silent',
-      plugins: [mango()],
+      plugins: [rook()],
       build: { outDir: join(dir, 'dist'), minify: false, modulePreload: { polyfill: false } },
     });
 
@@ -229,11 +229,11 @@ describe('components in decorators', () => {
 describe('generated code', () => {
   it('exports the names the decorator uses and imports them where it is applied', () => {
     const dir = project({
-      'counter.mango': counter,
-      'main.mango': `import { counter, badge } from "./counter.mango"\n${clicker()}`,
+      'counter.rk': counter,
+      'main.rk': `import { counter, badge } from "./counter.rk"\n${clicker()}`,
     });
-    const exporter = compileIn(dir, 'counter.mango');
-    const user = compileIn(dir, 'main.mango');
+    const exporter = compileIn(dir, 'counter.rk');
+    const user = compileIn(dir, 'main.rk');
 
     expect(exporter.diagnostics).toEqual([]);
     expect(exporter.code).toContain('export { STEP as $$counter$STEP, log as $$counter$log };');
@@ -250,16 +250,16 @@ describe('generated code', () => {
 describe('running', () => {
   it('works when Vite bundles the modules', async () => {
     const dir = project({
-      'index.html': '<script type="module" src="./main.mango"></script>',
-      'counter.mango': counter,
-      'main.mango': `import { counter, badge } from "./counter.mango"\n${clicker()}`,
+      'index.html': '<script type="module" src="./main.rk"></script>',
+      'counter.rk': counter,
+      'main.rk': `import { counter, badge } from "./counter.rk"\n${clicker()}`,
     });
 
     await build({
       configFile: false,
       root: dir,
       logLevel: 'silent',
-      plugins: [mango()],
+      plugins: [rook()],
       build: { outDir: join(dir, 'dist'), minify: false, modulePreload: { polyfill: false } },
     });
 

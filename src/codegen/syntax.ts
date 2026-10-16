@@ -34,7 +34,7 @@ export const BINARY: Readonly<Record<ast.BinaryOperator, number>> = {
   '**': 13,
 };
 
-/** Names that MangoScript allows but strict-mode JS reserves; they get a `$` suffix. */
+/** Names that Rook allows but strict-mode JS reserves; they get a `$` suffix. */
 export const JS_RESERVED: ReadonlySet<string> = new Set([
   'debugger',
   'delete',

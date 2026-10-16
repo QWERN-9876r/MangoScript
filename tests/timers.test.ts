@@ -32,12 +32,12 @@ const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
 /** Builds a program and runs it with Node, with workers. */
 function runBuilt(source: string): { stdout: string; stderr: string; time: number } {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-timers-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-timers-'));
   const options = { cwd: dir, encoding: 'utf8' as const, timeout: 20_000 };
 
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }');
-  writeFileSync(join(dir, 'main.mango'), source);
-  expect(spawnSync(process.execPath, [cli, 'build', 'main.mango'], options).stderr).toBe('');
+  writeFileSync(join(dir, 'main.rk'), source);
+  expect(spawnSync(process.execPath, [cli, 'build', 'main.rk'], options).stderr).toBe('');
 
   const started = Date.now();
   const { stdout, stderr } = spawnSync(process.execPath, ['main.js'], options);

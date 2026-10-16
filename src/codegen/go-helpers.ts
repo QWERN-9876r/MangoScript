@@ -8,7 +8,7 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
   /** `go` in a module: a call in a worker of the pool, started by $$startWorker of the module. */
   go: [
     'function $$go(name, args) {',
-    '  return (globalThis[Symbol.for("mangoscript.goroutines")] ??= $$pool()).call(',
+    '  return (globalThis[Symbol.for("rook.goroutines")] ??= $$pool()).call(',
     '    $$startWorker,',
     '    name,',
     '    $$copy(args, true),',
@@ -274,7 +274,7 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '// in a worker stops with its worker; inside a goroutine, `go` runs in the same worker, so its',
     '// Promise fails but code that has started goes on.',
     'function $$cancel(task) {',
-    '  globalThis[Symbol.for("mangoscript.goroutines")]?.cancel(task);',
+    '  globalThis[Symbol.for("rook.goroutines")]?.cancel(task);',
     '  $$registry().cancels.get(task)?.();',
     '}',
   ],
@@ -282,7 +282,7 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
 
 /**
  * The start of a worker of a module: a Web Worker, or a worker thread of Node. Node takes only the
- * path of a `file:` URL, without the query of `app.mango?goroutines`, so its worker starts with a
+ * path of a `file:` URL, without the query of `app.rk?goroutines`, so its worker starts with a
  * module that imports the whole URL. An absolute URL, such as the Blob of the playground, is used
  * as it is.
  */

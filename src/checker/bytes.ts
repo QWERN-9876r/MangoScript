@@ -16,7 +16,7 @@ import {
 
 // `[]byte`, a Uint8Array, and the other typed arrays, `[]float64`: an array literal where one is
 // expected, `let data []byte = [1, 2]`; and the conversions of Go between text and its UTF-8
-// bytes, `[]byte("mango")` and `string(data)`.
+// bytes, `[]byte("rook")` and `string(data)`.
 
 export abstract class BytesChecker extends ChannelChecker {
   protected override checkArrayLiteral(node: ast.ArrayLiteral, expected: Type | null): Type {

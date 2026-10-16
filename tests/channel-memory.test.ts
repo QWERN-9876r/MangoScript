@@ -13,7 +13,7 @@ const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 /** What the registry has for each channel after a program runs in the main thread. */
 async function queues(source: string): Promise<{ receivers: number; senders: number }[]> {
   const { code, diagnostics } = compile(source);
-  const key = Symbol.for('mangoscript.threads');
+  const key = Symbol.for('rook.threads');
   const prototype = Object.getPrototypeOf(async () => {}) as { constructor: unknown };
   const AsyncFunction = prototype.constructor as new (...args: string[]) => () => Promise<void>;
 
@@ -36,12 +36,12 @@ async function queues(source: string): Promise<{ receivers: number; senders: num
  * channels the registry has left.
  */
 function channelsLeft(source: string): { stdout: string; stderr: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-hold-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rook-hold-'));
   const options = { cwd: dir, encoding: 'utf8' as const, timeout: 20_000 };
 
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }');
-  writeFileSync(join(dir, 'main.mango'), source);
-  expect(spawnSync(process.execPath, [cli, 'build', 'main.mango'], options).stderr).toBe('');
+  writeFileSync(join(dir, 'main.rk'), source);
+  expect(spawnSync(process.execPath, [cli, 'build', 'main.rk'], options).stderr).toBe('');
   appendFileSync(join(dir, 'main.worker.js'), 'setInterval(() => globalThis.gc(), 10).unref();\n');
   appendFileSync(
     join(dir, 'main.js'),
@@ -49,7 +49,7 @@ function channelsLeft(source: string): { stdout: string; stderr: string } {
   globalThis.gc();
   await new Promise((resolve) => setTimeout(resolve, 30));
 }
-console.log(globalThis[Symbol.for("mangoscript.threads")].states.size);
+console.log(globalThis[Symbol.for("rook.threads")].states.size);
 `,
   );
 

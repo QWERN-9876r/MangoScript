@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build } from 'vite';
 import { describe, expect, it } from 'vitest';
-import { mango } from '../src/vite.ts';
+import { rook } from '../src/vite.ts';
 
 // The Vite plugin (src/vite.ts) and the build of the documentation site with it.
 
@@ -11,23 +11,23 @@ const root = new URL('..', import.meta.url).pathname;
 
 // Builds take seconds while the other tests run too.
 describe('Vite plugin', { timeout: 30_000 }, () => {
-  it('compiles .mango modules and the modules they import', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
+  it('compiles .rk modules and the modules they import', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rook-vite-'));
 
-    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.mango"></script>');
+    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.rk"></script>');
     writeFileSync(
-      join(dir, 'geom.mango'),
+      join(dir, 'geom.rk'),
       'export func double(x number) number {\n    return x * 2\n}\n',
     );
     writeFileSync(
-      join(dir, 'main.mango'),
-      'import { double } from "./geom.mango"\nconsole.log(double(21))\n',
+      join(dir, 'main.rk'),
+      'import { double } from "./geom.rk"\nconsole.log(double(21))\n',
     );
     await build({
       configFile: false,
       root: dir,
       logLevel: 'silent',
-      plugins: [mango()],
+      plugins: [rook()],
       build: { outDir: join(dir, 'dist'), minify: false },
     });
 
@@ -36,29 +36,29 @@ describe('Vite plugin', { timeout: 30_000 }, () => {
     const code = readFileSync(join(assets, bundle!), 'utf8');
 
     expect(code).toContain('x * 2');
-    // Both modules are in the bundle: no import of a .mango file is left.
-    expect(code).not.toMatch(/from\s*"[^"]*\.mango"/);
+    // Both modules are in the bundle: no import of a .rk file is left.
+    expect(code).not.toMatch(/from\s*"[^"]*\.rk"/);
   });
 
   it('bundles the worker module of go as a worker', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rook-vite-'));
 
-    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.mango"></script>');
+    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.rk"></script>');
     writeFileSync(
-      join(dir, 'main.mango'),
+      join(dir, 'main.rk'),
       'func square(n number) number {\n    return n * n\n}\ndocument.body.append(`${await go square(3)}`)\n',
     );
     await build({
       configFile: false,
       root: dir,
       logLevel: 'silent',
-      plugins: [mango()],
+      plugins: [rook()],
       build: { outDir: join(dir, 'dist'), minify: false, target: 'esnext' },
     });
 
     const assets = join(dir, 'dist', 'assets');
     const files = readdirSync(assets);
-    const worker = files.find((name) => name.startsWith('main.mango.goroutines'));
+    const worker = files.find((name) => name.startsWith('main.rk.goroutines'));
     const main = files.find((name) => name.startsWith('index'));
 
     expect(worker).toBeDefined();
@@ -68,25 +68,25 @@ describe('Vite plugin', { timeout: 30_000 }, () => {
   });
 
   it('stops the build on type errors', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-vite-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rook-vite-'));
 
-    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.mango"></script>');
-    writeFileSync(join(dir, 'main.mango'), 'const n number = "one"\n');
+    writeFileSync(join(dir, 'index.html'), '<script type="module" src="./main.rk"></script>');
+    writeFileSync(join(dir, 'main.rk'), 'const n number = "one"\n');
     await expect(
       build({
         configFile: false,
         root: dir,
         logLevel: 'silent',
-        plugins: [mango()],
+        plugins: [rook()],
         build: { outDir: join(dir, 'dist') },
       }),
-    ).rejects.toThrow('main.mango:1:18: error: cannot use string as number');
+    ).rejects.toThrow('main.rk:1:18: error: cannot use string as number');
   });
 });
 
 describe('documentation site', { timeout: 30_000 }, () => {
   it('is built by Vite: a page for each language, with its examples in its bundle', async () => {
-    const outDir = mkdtempSync(join(tmpdir(), 'mango-site-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'rook-site-'));
 
     await build({
       configFile: join(root, 'vite.config.ts'),
@@ -116,7 +116,7 @@ describe('documentation site', { timeout: 30_000 }, () => {
       const code = readFileSync(join(outDir, script!), 'utf8');
       // Examples are part of the bundle, not loaded after the page is drawn.
       const hello = (dir: string) =>
-        JSON.stringify(readFileSync(join(root, dir, 'hello.mango'), 'utf8').trimEnd()).slice(1, 40);
+        JSON.stringify(readFileSync(join(root, dir, 'hello.rk'), 'utf8').trimEnd()).slice(1, 40);
 
       expect(code).toContain(hello(page.examples));
       expect(code).not.toContain(hello(page.other));

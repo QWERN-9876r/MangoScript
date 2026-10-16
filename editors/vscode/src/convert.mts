@@ -16,7 +16,7 @@ export function toDiagnostics(document: TextDocument, result: CompileResult): Di
   ): Diagnostic => ({
     message,
     severity,
-    source: 'mango',
+    source: 'rook',
     range: { start: document.positionAt(start), end: document.positionAt(end) },
   });
 

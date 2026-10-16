@@ -23,11 +23,11 @@ describe('modules', () => {
   };
 
   it.each([
-    'import "./setup.mango"',
+    'import "./setup.rk"',
     'import express from "express"',
     'import * as path from "node:path"',
     'import { readFileSync, writeFileSync as write } from "node:fs"',
-    'import { default as main } from "./main.mango"',
+    'import { default as main } from "./main.rk"',
     'import React, { useState } from "react"',
     'import fs, * as all from "node:fs"',
   ])('%s', (source) => {
@@ -91,7 +91,7 @@ describe('simple statements', () => {
     ['a + b', 'this expression does nothing: only function calls can be used as statements'],
     ['x := 1', '":=" is not supported: declare variables with "let" or "const"'],
     ['a, b := f()', '":=" is not supported: declare variables with "let" or "const"'],
-    ['function f() {}', '"function" is not a MangoScript keyword: declare functions with "func"'],
+    ['function f() {}', '"function" is not a Rook keyword: declare functions with "func"'],
     ['f() g()', 'expected newline or ";" after statement, found "g"'],
   ])('reports %j', (source, message) => {
     expect(errors(source)).toEqual([message]);
@@ -278,8 +278,8 @@ describe('error recovery', () => {
   });
 });
 
-it('parses examples/hello.mango', () => {
-  const source = readFileSync(new URL('../examples/hello.mango', import.meta.url), 'utf8');
+it('parses examples/hello.rk', () => {
+  const source = readFileSync(new URL('../examples/hello.rk', import.meta.url), 'utf8');
   const { program, diagnostics } = parse(source);
 
   expect(diagnostics).toEqual([]);
