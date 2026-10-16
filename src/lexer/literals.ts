@@ -56,6 +56,24 @@ export abstract class LiteralLexer extends LexerBase {
 
     const suffix = IDENTIFIER.exec(t)?.[0];
 
+    // `10n`, `0xffn`: a bigint, a whole number of any size.
+    if (suffix === 'n') {
+      const text = t.slice(start, pos + 1);
+
+      if (/^\d[\d_]*[.eE]/.test(text)) {
+        this.error(
+          `a bigint is a whole number, without a fraction or an exponent: e.g. ${text.replace(/[.eE].*/, '')}n`,
+          start,
+          pos + 1,
+        );
+      }
+
+      this.pos = pos + 1;
+      this.tokens.push({ kind: 'BigInt', text, start, end: pos + 1 });
+
+      return;
+    }
+
     if (suffix !== undefined) {
       this.error('identifier cannot start immediately after a number', pos, pos + suffix.length);
       pos += suffix.length;

@@ -4,6 +4,11 @@ import { describe } from './syntax.ts';
 
 // Types: `?T`, `[]T`, unions, literal types, function, component and object types, type arguments.
 
+/** `iterator: true` for the parameters of an iterator: one, named `yield`. */
+function iterator(names: readonly string[]): { iterator?: boolean } {
+  return names.length === 1 && names[0] === 'yield' ? { iterator: true } : {};
+}
+
 export abstract class TypeParser extends ClassParser {
   /** `<number, string>` after the name of a generic type. */
   protected override parseTypeArgs(): ast.TypeNode[] {
@@ -91,14 +96,16 @@ export abstract class TypeParser extends ClassParser {
         return { kind: 'ArrayType', element, ...this.span(start) };
       }
 
+      // The parameters may have names, as in Go; `func(yield func(T) bool)` is an iterator.
       case 'func': {
         this.next();
         this.expect('(');
 
-        const params = this.parseList(')', () => this.parseType());
+        const names: string[] = [];
+        const params = this.parseList(')', () => this.parseParamType(names));
         const results = this.parseResults();
 
-        return { kind: 'FuncType', params, results, ...this.span(start) };
+        return { kind: 'FuncType', params, results, ...iterator(names), ...this.span(start) };
       }
 
       // `chan T`, `chan<- T` that only sends, `<-chan T` that only receives.
@@ -151,17 +158,20 @@ export abstract class TypeParser extends ClassParser {
    */
   protected parseParenthesizedType(): ast.TypeNode {
     const start = this.next().start;
-    const params = this.parseList(')', () => {
-      if (this.check('Identifier') && this.startsNamedParam()) this.next();
-
-      return this.parseType();
-    });
+    const names: string[] = [];
+    const params = this.parseList(')', () => this.parseParamType(names));
 
     if (this.accept('=>')) {
       const result = this.parseType();
       const voids = result.kind === 'TypeReference' && result.name.name === 'void';
 
-      return { kind: 'FuncType', params, results: voids ? [] : [result], ...this.span(start) };
+      return {
+        kind: 'FuncType',
+        params,
+        results: voids ? [] : [result],
+        ...iterator(names),
+        ...this.span(start),
+      };
     }
 
     if (params.length !== 1) {
@@ -181,6 +191,13 @@ export abstract class TypeParser extends ClassParser {
         end: start,
       }
     );
+  }
+
+  /** The type of a parameter of a function type, after its name if it has one, kept in `names`. */
+  private parseParamType(names: string[]): ast.TypeNode {
+    names.push(this.check('Identifier') && this.startsNamedParam() ? this.next().text : '');
+
+    return this.parseType();
   }
 
   /** `paths []string` in `(paths []string) => Shape`: a name before the type of a parameter. */

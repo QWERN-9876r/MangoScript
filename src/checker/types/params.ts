@@ -106,6 +106,7 @@ export function substitute(type: Type, bindings: Map<TypeParam, Type>, fallback?
         required: type.required,
         ...(type.rest ? { rest: sub(type.rest) } : {}),
         typeParams,
+        ...(type.iterator ? { iterator: true } : {}),
       });
 
       if (type.overloads) {

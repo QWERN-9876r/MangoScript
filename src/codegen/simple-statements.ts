@@ -1,11 +1,12 @@
 import type * as ast from '../ast.ts';
+import { isIterator } from '../iterators.ts';
 import { declarationsOf } from './analysis.ts';
-import { ExpressionEmitter } from './expressions.ts';
+import { CallEmitter } from './calls.ts';
 import { ARROW, arrayPattern, POSTFIX } from './syntax.ts';
 
 /** Statements: lists and blocks of them, variables, assignments, `return`; the others are in later layers. */
 
-export abstract class SimpleStatementEmitter extends ExpressionEmitter {
+export abstract class SimpleStatementEmitter extends CallEmitter {
   // Implemented by later layers: the checking of statements, expressions and markup calls each other.
 
   protected abstract forInStatement(node: ast.ForInStatement): void;
@@ -95,7 +96,11 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
         const exported = node.exported ? 'export ' : '';
         const async = node.async ? 'async ' : '';
 
-        this.line(`${exported}${async}function ${this.name(node.name.name)}(${params}) ${body}`);
+        const star = isIterator(node.params) ? '*' : '';
+
+        this.line(
+          `${exported}${async}function${star} ${this.name(node.name.name)}(${params}) ${body}`,
+        );
         break;
       }
 
@@ -163,9 +168,12 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
         this.line(this.returnStatement(node));
         break;
 
-      case 'IfStatement':
-        this.line(this.ifStatement(node));
+      case 'IfStatement': {
+        const yielded = this.yieldStatement(node);
+
+        this.line(yielded === null ? this.ifStatement(node) : `${yielded};`);
         break;
+      }
 
       case 'ForStatement':
         this.forStatement(node);
@@ -266,8 +274,13 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
       case 'NullableType':
         return 'null';
 
+      // `[]byte` is a Uint8Array, unless the program declares a type `byte`.
       case 'ArrayType':
-        return '[]';
+        return type.element.kind === 'TypeReference' &&
+          type.element.name.name === 'byte' &&
+          !this.typeAliases.has('byte')
+          ? 'new Uint8Array()'
+          : '[]';
 
       case 'FuncType':
       case 'ComponentType':
@@ -284,7 +297,11 @@ export abstract class SimpleStatementEmitter extends ExpressionEmitter {
         if (alias && !seen.has(name)) return this.zeroValue(alias, seen.add(name));
         switch (name) {
           case 'number':
+          case 'byte':
             return '0';
+
+          case 'bigint':
+            return '0n';
 
           case 'string':
             return '""';

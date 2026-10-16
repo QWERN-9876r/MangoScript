@@ -61,6 +61,7 @@ export function isContent(given: Type, node: Type): boolean {
   switch (type.kind) {
     case 'string':
     case 'number':
+    case 'bigint':
     case 'any':
     case 'unknown':
     case 'never':
@@ -93,6 +94,7 @@ export function isAttributeValue(type: Type): boolean {
     isUntyped(value) ||
     value.kind === 'string' ||
     value.kind === 'number' ||
+    value.kind === 'bigint' ||
     value.kind === 'bool' ||
     value.kind === 'null' ||
     value.kind === 'never'

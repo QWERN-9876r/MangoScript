@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { isIterator } from '../iterators.ts';
 import { declarationsOf, findDefers } from './analysis.ts';
 import type { DeferMode } from './emitter.ts';
 import { WebComponentEmitter } from './web-components.ts';
@@ -17,7 +18,10 @@ export abstract class FunctionEmitter extends WebComponentEmitter {
           : 'stack';
 
     return this.withFunction(mode, params, () => {
-      const paramList = this.params(params);
+      // An iterator is a generator: it takes no function, and `yield(v)` yields (calls.ts).
+      this.fn.iterator = isIterator(params);
+
+      const paramList = this.fn.iterator ? '' : this.params(params);
       const text = this.block(() => {
         this.withScope(declarationsOf(body.body), () => {
           if (mode === 'try') {

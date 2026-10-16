@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { decorate, decoratorNames } from '../decorators.ts';
+import { isIterator } from '../iterators.ts';
 import { collectValueNames } from '../names.ts';
 import { recursiveComponents } from '../recursion.ts';
 import { type Binding, type ComponentInfo, type DecoratorInfo, Scope } from './context.ts';
@@ -304,7 +305,8 @@ export abstract class DeclarationChecker extends ImportChecker {
     }
   }
 
-  /** The type of a function; an async one returns a Promise of its results. */
+  /** The type of a function; an async one returns a Promise of its results, and one whose
+   * parameter is `yield` is an iterator (iterators.ts). */
   protected signature(
     params: readonly ast.Parameter[],
     results: readonly ast.TypeNode[],
@@ -326,6 +328,7 @@ export abstract class DeclarationChecker extends ImportChecker {
     return func(
       params.map((param) => (param.type ? this.resolveType(param.type) : UNKNOWN)),
       async ? [this.promiseOf(types)] : types,
+      { iterator: isIterator(params) },
     );
   }
 

@@ -36,11 +36,10 @@ import {
 // declarations → classes → resolution → initializers → assignments → statements → control flow →
 // functions → expressions → operators → markup → forwarding → components → component values →
 // refs → styles → decorator wrappers → decorator exports → decorators → decorator members →
-// members → calls → goroutines → channels → completion → Checker (checker.ts). The checking of
-// statements, expressions and markup calls itself recursively, so methods of later layers that
-// earlier ones call are declared here as abstract.
-//
-// This layer has the state of a check, diagnostics, scopes and names, and the DOM types.
+// members → calls → goroutines → channels → bytes → loops → iterators → completion → Checker
+// (checker.ts). Statements, expressions and markup check each other recursively, so methods of
+// later layers that earlier ones call are declared here as abstract. This layer has the state of
+// a check, diagnostics, scopes and names, and the DOM types.
 
 export abstract class CheckerBase {
   // Implemented by later layers: the checking of statements, expressions and markup calls each other.
@@ -351,8 +350,11 @@ export abstract class CheckerBase {
     return { ...event, members };
   }
 
-  /** A member of a string, number or bool that the built-in types do not list. */
-  protected primitiveMember(kind: 'string' | 'number' | 'bool', name: string): Member | undefined {
+  /** A member of a string, number, bigint or bool that the built-in types do not list. */
+  protected primitiveMember(
+    kind: 'string' | 'number' | 'bigint' | 'bool',
+    name: string,
+  ): Member | undefined {
     const type = this.options.library?.primitive(kind);
 
     return type?.kind === 'object' ? type.members.get(name) : undefined;

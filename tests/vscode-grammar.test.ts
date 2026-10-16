@@ -96,6 +96,18 @@ describe('VS Code grammar', () => {
     expect(scopeOf(source, '0')).toBe('constant.numeric.decimal');
   });
 
+  it('colours bigints, bytes and iterators', () => {
+    expect(scopesOf('let big bigint = 10n * 0xffn', 'bigint')).toEqual(['support.type.primitive']);
+    expect(scopeOf('let big = 10n * 0xffn', '10n')).toBe('constant.numeric.decimal');
+    expect(scopeOf('let big = 10n * 0xffn', '0xffn')).toBe('constant.numeric.hex');
+    expect(scopeOf('let data []byte = []byte("mango")', 'byte')).toBe('support.type.primitive');
+
+    const iterator = 'func count(yield func(number) bool) {';
+
+    expect(scopeOf(iterator, 'count')).toBe('entity.name.function');
+    expect(scopesOf(iterator, 'bool')).toEqual(['support.type.primitive']);
+  });
+
   it('colours components, classes and type declarations', () => {
     expect(scopeOf('comp Counter(initialValue number) {', 'Counter')).toBe(
       'entity.name.type.component',

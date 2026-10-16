@@ -142,7 +142,7 @@ export function isNullable(type: Type): boolean {
 export function func(
   params: Type[],
   results: Type[],
-  options: { required?: number; rest?: Type; typeParams?: TypeParam[] } = {},
+  options: { required?: number; rest?: Type; typeParams?: TypeParam[]; iterator?: boolean } = {},
 ): FunctionType {
   return {
     kind: 'function',
@@ -151,6 +151,7 @@ export function func(
     rest: options.rest ?? null,
     results,
     typeParams: options.typeParams ?? [],
+    ...(options.iterator ? { iterator: true } : {}),
   };
 }
 

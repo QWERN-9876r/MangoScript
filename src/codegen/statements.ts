@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { isIterator } from '../iterators.ts';
 import { decoratedName, moduleNamesOf } from '../decorators.ts';
 import { inlinePackages, type InlinePackage } from '../inline-packages.ts';
 import { packageExports } from './imported.ts';
@@ -175,8 +176,9 @@ export abstract class StatementEmitter extends ControlStatementEmitter {
         const [params, body] = this.func(member.params, member.body);
 
         const modifiers = `${member.isStatic ? 'static ' : ''}${member.async ? 'async ' : ''}`;
+        const star = isIterator(member.params) ? '*' : '';
 
-        this.line(`${modifiers}${member.name.name}(${params}) ${body}`);
+        this.line(`${modifiers}${star}${member.name.name}(${params}) ${body}`);
         break;
       }
     }

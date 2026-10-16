@@ -142,7 +142,11 @@ let workerChannels Map<HTMLElement, BroadcastChannel> = new Map()
 func workerConsole(channel string) string {
     return `const console = (() => {
     const output = new BroadcastChannel(${JSON.stringify(channel)});
-    const show = (value) => (typeof value === "string" ? value : JSON.stringify(value));
+    const bigints = (key, value) => (typeof value === "bigint" ? \`\${value}n\` : value);
+    const show = (value) =>
+        typeof value === "string"
+            ? value
+            : typeof value === "bigint" ? \`\${value}n\` : JSON.stringify(value, bigints);
     const log = (...values) => output.postMessage(values.map(show).join(" "));
     return { log, info: log, warn: log, error: log };
 })();
@@ -227,7 +231,11 @@ func show(value any) string {
     if value != null && typeof value == "object" && typeof value.nodeName == "string" {
         return `<${value.nodeName.toLowerCase()}>`
     }
-    return JSON.stringify(value)
+    // JSON has no bigints: they are written as Node writes them, 10n.
+    if typeof value == "bigint" {
+        return `${value}n`
+    }
+    return JSON.stringify(value, (key, item) => typeof item == "bigint" ? `${item}n` : item)
 }
 
 /**

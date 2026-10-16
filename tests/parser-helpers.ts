@@ -46,10 +46,14 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
     case 'GoExpression':
       return `(go ${sx(node.call)})`;
 
+    case 'ConversionExpression':
+      return `(${ty(node.type)} ${sx(node.argument)})`;
+
     case 'ChanExpression':
       return `(chan ${ty(node.element)}${node.size ? ` ${sx(node.size)}` : ''})`;
 
     case 'NumberLiteral':
+    case 'BigIntLiteral':
     case 'StringLiteral':
       return node.raw;
 

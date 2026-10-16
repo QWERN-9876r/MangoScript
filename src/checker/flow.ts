@@ -2,6 +2,7 @@ import type * as ast from '../ast.ts';
 import { containsBreak } from '../walk.ts';
 import type { Flow, Narrowing } from './context.ts';
 import {
+  BIGINT,
   BOOL,
   isNullable,
   nonNull,
@@ -17,11 +18,20 @@ import {
 // Control flow for the checker: how conditions narrow the types of variables, and which statements
 // execution never continues after.
 
+/** What a value of unknown type is after `typeof x == tag`. */
+const PRIMITIVE_TAGS: ReadonlyMap<string, Type> = new Map([
+  ['string', STRING],
+  ['number', NUMBER],
+  ['bigint', BIGINT],
+  ['boolean', BOOL],
+]);
+
 /** What `typeof` gives for every value of a type, or `null` when it may give several things. */
 export function typeofTag(type: Type): string | null {
   switch (type.kind) {
     case 'string':
     case 'number':
+    case 'bigint':
       return type.kind;
 
     case 'bool':
@@ -56,7 +66,7 @@ export function narrowByTypeof(type: Type, tag: string, matches: boolean): Type 
   if (base.kind === 'any' || base.kind === 'unknown') {
     if (!matches) return null;
 
-    return tag === 'string' ? STRING : tag === 'number' ? NUMBER : tag === 'boolean' ? BOOL : null;
+    return PRIMITIVE_TAGS.get(tag) ?? null;
   }
 
   const kept = unionMembers(base).filter((member) => {

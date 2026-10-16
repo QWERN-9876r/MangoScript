@@ -12,13 +12,15 @@ import "./highlight.module.css"
 // compared with any strings.
 const MANGO_KEYWORDS []string = [...KEYWORDS]
 
-const MANGO_TYPES = ["number", "string", "bool", "any", "error", "void", "Content"]
+const MANGO_TYPES = [
+    "number", "bigint", "byte", "string", "bool", "any", "error", "void", "Content",
+]
 
 const JS_KEYWORDS = [
     "function", "return", "if", "else", "for", "of", "in", "while", "do", "const", "let", "var",
     "new", "class", "extends", "throw", "try", "catch", "finally", "switch", "case", "default",
     "break", "continue", "import", "export", "from", "typeof", "instanceof", "this", "super",
-    "static", "async", "await",
+    "static", "async", "await", "yield",
 ]
 
 const LITERALS = ["true", "false", "null", "undefined"]
@@ -94,7 +96,7 @@ func tokenClass(tokens any, i number, language string) string {
         return "fn"
     }
     switch kind {
-    case "Number":
+    case "Number", "BigInt":
         return "num"
     case "String", "Template", "TemplateHead", "TemplateMiddle", "TemplateTail", "JsxString":
         return "str"

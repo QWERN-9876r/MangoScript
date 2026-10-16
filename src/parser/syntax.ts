@@ -157,6 +157,9 @@ export function describe(token: Token): string {
     case 'Number':
       return `number ${token.text}`;
 
+    case 'BigInt':
+      return `bigint ${token.text}`;
+
     case 'Template':
     case 'TemplateHead':
       return 'template literal';

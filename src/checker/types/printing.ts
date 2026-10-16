@@ -10,9 +10,15 @@ const MAX_OBJECT_DEPTH = 3;
 const MAX_OBJECT_MEMBERS = 8;
 let objectDepth = 0;
 
+/** `[]byte`: a Uint8Array, of the lib files or the built-in one. */
+export function isBytes(type: Type): boolean {
+  return type.kind === 'object' && (type.instanceOf?.template.name ?? type.name) === 'Uint8Array';
+}
+
 export function typeToString(type: Type): string {
   switch (type.kind) {
     case 'number':
+    case 'bigint':
     case 'string':
     case 'bool':
     case 'any':
@@ -43,7 +49,7 @@ export function typeToString(type: Type): string {
 
       if (type.rest) params.push(`...${typeToString(type.rest)}`);
 
-      return `func(${params.join(', ')})${resultsToString(type.results)}`;
+      return `func(${type.iterator ? 'yield ' : ''}${params.join(', ')})${resultsToString(type.results)}`;
     }
 
     // A property that may be left out is printed as nullable, as it is written in the type.
@@ -57,6 +63,8 @@ export function typeToString(type: Type): string {
     }
 
     case 'object': {
+      if (isBytes(type)) return '[]byte';
+
       // `chan T`, `chan<- T` and `<-chan T` are written with spaces, not as type arguments.
       if (
         type.instanceOf &&

@@ -31,8 +31,8 @@ export interface Library {
   value(name: string): Type | undefined;
   /** A global type, e.g. `HTMLElement`. */
   type(name: string): Type | undefined;
-  /** `String`, `Number` or `Boolean`: members that the built-in types do not list. */
-  primitive(kind: 'string' | 'number' | 'bool'): Type | undefined;
+  /** `String`, `Number`, `BigInt` or `Boolean`: members that the built-in types do not list. */
+  primitive(kind: 'string' | 'number' | 'bigint' | 'bool'): Type | undefined;
   /** `Array<element>`: members that the built-in array type does not list. */
   array(element: Type): Type | undefined;
   /** What `<tag>` creates: `HTMLElementTagNameMap[tag]`, or `SVGElementTagNameMap[tag]` in SVG. */

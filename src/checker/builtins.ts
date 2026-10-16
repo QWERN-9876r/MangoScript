@@ -1,3 +1,4 @@
+import { BIGINT_OBJECT } from './bigint.ts';
 import { DOM_TYPES, EVENT } from './dom.ts';
 import { SVG_TYPES } from './dom-svg.ts';
 import { chanOf } from './channel.ts';
@@ -6,6 +7,7 @@ import { BUFFERS } from './transfer.ts';
 import {
   ANY,
   arrayOf,
+  BIGINT,
   BOOL,
   ERROR,
   ERROR_CLASS,
@@ -298,7 +300,6 @@ const UNTYPED_GLOBALS = [
   'WeakSet',
   'Promise',
   'Symbol',
-  'BigInt',
   'Reflect',
   'Proxy',
   'Intl',
@@ -328,6 +329,7 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['Math', math],
   ['JSON', json],
   ['Number', numberObject],
+  ['BigInt', BIGINT_OBJECT],
   ['String', stringObject],
   ['Boolean', booleanObject],
   ['parseInt', func([STRING, NUMBER], [NUMBER], { required: 1 })],
@@ -374,6 +376,9 @@ export const LIBRARY_TYPES: ReadonlySet<string> = new Set([
 
 export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['number', NUMBER],
+  // A number from 0 to 255; `[]byte` is a Uint8Array (resolution.ts).
+  ['byte', NUMBER],
+  ['bigint', BIGINT],
   ['string', STRING],
   ['bool', BOOL],
   ['any', ANY],

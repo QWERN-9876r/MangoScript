@@ -150,6 +150,8 @@ export interface FuncType extends NodeBase {
   kind: 'FuncType';
   params: TypeNode[];
   results: TypeNode[];
+  /** `func(yield func(T) bool)`: its one parameter is named `yield`, so it is an iterator. */
+  iterator?: boolean;
 }
 
 /** `comp(title string, kind ?Kind)`: a component as a value, used as a tag: `<section.content />`. */

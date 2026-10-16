@@ -2,7 +2,7 @@ import type * as ast from './ast.ts';
 import type { CheckResult } from './checker/checker.ts';
 import type { FunctionType, ObjectType, TypeParam } from './checker/types.ts';
 import { JS_RESERVED } from './codegen/syntax.ts';
-import { property, resultType, tsType } from './ts-types.ts';
+import { generatorType, property, resultType, tsType } from './ts-types.ts';
 
 // A TypeScript declaration file (`.d.ts`) for a compiled module, so that TypeScript code can use
 // it with types. Parameter names come from the code, types from the type checker:
@@ -248,6 +248,9 @@ class DeclarationPrinter {
 
   /** `(a: number, b?: string): R` with the names of the parameters in the code. */
   private signature(params: readonly ast.Parameter[], type: FunctionType): string {
+    // An iterator is a generator function: it takes no function and gives the generator.
+    if (type.iterator) return `(): ${generatorType(type)}`;
+
     return `${parameters(params, type)}: ${resultType(type.results)}`;
   }
 }

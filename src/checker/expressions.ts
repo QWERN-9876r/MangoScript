@@ -4,6 +4,7 @@ import { FunctionChecker } from './functions.ts';
 import { expectsLiteral, callName, isUntyped } from './helpers.ts';
 import {
   ANY,
+  BIGINT,
   arrayOf,
   BOOL,
   commonType,
@@ -35,6 +36,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
   /** `chan<number>(10)`; implemented by ChannelChecker. */
   protected abstract checkChan(node: ast.ChanExpression): Type;
+
+  /** `[]byte("text")`; implemented by BytesChecker. */
+  protected abstract checkConversion(node: ast.ConversionExpression): Type;
 
   /** The type of an expression that must be a single value (not `void` or several results). */
   protected override checkValue(node: ast.Expression, expected: Type | null = null): Type {
@@ -77,6 +81,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
       // A literal has a literal type only where one is expected: `filter = "all"`.
       case 'NumberLiteral':
         return expectsLiteral(expected) ? literal(node.value) : NUMBER;
+
+      case 'BigIntLiteral':
+        return BIGINT;
 
       case 'StringLiteral':
         return expectsLiteral(expected) ? literal(node.value) : STRING;
@@ -127,6 +134,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
       case 'ChanExpression':
         return this.checkChan(node);
+
+      case 'ConversionExpression':
+        return this.checkConversion(node);
 
       case 'NewExpression':
         return this.checkNew(node, expected);
@@ -234,8 +244,13 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
         if (spread.kind === 'array') type = spread.element;
         else if (spread.kind === 'any' || spread.kind === 'unknown') type = spread;
+        // JS spreads any iterable: a Set, a typed array, a `[]byte`.
+        else if (spread.kind === 'object' && spread.iterates) type = spread.iterates;
         else {
-          this.error(`cannot spread ${typeToString(spread)}: it is not an array`, item.argument);
+          this.error(
+            `cannot spread ${typeToString(spread)}: it is not an array or an iterable`,
+            item.argument,
+          );
           type = UNKNOWN;
         }
       } else {

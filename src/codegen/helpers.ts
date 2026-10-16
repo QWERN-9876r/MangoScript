@@ -59,6 +59,7 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   /** `for v in x` over an untyped value: a Map gives its values, as a typed one does. */
   values: [
     'function $$values(iterable) {',
+    "  if (typeof iterable === 'function') return iterable();",
     '  return iterable instanceof Map ? iterable.values() : iterable;',
     '}',
   ],

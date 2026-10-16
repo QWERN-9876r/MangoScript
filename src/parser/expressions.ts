@@ -224,6 +224,11 @@ export abstract class ExpressionParser extends TypeParser {
 
         return { kind: 'NumberLiteral', value: token.value, raw: token.text, start, end };
 
+      case 'BigInt':
+        this.next();
+
+        return { kind: 'BigIntLiteral', raw: token.text, start, end };
+
       case 'String':
         return this.parseStringLiteral();
 
@@ -257,8 +262,11 @@ export abstract class ExpressionParser extends TypeParser {
       case '(':
         return this.isArrowFunctionAhead() ? this.parseArrowFunction() : this.parseParenthesized();
 
+      // `[]byte("text")`: no array literal is followed by a name.
       case '[':
-        return this.parseArrayLiteral();
+        return this.peek(1).kind === ']' && this.peek(2).kind === 'Identifier'
+          ? this.parseConversion()
+          : this.parseArrayLiteral();
 
       case '{':
         if (this.context.noObjectLiteral) {

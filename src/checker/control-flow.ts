@@ -1,6 +1,5 @@
 import type * as ast from '../ast.ts';
 import { assignedNames } from '../names.ts';
-import { chanDirection, elementOf, isChan } from './channel.ts';
 import { type Binding, type Flow, type Narrowing, NARROWABLE } from './context.ts';
 import {
   narrowByTypeof,
@@ -11,7 +10,6 @@ import {
   leaves,
 } from './flow.ts';
 import { instanceTypeOf } from './helpers.ts';
-import { isMap, loopEntry } from './iterables.ts';
 import { StatementChecker } from './statements.ts';
 import {
   ANY,
@@ -23,14 +21,10 @@ import {
   literal,
   nonNull,
   NULL,
-  NUMBER,
-  STRING,
   typeToString,
   union,
   unionMembers,
-  UNKNOWN,
   widenLiterals,
-  type Type,
 } from './types.ts';
 
 // if, for, switch and try, and how conditions narrow the types of variables in the branches.
@@ -86,67 +80,6 @@ export abstract class ControlFlowChecker extends StatementChecker {
 
   protected checkSimpleStatement(node: ast.SimpleStatement): void {
     this.checkStatement(node);
-  }
-
-  protected override checkForIn(node: ast.ForInStatement): void {
-    const iterable = this.checkValue(node.iterable);
-    let value: Type = UNKNOWN;
-    let key: Type = NUMBER;
-
-    if (isNullable(iterable)) {
-      this.nullError(node.iterable);
-    } else if (iterable.kind === 'array') {
-      value = iterable.element;
-    } else if (iterable.kind === 'object' && iterable.iterates) {
-      // A Map gives its keys and values; one variable gets the values, as with an array.
-      const entry = loopEntry(iterable);
-
-      value = isMap(iterable) && entry ? entry[1] : iterable.iterates;
-      if (entry) key = entry[0];
-      else if (node.key) {
-        this.error(
-          `${typeToString(iterable)} has no keys: loop over its values, e.g. "for value in items"`,
-          node.key,
-        );
-      }
-    } else if (isChan(iterable)) {
-      // Each value waits for the channel, until it is closed.
-      value = elementOf(iterable);
-      if (chanDirection(iterable) === 'send') {
-        this.error(
-          `"for ... in" cannot receive from ${typeToString(iterable)}: it only sends; receive from a "chan T" or a "<-chan T"`,
-          node.iterable,
-        );
-      }
-
-      if (this.fn && !this.fn.isAsync) {
-        this.error(
-          '"for ... in" a channel waits for its values, so it is allowed only in async functions and at the top level of a module',
-          node.iterable,
-        );
-      }
-
-      if (node.key) this.error('a channel has no keys: write "for value in ch"', node.key);
-    } else if (iterable.kind === 'string') {
-      value = STRING;
-    } else if (iterable.kind === 'any') {
-      value = ANY;
-      key = ANY;
-    } else if (iterable.kind !== 'unknown') {
-      this.error(`cannot iterate over ${typeToString(iterable)}`, node.iterable);
-    }
-
-    this.withScope(() => {
-      if (node.key) this.declareValue(node.key, 'loop', key);
-      this.declareValue(node.value, 'loop', value);
-      this.dropNarrowing(assignedNames(node.body));
-
-      const entry = this.flow;
-
-      this.flow = new Map(entry);
-      this.checkBlock(node.body.body);
-      this.flow = entry;
-    });
   }
 
   protected override checkSwitch(node: ast.SwitchStatement): void {
@@ -260,9 +193,11 @@ export abstract class ControlFlowChecker extends StatementChecker {
       ? ': compare it with null, e.g. "x != null"'
       : type.kind === 'number'
         ? ': compare it, e.g. "n != 0"'
-        : type.kind === 'string'
-          ? ': compare it, e.g. s != ""'
-          : '';
+        : type.kind === 'bigint'
+          ? ': compare it, e.g. "n != 0n"'
+          : type.kind === 'string'
+            ? ': compare it, e.g. s != ""'
+            : '';
 
     this.error(`condition must be bool, not ${typeToString(type)}${hint}`, node);
   }

@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { bigintMember } from './bigint.ts';
 import { boolMember, numberMember, stringMember } from './builtins.ts';
 import { DecoratorMemberChecker } from './decorator-members.ts';
 import { isUntyped, isNumeric } from './helpers.ts';
@@ -220,6 +221,10 @@ export abstract class MemberChecker extends DecoratorMemberChecker {
         member = numberMember(name) ?? this.primitiveMember('number', name);
         break;
 
+      case 'bigint':
+        member = bigintMember(name) ?? this.primitiveMember('bigint', name);
+        break;
+
       case 'string':
         member = stringMember(name) ?? this.primitiveMember('string', name);
         break;
@@ -290,6 +295,9 @@ export abstract class MemberChecker extends DecoratorMemberChecker {
 
       case 'number':
         return numberMember(name) ?? this.primitiveMember('number', name);
+
+      case 'bigint':
+        return bigintMember(name) ?? this.primitiveMember('bigint', name);
 
       case 'string':
         return stringMember(name) ?? this.primitiveMember('string', name);

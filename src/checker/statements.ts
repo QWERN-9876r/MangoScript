@@ -59,7 +59,7 @@ export abstract class StatementChecker extends AssignmentChecker {
       case 'IncDecStatement': {
         const type = this.checkTarget(node.target);
 
-        if (!isNumeric(type)) {
+        if (!isNumeric(type) && type.kind !== 'bigint') {
           this.error(`"${node.operator}" needs a number, not ${typeToString(type)}`, node.target);
         }
 

@@ -307,7 +307,7 @@
         },
         {
           "name": "support.type.primitive.mango",
-          "match": "(?<![\\w$])(?<![^.]\\.)(?:number|string|bool|any|void|error|Content)(?![\\w$])"
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:number|bigint|byte|string|bool|any|void|error|Content)(?![\\w$])"
         },
         {
           "name": "variable.other.constant.mango",
@@ -324,19 +324,19 @@
       "patterns": [
         {
           "name": "constant.numeric.hex.mango",
-          "match": "(?<![\\w$])0[xX][0-9A-Fa-f][0-9A-Fa-f_]*(?![\\w$])"
+          "match": "(?<![\\w$])0[xX][0-9A-Fa-f][0-9A-Fa-f_]*n?(?![\\w$])"
         },
         {
           "name": "constant.numeric.binary.mango",
-          "match": "(?<![\\w$])0[bB][01][01_]*(?![\\w$])"
+          "match": "(?<![\\w$])0[bB][01][01_]*n?(?![\\w$])"
         },
         {
           "name": "constant.numeric.octal.mango",
-          "match": "(?<![\\w$])0[oO][0-7][0-7_]*(?![\\w$])"
+          "match": "(?<![\\w$])0[oO][0-7][0-7_]*n?(?![\\w$])"
         },
         {
           "name": "constant.numeric.decimal.mango",
-          "match": "(?<![\\w$.])(?:\\d[\\d_]*(?:\\.\\d[\\d_]*)?|\\.\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?(?![\\w$])"
+          "match": "(?<![\\w$.])(?:\\d[\\d_]*n|(?:\\d[\\d_]*(?:\\.\\d[\\d_]*)?|\\.\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?)(?![\\w$])"
         }
       ]
     },

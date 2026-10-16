@@ -78,8 +78,8 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
   }
 
   /**
-   * `for x in xs` → `for (const x of xs)`, `m.values()` for a Map; `for i, x in xs` iterates
-   * `xs.entries()`, which gives the keys and values of a Map too.
+   * `for x in xs` → `for (const x of xs)`, `m.values()` for a Map, `seq()` for an iterator;
+   * `for i, x in xs` iterates `xs.entries()`, which gives the keys and values of a Map too.
    */
   protected override forInStatement(node: ast.ForInStatement): void {
     const bindings: [string, BindingKind][] = [[node.value.name, 'loop']];
@@ -100,7 +100,16 @@ export abstract class ControlStatementEmitter extends SimpleStatementEmitter {
         return;
       }
 
-      if (node.key === null) {
+      // An iterator is a generator function: called, it gives a lazy JS iterator, of pairs if its
+      // yield takes two values.
+      if (iterable?.kind === 'function' && iterable.iterator) {
+        const yieldType = iterable.params[0];
+        const pairs = yieldType?.kind === 'function' && yieldType.params.length === 2;
+        const key = node.key && node.key.name !== '_' ? this.name(node.key.name) : '';
+        const values = `${this.expression(node.iterable, POSTFIX)}()`;
+
+        head = pairs ? `const [${key}, ${value}] of ${values}` : `const ${value} of ${values}`;
+      } else if (node.key === null) {
         // A Map gives its values; an untyped value may be a Map, which only the runtime tells.
         // Code that was not checked is taken as it is written.
         const untyped = iterable?.kind === 'any' || iterable?.kind === 'unknown';

@@ -3,6 +3,9 @@ import type { Library } from '../checker/checker.ts';
 import { instantiate, type Type } from '../checker/types.ts';
 import type { TypeConverter } from './convert.ts';
 
+/** The interfaces of the lib files with the members of the primitive types. */
+const PRIMITIVE_TYPES = { string: 'String', number: 'Number', bigint: 'BigInt', bool: 'Boolean' };
+
 // Globals of TypeScript's lib files (the standard library and the DOM) and of the `@types`
 // packages, such as `process` from @types/node. Each name is converted when it is first used.
 
@@ -46,8 +49,8 @@ export class LibraryTypes implements Library {
     });
   }
 
-  primitive(kind: 'string' | 'number' | 'bool'): Type | undefined {
-    return this.type(kind === 'string' ? 'String' : kind === 'number' ? 'Number' : 'Boolean');
+  primitive(kind: 'string' | 'number' | 'bigint' | 'bool'): Type | undefined {
+    return this.type(PRIMITIVE_TYPES[kind]);
   }
 
   array(element: Type): Type | undefined {

@@ -37,6 +37,8 @@ export const NUMBER_MEMBERS = ['toFixed', 'toPrecision', 'toString', 'toLocaleSt
 
 export const BOOL_MEMBERS = ['toString'];
 
+export const BIGINT_MEMBERS = ['toString', 'toLocaleString', 'valueOf'];
+
 export const ARRAY_MEMBERS = [
   'length',
   'push',

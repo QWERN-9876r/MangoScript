@@ -1,0 +1,13 @@
+// bigint: whole numbers of any size, written with n
+let factorial = 1n
+for let i = 1n; i <= 25n; i++ {
+    factorial *= i
+}
+console.log("25! =", factorial)
+
+// A number loses digits beyond 2^53; a bigint keeps them
+console.log(2 ** 64 + 1, 2n ** 64n + 1n)
+
+// bigint and number do not mix in arithmetic: convert one of them
+const people = 4
+console.log(factorial / BigInt(people), Number(7n) / 2)

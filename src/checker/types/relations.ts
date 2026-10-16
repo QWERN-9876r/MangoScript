@@ -9,7 +9,7 @@ import {
   type Member,
   type Type,
 } from './model.ts';
-import { typeToString } from './printing.ts';
+import { isBytes, typeToString } from './printing.ts';
 
 // Relations between types: assignability, comparison, equality, common types.
 
@@ -51,6 +51,7 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
 
   switch (target.kind) {
     case 'number':
+    case 'bigint':
     case 'string':
     case 'bool':
     case 'void':
@@ -171,6 +172,8 @@ function numberIndexAssignable(source: Type, index: Type, assuming: [Type, Type]
 }
 
 function functionAssignable(source: FunctionType, target: FunctionType, assuming: [Type, Type][]) {
+  // An iterator is a JS generator: it does not take the callback that a function of its shape does.
+  if (Boolean(source.iterator) !== Boolean(target.iterator)) return false;
   if (source.typeParams.length > 0 || target.typeParams.length > 0) return true;
   // A function may ignore parameters it is given, but not require more than it gets.
   if (source.required > target.params.length && target.rest === null) return false;
@@ -344,8 +347,11 @@ export function typesEqual(a: Type, b: Type): boolean {
 
 /** Types that a variable can have without an initial value: `0`, `""`, `false`, `[]`, `null`. */
 export function hasZeroValue(type: Type): boolean {
+  if (isBytes(type)) return true;
+
   switch (type.kind) {
     case 'number':
+    case 'bigint':
     case 'string':
     case 'bool':
     case 'array':

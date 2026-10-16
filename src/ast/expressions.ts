@@ -7,6 +7,7 @@ import type { BlockStatement } from './statements.ts';
 export type Expression =
   | Identifier
   | NumberLiteral
+  | BigIntLiteral
   | StringLiteral
   | TemplateLiteral
   | BooleanLiteral
@@ -29,7 +30,18 @@ export type Expression =
   | DecoratorGet
   | AsExpression
   | GoExpression
-  | ChanExpression;
+  | ChanExpression
+  | ConversionExpression;
+
+/**
+ * `[]byte("mango")`: the UTF-8 bytes of a string. `string(data)`, the way back, is a call, since
+ * `string` may be the name of a value.
+ */
+export interface ConversionExpression extends NodeBase {
+  kind: 'ConversionExpression';
+  type: TypeNode;
+  argument: Expression;
+}
 
 /** `chan<number>(10)`: a new channel with room for 10 values; `chan<number>()` has none. */
 export interface ChanExpression extends NodeBase {
@@ -66,6 +78,13 @@ export interface NumberLiteral extends NodeBase {
   kind: 'NumberLiteral';
   value: number;
   /** Source text, e.g. `0xff` or `1_000`, so code generation can keep it as written. */
+  raw: string;
+}
+
+/** `10n`: a bigint. Its value is in `raw` only, so that the tree stays plain data for JSON. */
+export interface BigIntLiteral extends NodeBase {
+  kind: 'BigIntLiteral';
+  /** Source text with the `n`, e.g. `0xffn` or `1_000n`; JS writes it the same way. */
   raw: string;
 }
 

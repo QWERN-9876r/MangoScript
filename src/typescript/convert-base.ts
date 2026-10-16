@@ -6,6 +6,7 @@ import {
   NULL,
   nullable,
   NUMBER,
+  BIGINT,
   STRING,
   union,
   VOID,
@@ -19,7 +20,7 @@ import type * as TS from 'typescript';
 // Types of TypeScript declarations as MangoScript types. Members are converted when they are
 // first used (see LazyMap): @types/node has thousands of them, and a program touches a few.
 //
-// What has no counterpart becomes `any`: bigint, symbol, `object`, `unknown`, and the conditional
+// What has no counterpart becomes `any`: symbol, `object`, `unknown`, and the conditional
 // and mapped types that TypeScript itself cannot reduce. Index signatures give `index` to objects.
 
 /**
@@ -119,6 +120,7 @@ export abstract class ConverterBase {
     if (flags & TypeFlags.Boolean) return BOOL;
     if (flags & TypeFlags.String) return STRING;
     if (flags & TypeFlags.Number) return NUMBER;
+    if (flags & (TypeFlags.BigInt | TypeFlags.BigIntLiteral)) return BIGINT;
     if (flags & TypeFlags.StringLiteral) return literal((type as TS.StringLiteralType).value);
     if (flags & TypeFlags.NumberLiteral) return literal((type as TS.NumberLiteralType).value);
     if (flags & TypeFlags.BooleanLiteral)

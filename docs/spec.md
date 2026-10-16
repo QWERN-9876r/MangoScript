@@ -63,7 +63,8 @@ const point = {
 
 ### Literals
 
-- Numbers as in JS: `42`, `3.14`, `1e3`, `0xff`, `1_000_000`.
+- Numbers as in JS: `42`, `3.14`, `1e3`, `0xff`, `1_000_000`; a bigint ends with `n`: `10n`,
+  `0xffn`.
 - Strings: `"..."`, `'...'` and template strings `` `Hello, ${name}` ``.
 - `true`, `false`, `null`.
 - Arrays `[1, 2, ...rest]` and objects `{ name: "Ann", age, "content-type": t, ...defaults }`
@@ -130,9 +131,11 @@ A variable or a class field without an initial value gets the zero value of its 
 | Type                        | Zero value                    |
 | --------------------------- | ----------------------------- |
 | `number`                    | `0`                           |
+| `bigint`                    | `0n`                          |
 | `string`                    | `""`                          |
 | `bool`                      | `false`                       |
 | `[]T`                       | `[]` (a new array each time)  |
+| `[]byte`                    | an empty `Uint8Array`         |
 | `?T`, `error`, `any`        | `null`                        |
 | classes, interfaces, `func` | none: the value must be given |
 
@@ -188,11 +191,14 @@ only reports at compile time what would fail at run time.
 | MangoScript       | Values                                       | In JS             |
 | ----------------- | -------------------------------------------- | ----------------- |
 | `number`          | numbers                                      | `number`          |
+| `bigint`          | whole numbers of any size, `10n`             | `bigint`          |
+| `byte`            | a number from 0 to 255                       | `number`          |
 | `string`          | strings                                      | `string`          |
 | `bool`            | `true`, `false`                              | `boolean`         |
 | `any`             | anything, unchecked                          | —                 |
 | `error`           | an error or `null`                           | `Error` or `null` |
 | `[]T`             | an array                                     | `Array`           |
+| `[]byte`          | bytes                                        | `Uint8Array`      |
 | `?T`              | a value of type `T` or `null`                | a value or `null` |
 | `func(A, B) R`    | a function                                   | a function        |
 | `(a A) => R`      | the same function type, written as an arrow  | a function        |
@@ -216,6 +222,54 @@ methods of the needed types.
 - **An object used as a map,** `{ [string]: number }`, has any keys with values of that type; the
   key is `string` or `number`. An object literal or another object fits it if all its fields do.
   `scores["ann"]` and `scores[name]` are a `number`, and `delete scores[name]` removes a key.
+
+### bigint
+
+```go
+let big = 2n ** 64n           // 18446744073709551616n
+let zero bigint               // 0n
+const third = big / 3n        // the fraction is dropped
+const n = Number(big) + 0.5   // a number again
+```
+
+`bigint` holds whole numbers of any size, as in JS. A literal ends with `n`: `10n`, `0xffn`,
+`1_000n`; it has no fraction or exponent. The zero value is `0n`.
+
+- **It does not mix with numbers** in arithmetic: `big + 1` is an error, since JS throws a
+  TypeError there. One of them is converted: `big + 1n`, `BigInt(n)`, `Number(b)`.
+- **Comparisons:** `<`, `>`, `<=` and `>=` work between a bigint and a number, as in JS. `==`
+  between them is an error: it compiles to `===`, which is always `false` for the two.
+- `-b`, `~b`, `b++` and the bit operators work; `+b` and `>>>` are errors, as JS throws there.
+- `typeof b` is `"bigint"` and narrows a `number | bigint`. A bigint goes into markup as text and
+  to a goroutine as a copy; `JSON.stringify` cannot write one (JS throws).
+
+### []byte
+
+```go
+let header []byte = [0x89, 0x50, 0x4e, 0x47]
+let empty []byte
+const bytes = []byte("mango")
+const text = string(bytes)
+```
+
+```js
+let header = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+let empty = new Uint8Array();
+const bytes = new TextEncoder().encode("mango");
+const text = new TextDecoder().decode(bytes);
+```
+
+`[]byte` is a `Uint8Array`, as a byte slice in Go, and `byte` is a `number` from 0 to 255 (the
+range is not checked, as for other numbers). `data[i]` reads and writes a `byte`, and the methods
+are those of `Uint8Array`: `subarray`, `slice`, `set`, and no `push`, since its length is fixed.
+
+- **A list of numbers** where a `[]byte` is expected becomes one; the zero value is an empty
+  `Uint8Array`.
+- **Text and bytes** convert as in Go, in UTF-8: `[]byte("text")` and `string(bytes)`. They are
+  the only conversions written with a type: `string(65)` is an error (in Go it would be `"A"`), and
+  other values use `String(x)` or a template string. A program that declares a type `byte` or a
+  value `string` uses its own.
+- A `[]byte` goes to a goroutine as a copy, or without one with `transfer(data)`.
 
 ### Type declarations
 
@@ -771,14 +825,15 @@ taken for the start of the block (the same rule as in Go).
 
 ### for, the only loop
 
-| MangoScript                     | JS                                          |
-| ------------------------------- | ------------------------------------------- |
-| `for let i = 0; i < n; i++ { }` | `for (let i = 0; i < n; i++) { }`           |
-| `for x in items { }`            | `for (const x of items) { }`                |
-| `for i, x in items { }`         | `for (const [i, x] of items.entries()) { }` |
-| `for v in scores { }` (a Map)   | `for (const v of scores.values()) { }`      |
-| `for cond { }`                  | `while (cond) { }`                          |
-| `for { }`                       | `while (true) { }`                          |
+| MangoScript                      | JS                                          |
+| -------------------------------- | ------------------------------------------- |
+| `for let i = 0; i < n; i++ { }`  | `for (let i = 0; i < n; i++) { }`           |
+| `for x in items { }`             | `for (const x of items) { }`                |
+| `for i, x in items { }`          | `for (const [i, x] of items.entries()) { }` |
+| `for v in scores { }` (a Map)    | `for (const v of scores.values()) { }`      |
+| `for v in seq { }` (an iterator) | `for (const v of seq()) { }`                |
+| `for cond { }`                   | `while (cond) { }`                          |
+| `for { }`                        | `while (true) { }`                          |
 
 `for x in items` goes over the **values**, like `for...of` in JS or `for x in` in Python and Rust,
 not over the keys like `for...in` in JS. In Go, `for i := range xs` with one variable gives the
@@ -796,6 +851,72 @@ index; here one variable gets the value, and two get the index and the value.
   where an `ArrayLike<number>` is expected, as in `Array.from(data)`.
 
 `break` and `continue` work as usual.
+
+### Iterators
+
+```go
+func count(n number) func(yield func(number) bool) {
+    return func(yield func(number) bool) {
+        defer console.log("done")
+        for let i = 0; i < n; i++ {
+            if !yield(i) {
+                return
+            }
+        }
+    }
+}
+
+for i in count(10) {
+    if i == 3 {
+        break
+    }
+}
+const firstThree = count(1_000_000)().take(3).toArray()
+```
+
+```js
+function count(n) {
+  return function* () {
+    try {
+      for (let i = 0; i < n; i++) {
+        yield i;
+      }
+    } finally {
+      console.log("done");
+    }
+  };
+}
+
+for (const i of count(10)()) {
+  if (i === 3) {
+    break;
+  }
+}
+const firstThree = count(1_000_000)().take(3).toArray();
+```
+
+An iterator is a function whose one parameter is named `yield`, as in Go 1.23:
+`func(yield func(T) bool)` gives values of `T`, and `func(yield func(K, V) bool)` gives pairs. It
+calls `yield(v)` for each value; `for v in seq` goes over them and `for k, v in seq` over the pairs,
+where one variable gets the second of a pair, as with a Map.
+
+- **The name makes the type:** `func(yield func(T) bool)` is an iterator, and `func(func(T) bool)`
+  a function that takes a callback; neither goes where the other is expected. A function type may
+  name its parameters, as in Go.
+- **It compiles to a JS generator** (`function*`): `yield(v)` becomes `yield v`, and
+  `yield(k, v)` becomes `yield [k, v]`. `if !yield(v) { return }`, the way an iterator of Go stops,
+  becomes `yield v`: when the loop stops, with `break`, `return` or an exception, JS closes the
+  generator where it yields, so the iterator returns there and its `defer`s run. For the same
+  reason a `yield(v)` used as a value is always `true`.
+- **A lazy JS iterator:** `seq()`, a call without arguments, gives the generator, with the helpers
+  of iterators: `seq().filter(f).take(5).toArray()`. JS code goes over it with
+  `for (const v of seq())`, and declarations for TypeScript give it as `() => Generator<T>`.
+  Calling an iterator with a function, as Go allows, is an error.
+- **What a generator cannot do:** `yield` is called only in the body of the iterator itself, not
+  in a function inside it (`items.forEach(x => yield(x))` is an error: loop with `for` there), and
+  it is not passed on or kept. An iterator is written with `func`: a declaration, a literal or a
+  method, not an arrow function. It is not async, and it returns nothing.
+- `for` over an iterator whose type is not known (`any`) calls it at runtime.
 
 ### switch
 
@@ -1080,7 +1201,8 @@ How TypeScript types become MangoScript types:
 | overloads                                       | a call picks the first signature that fits   |
 | `enum`                                          | a union of literals                          |
 | `[key: string]: T`                              | unknown members have the type `T`            |
-| `unknown`, `object`, `symbol`, `bigint`         | `any`                                        |
+| `bigint`; `Uint8Array`                          | `bigint`; `[]byte`, the same type            |
+| `unknown`, `object`, `symbol`                   | `any`                                        |
 | conditional and mapped types TS did not reduce  | `any`                                        |
 
 - `import x from "pkg"` is the default export; for modules with `export =` it is the value itself,
@@ -1739,6 +1861,23 @@ types of other imports come from TypeScript declarations (section 10).
 - **Regular expression literals** `/.../g`. For now, `new RegExp("...", "g")`.
 - **Source maps.**
 - **A WASM backend** for a subset of the language (numbers, arrays, classes).
+
+Planned next, around goroutines and what the browser has:
+
+- **A parallel loop over an array,** for example `go for i, v in pixels { ... }`: the array is
+  split into parts, one per processor, each part runs as a goroutine, and the loop waits for all of
+  them, as a `WaitGroup` would. On a page with cross-origin isolation the parts write into a shared
+  `SharedArrayBuffer`, without copies; elsewhere they are moved to the workers with `transfer` and
+  back. GitHub Pages cannot send the COOP and COEP headers, so the site needs the second way.
+- **`topic T`, channels between the tabs of a site,** over `BroadcastChannel`, for example
+  `const cart = topic<CartEvent>("cart")`. It is a type of its own, not a `chan`: every tab that
+  listens gets each value, and sending waits for nobody, so the promises of `chan` would not hold.
+- **Streams and channels:** a channel that receives the chunks of a `ReadableStream`, such as the
+  body of a `fetch` response, and a stream that reads a channel, so that goroutines make pipelines
+  over the network. The room of the channel is the backpressure of the stream.
+- **A ring buffer for the values of a channel:** now they are an array, and taking one out with
+  `shift()` costs as many steps as the channel holds, which shows with `chan<number>(100_000)`.
+- **State that survives a reload,** see Stages in [components.md](components.md).
 
 ## Open questions
 

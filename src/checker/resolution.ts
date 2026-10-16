@@ -4,7 +4,9 @@ import { ClassChecker } from './classes.ts';
 import type { AliasEntry } from './context.ts';
 import { CONTENT } from './dom.ts';
 import {
+  ANY,
   arrayOf,
+  BYTES,
   bindParams,
   classInstance,
   func,
@@ -13,6 +15,7 @@ import {
   isNullable,
   literal,
   nullable,
+  NUMBER,
   substitute,
   typeToString,
   union,
@@ -31,7 +34,7 @@ export abstract class TypeResolver extends ClassChecker {
         return this.resolveTypeName(node.name, node.typeArgs);
 
       case 'ArrayType':
-        return arrayOf(this.resolveType(node.element));
+        return this.isByte(node.element) ? this.bytes() : arrayOf(this.resolveType(node.element));
 
       case 'ChanType':
         return chanOf(this.resolveType(node.element), node.direction);
@@ -43,6 +46,7 @@ export abstract class TypeResolver extends ClassChecker {
         return func(
           node.params.map((param) => this.resolveType(param)),
           node.results.map((result) => this.resolveType(result)),
+          { iterator: node.iterator === true },
         );
 
       case 'ComponentType':
@@ -84,6 +88,30 @@ export abstract class TypeResolver extends ClassChecker {
     }
 
     return { kind: 'component', params };
+  }
+
+  /** `byte`, unless the program declares a type of that name. */
+  private isByte(node: ast.TypeNode): boolean {
+    return (
+      node.kind === 'TypeReference' &&
+      node.name.name === 'byte' &&
+      node.typeArgs.length === 0 &&
+      this.lookupType('byte') === NUMBER
+    );
+  }
+
+  /** `[]byte`: the Uint8Array of the lib files, with its default type argument, or BYTES. */
+  protected bytes(): Type {
+    const library = this.options.library?.type('Uint8Array');
+
+    if (library?.kind === 'object' && library.typeParams) {
+      return instantiate(
+        library,
+        library.typeParams.map((param) => param.default ?? ANY),
+      );
+    }
+
+    return library ?? BYTES;
   }
 
   protected override resolveTypeName(

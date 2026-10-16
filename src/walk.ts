@@ -123,6 +123,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       optional(node.size);
       break;
 
+    case 'ConversionExpression':
+      visit(node.type);
+      visit(node.argument);
+      break;
+
     case 'ReturnStatement':
       each(node.values);
       break;
@@ -325,6 +330,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'CssText':
     case 'Identifier':
     case 'NumberLiteral':
+    case 'BigIntLiteral':
     case 'StringLiteral':
     case 'TemplateElement':
     case 'BooleanLiteral':

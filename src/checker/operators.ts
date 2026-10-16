@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { bigintBinary, bigintUnary } from './bigint.ts';
 import { ExpressionChecker } from './expressions.ts';
 import { withNarrowing } from './flow.ts';
 import { isUntyped, isNumeric, instanceTypeOf } from './helpers.ts';
@@ -75,12 +76,21 @@ export abstract class OperatorChecker extends ExpressionChecker {
 
       case '-':
       case '+':
-      case '~':
+      case '~': {
+        const bigint = bigintUnary(node.operator, type);
+
+        if (bigint) {
+          if (bigint.error) this.error(bigint.error, node);
+
+          return bigint.type;
+        }
+
         if (!isNumeric(type)) {
           this.error(`"${node.operator}" needs a number, not ${typeToString(type)}`, node.argument);
         }
 
         return NUMBER;
+      }
     }
   }
 
@@ -137,6 +147,13 @@ export abstract class OperatorChecker extends ExpressionChecker {
     const untyped = isUntyped(left) || isUntyped(right);
     const nullHint =
       isNullable(left) || isNullable(right) ? ': a value may be null, check it first' : '';
+    const bigint = bigintBinary(operator, left, right);
+
+    if (bigint) {
+      if (bigint.error) this.error(bigint.error, node);
+
+      return bigint.type;
+    }
 
     switch (operator) {
       case '+':

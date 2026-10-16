@@ -129,7 +129,8 @@ export class DeclarationImporter {
 
   private options(ts: typeof TS): TS.CompilerOptions {
     return {
-      target: ts.ScriptTarget.ES2024,
+      // ES2025 has the helpers of iterators, `take`, `map` and the like, which iterators use.
+      target: ts.ScriptTarget.ES2025,
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
       allowImportingTsExtensions: true,

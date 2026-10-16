@@ -9,6 +9,7 @@ import type { TokenKind } from './token.ts';
 export const ENDS_STATEMENT: ReadonlySet<TokenKind> = new Set<TokenKind>([
   'Identifier',
   'Number',
+  'BigInt',
   'String',
   'Template',
   'TemplateTail',
@@ -35,6 +36,7 @@ export const ENDS_STATEMENT: ReadonlySet<TokenKind> = new Set<TokenKind>([
 export const ENDS_VALUE: ReadonlySet<TokenKind> = new Set<TokenKind>([
   'Identifier',
   'Number',
+  'BigInt',
   'String',
   'Template',
   'TemplateTail',

@@ -129,7 +129,7 @@ export type JsxKind = 'JsxTagOpen' | 'JsxCloseTagOpen' | 'JsxName' | 'JsxTagEnd'
 
 /** Keywords and punctuators use their own text as the kind, e.g. `func` or `+=`. */
 export type TokenKind =
-  'Identifier' | 'Number' | StringKind | JsxKind | 'EOF' | Keyword | Punctuator;
+  'Identifier' | 'Number' | 'BigInt' | StringKind | JsxKind | 'EOF' | Keyword | Punctuator;
 
 interface TokenBase {
   /** Source text. Empty for automatically inserted semicolons and EOF. */

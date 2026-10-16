@@ -18,10 +18,12 @@ export type Type =
   | LiteralType;
 
 export interface SimpleType {
-  kind: 'number' | 'string' | 'bool' | 'any' | 'void' | 'null' | 'never' | 'unknown';
+  kind: 'number' | 'bigint' | 'string' | 'bool' | 'any' | 'void' | 'null' | 'never' | 'unknown';
 }
 
 export const NUMBER: SimpleType = { kind: 'number' };
+/** Whole numbers of any size, `10n`; they do not mix with numbers. */
+export const BIGINT: SimpleType = { kind: 'bigint' };
 export const STRING: SimpleType = { kind: 'string' };
 export const BOOL: SimpleType = { kind: 'bool' };
 /** Values from JS: anything goes, nothing is checked. */
@@ -58,6 +60,11 @@ export interface FunctionType {
   typeParams: TypeParam[];
   /** The other signatures of an overloaded function from a `.d.ts`; a call uses the first that fits. */
   overloads?: FunctionType[];
+  /**
+   * `func(yield func(T) bool)`, a function with a `yield` parameter: an iterator, as in Go 1.23. It
+   * compiles to a JS generator, and `for v in f` goes over what it yields.
+   */
+  iterator?: boolean;
 }
 
 /**

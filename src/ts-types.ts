@@ -31,6 +31,7 @@ export function resultType(results: readonly Type[]): string {
 export function tsType(type: Type, expand = false): string {
   switch (type.kind) {
     case 'number':
+    case 'bigint':
     case 'string':
     case 'any':
     case 'void':
@@ -91,7 +92,19 @@ export function tsType(type: Type, expand = false): string {
 }
 
 function functionType(type: FunctionType): string {
+  if (type.iterator) return `() => ${generatorType(type)}`;
+
   return `(${anonymousParameters(type)}) => ${resultType(type.results)}`;
+}
+
+/** What calling an iterator gives: a generator of what its `yield` takes, a value or a pair. */
+export function generatorType(iterator: FunctionType): string {
+  const yieldType = iterator.params[0];
+  const taken = yieldType?.kind === 'function' ? yieldType.params : [];
+  const yielded =
+    taken.length === 1 ? tsType(taken[0]!) : `[${taken.map((each) => tsType(each)).join(', ')}]`;
+
+  return `Generator<${yielded}, void, unknown>`;
 }
 
 /** A method of an object type: `name(arg1: number): string`. */

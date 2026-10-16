@@ -1,0 +1,13 @@
+// bigint: целые числа любого размера, пишутся с n
+let factorial = 1n
+for let i = 1n; i <= 25n; i++ {
+    factorial *= i
+}
+console.log("25! =", factorial)
+
+// number теряет цифры после 2^53, а bigint их хранит
+console.log(2 ** 64 + 1, 2n ** 64n + 1n)
+
+// bigint и number не смешиваются в арифметике: переведите одно из них
+const people = 4
+console.log(factorial / BigInt(people), Number(7n) / 2)

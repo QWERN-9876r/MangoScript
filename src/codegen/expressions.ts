@@ -1,7 +1,8 @@
 import type * as ast from '../ast.ts';
 import { decoratedName } from '../decorators.ts';
 import { goCaptures, goParams, goTarget } from '../goroutines.ts';
-import { containsElement, hasOptionalLink, startsWithObjectLiteral } from './analysis.ts';
+import { isIterator, usesThis } from '../iterators.ts';
+import { containsElement, startsWithObjectLiteral } from './analysis.ts';
 import { Emitter } from './emitter.ts';
 import { PREDECLARED } from './helpers.ts';
 import { ARROW, BINARY, CONDITIONAL, POSTFIX, PRIMARY, UNARY } from './syntax.ts';
@@ -22,6 +23,15 @@ export abstract class ExpressionEmitter extends Emitter {
 
   /** Go-style zero value of a type, or `null`; implemented by SimpleStatementEmitter. */
   protected abstract zeroValue(type: ast.TypeNode): string | null;
+
+  /** `f(x)`, `new C(x)`, `[a, b]` and `[]byte(s)`; implemented by CallEmitter. */
+  protected abstract call(node: ast.CallExpression): string;
+
+  protected abstract newExpression(node: ast.NewExpression): string;
+
+  protected abstract arrayLiteral(node: ast.ArrayLiteral): string;
+
+  protected abstract conversion(node: ast.ConversionExpression): string;
 
   /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
   protected readonly commaOk = new WeakSet<ast.Expression>();
@@ -102,6 +112,7 @@ export abstract class ExpressionEmitter extends Emitter {
       }
 
       case 'NumberLiteral':
+      case 'BigIntLiteral':
       case 'StringLiteral':
         return [node.raw, PRIMARY];
 
@@ -131,15 +142,25 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'SuperExpression':
         return ['super', PRIMARY];
 
-      case 'ArrayLiteral':
-        return [`[${this.elements(node.elements)}]`, PRIMARY];
+      case 'ArrayLiteral': {
+        const text = this.arrayLiteral(node);
+
+        return [text, text.startsWith('[') ? PRIMARY : POSTFIX];
+      }
 
       case 'ObjectLiteral':
         return [this.objectLiteral(node), PRIMARY];
 
       case 'FuncExpression': {
-        // Func literals become arrow functions, so `this` inside them is the enclosing `this`.
+        // Func literals become arrow functions, so `this` inside them is the enclosing `this`. An
+        // iterator is a generator function, which is never an arrow: it gets that `this` bound.
         const [params, body] = this.func(node.params, node.body);
+
+        if (isIterator(node.params)) {
+          return usesThis(node.body)
+            ? [`function* () ${body}.bind(this)`, POSTFIX]
+            : [`function* () ${body}`, PRIMARY];
+        }
 
         return [`${node.async ? 'async ' : ''}(${params}) => ${body}`, ARROW];
       }
@@ -202,7 +223,10 @@ export abstract class ExpressionEmitter extends Emitter {
         return [this.call(node), POSTFIX];
 
       case 'NewExpression':
-        return [`new ${this.newCallee(node.callee)}(${this.elements(node.arguments)})`, POSTFIX];
+        return [this.newExpression(node), POSTFIX];
+
+      case 'ConversionExpression':
+        return [this.conversion(node), POSTFIX];
 
       case 'MemberExpression': {
         const object = this.memberObject(node.object, (o) => this.expression(o, POSTFIX));
@@ -222,40 +246,7 @@ export abstract class ExpressionEmitter extends Emitter {
     }
   }
 
-  private call(node: ast.CallExpression): string {
-    // After `?.` the arguments may not be evaluated at all.
-    const conditional = node.optional || hasOptionalLink(node.callee);
-    const args = this.withHoisting(this.hoist && !conditional, () => this.elements(node.arguments));
-
-    if (this.isBuiltinError(node.callee) && !node.optional) return `new Error(${args})`;
-
-    return `${this.expression(node.callee, POSTFIX)}${node.optional ? '?.' : ''}(${args})`;
-  }
-
-  /** `new (f())()` and `new (a?.B)()` need parentheses around the class expression. */
-  private newCallee(callee: ast.Expression): string {
-    let node = callee;
-    let needsParens = false;
-
-    while (true) {
-      if (node.kind === 'CallExpression') {
-        needsParens = true;
-        break;
-      }
-
-      if (node.kind !== 'MemberExpression' && node.kind !== 'IndexExpression') break;
-      if (node.optional) {
-        needsParens = true;
-        break;
-      }
-
-      node = node.object;
-    }
-
-    return this.expression(callee, POSTFIX, needsParens);
-  }
-
-  private elements(elements: readonly (ast.Expression | ast.SpreadElement)[]): string {
+  protected elements(elements: readonly (ast.Expression | ast.SpreadElement)[]): string {
     return elements
       .map((element) =>
         element.kind === 'SpreadElement'

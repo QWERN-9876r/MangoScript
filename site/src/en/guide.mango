@@ -8,14 +8,17 @@ import { Card, CardGrid } from "../../ui/card.mango"
 import { CodeBlock } from "../../ui/code-block.mango"
 import { REPOSITORY, Section, text } from "../i18n.mango"
 import { Components, Decorators, Markup, Mounting, Reactivity, Refs, Styles, WebComponents } from "./guide-components.mango"
+import { Async, Channels, Goroutines, Select } from "./guide-concurrency.mango"
 
 export const SECTIONS []Section = [
     { id: "intro", title: "What is MangoScript", group: "Language", content: Intro },
     { id: "variables", title: "Variables and types", group: "Language", content: Variables },
+    { id: "bigint", title: "bigint and []byte", group: "Language", content: Numbers },
     { id: "null", title: "null, unions and narrowing", group: "Language", content: NullSafety },
     { id: "functions", title: "Functions", group: "Language", content: Functions },
     { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
     { id: "control", title: "Conditions and loops", group: "Language", content: Control },
+    { id: "iterators", title: "Iterators", group: "Language", content: Iterators },
     { id: "classes", title: "Classes and interfaces", group: "Language", content: Classes },
     { id: "generics", title: "Generics", group: "Language", content: Generics },
     { id: "modules", title: "Modules", group: "Language", content: Modules },
@@ -127,6 +130,27 @@ comp Variables() {
     </>
 }
 
+comp Numbers() {
+    return <>
+        <p>
+            <code>bigint</code> holds whole numbers of any size: <code>10n</code>,
+            {" "}<code>0xffn</code>, <code>2n ** 64n</code>. As in JS, a bigint and a number do not
+            mix in arithmetic, where JS would throw: the compiler asks to convert one of them with
+            {" "}<code>BigInt(n)</code> or <code>Number(b)</code>. They compare with
+            {" "}<code>&lt;</code>, and <code>==</code> between them is an error, since it is always
+            false.
+        </p>
+        {example("bigint")}
+        <p>
+            <code>[]byte</code> is a <code>Uint8Array</code>, as a byte slice is in Go, and
+            {" "}<code>byte</code> is a number from 0 to 255. A list of numbers where a
+            {" "}<code>[]byte</code> is expected becomes one, <code>[]byte("text")</code> gives the
+            UTF-8 bytes of a string, and <code>string(bytes)</code> reads them back.
+        </p>
+        {example("bytes")}
+    </>
+}
+
 comp NullSafety() {
     return <>
         <p>
@@ -184,84 +208,6 @@ comp Errors() {
     </>
 }
 
-comp Async() {
-    return <>
-        <p>
-            <code>async func</code> returns a Promise, and <code>await</code> waits for it. The result
-            types are written as in any function, several of them too: an
-            {" "}<code>async func load() (string, error)</code> returns
-            {" "}<code>{"Promise<(string, error)>"}</code>, and <code>await</code> unpacks the values
-            back. A module can <code>await</code> at the top level, and an event handler can be
-            async: a change of state after <code>await</code> updates the markup.
-        </p>
-        {example("async")}
-    </>
-}
-
-comp Goroutines() {
-    return <>
-        <p>
-            JavaScript runs a program in one thread: a long computation stops everything else, and a
-            worker takes a file of its own and messages written by hand. In MangoScript it is one
-            word, as in Go, and the compiler checks what goes to the other thread.
-        </p>
-        <p>
-            <code>go f(x)</code> calls a function as a goroutine, in another thread, and gives a
-            Promise of the result. Goroutines run at once on different processors: the threads are a
-            pool of workers, Web Workers in the browser and worker threads in Node, up to one per
-            processor. A goroutine shares no memory with the program: it gets copies of the
-            arguments and sends back a copy of the result, so they are data, and the function cannot
-            use the <code>let</code> variables of the module. The compiler checks both.
-        </p>
-        {example("goroutines")}
-        <p>
-            <code>{"go func(n number) { ... }(i)"}</code> runs a function literal as a goroutine: the
-            local names it uses are copied to it, like its arguments. <code>transfer(x)</code> moves
-            an <code>ArrayBuffer</code> or a typed array to the goroutine instead of copying it, and
-            leaves it empty here. <code>go</code> is for work that keeps a processor busy; to wait
-            for a timer or the network, call an async function without <code>await</code>: it runs
-            at once in the same thread.
-        </p>
-        {example("go-func")}
-    </>
-}
-
-comp Channels() {
-    return <>
-        <p>
-            Channels pass values between goroutines, as in Go: <code>{"chan<number>(10)"}</code> makes a
-            channel with room for ten numbers, <code>{"ch <- v"}</code> sends a value and waits
-            until the channel takes it, <code>{"<-ch"}</code> receives one, and
-            {" "}<code>for v in ch</code> receives them until <code>close(ch)</code>. Both ends
-            wait, so they work in async functions. A channel can go to goroutines in other threads:
-            what passes through it is copied. <code>{"<-chan number"}</code> only receives and <code>{"chan<- string"}</code> only sends: a function that takes one
-            cannot use it the other way.
-        </p>
-        {example("channels")}
-    </>
-}
-
-comp Select() {
-    return <>
-        <p>
-            <code>select</code> waits for the first of several operations on channels and runs its
-            case, as in Go: <code>{"case text = <-fast:"}</code> receives into a new variable of
-            the case, <code>{"case out <- v:"}</code> sends, and <code>default</code> runs when
-            nothing is ready at once. <code>after(ms)</code> is a channel that gets the time once,
-            after <code>ms</code>, so it makes a timeout, and a case whose channel is
-            {" "}<code>null</code> never goes on.
-        </p>
-        {example("select")}
-        <p>
-            <code>tick(ms)</code> gets the time every <code>ms</code> until
-            {" "}<code>close(ticks)</code>. <code>cancel(task)</code> stops a goroutine, given the
-            Promise of <code>go</code>: it stops at once, even in the middle of a loop, and
-            the Promise fails with "goroutine cancelled".
-        </p>
-        {example("timers")}
-    </>
-}
-
 comp Control() {
     return <>
         <p>
@@ -272,6 +218,27 @@ comp Control() {
             {" "}<code>switch</code> has no <code>break</code>: each case ends by itself.
         </p>
         {example("control")}
+    </>
+}
+
+comp Iterators() {
+    return <>
+        <p>
+            An iterator is a function whose one parameter is <code>yield</code>, as in Go 1.23:
+            {" "}<code>{"func(yield func(number) bool)"}</code>. It calls <code>yield(v)</code> for
+            each value, and <code>for v in seq</code> goes over them. When the loop stops, the
+            iterator stops at its <code>yield</code> too, as if it had given <code>false</code>,
+            and its <code>defer</code> runs. A <code>yield</code> of two values gives a key and a
+            value: <code>for place, fruit in numbered(fruits)</code>.
+        </p>
+        {example("iterators")}
+        <p>
+            An iterator compiles to a JS generator, and <code>yield(v)</code> to
+            {" "}<code>yield v</code>. So it is a lazy JS iterator too: <code>seq()</code> gives one,
+            with <code>filter</code>, <code>map</code> and <code>take</code>, and JS code goes over
+            it with <code>for...of</code>. For the same reason an iterator calls <code>yield</code>
+            {" "}only in its own body, not in a function inside it, and it is not async.
+        </p>
     </>
 }
 

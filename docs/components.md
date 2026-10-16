@@ -1314,6 +1314,12 @@ body of `for`: the code of one row of the list is written there once, and no ext
 7. **State shared by several components.**
 8. **Decorators (`dec`):** ~~public members, `get`, `mount()`, wrappers and `needs`~~ (done);
    ~~exporting decorators~~ (done); later combining them.
+9. **State that survives a reload** (planned): a `state` that the compiler loads when the
+   component is mounted and saves after each change, in IndexedDB or `localStorage`. IndexedDB
+   keeps what `structuredClone` copies, the same values that `go` passes to a worker, so the check
+   that `go` makes reports a value that cannot be stored. The syntax is open, for example
+   `state todos []Todo = [] stored("todos")`, and so is what the component shows before the value
+   is loaded.
 
 ## Decisions
 

@@ -134,6 +134,20 @@ export abstract class LiteralParser extends ExpressionParser {
     return { kind: 'ArrayLiteral', elements, ...this.span(start) };
   }
 
+  /** `[]byte("text")`: a type, then its value in parentheses. */
+  protected override parseConversion(): ast.ConversionExpression {
+    const { start } = this.peek();
+    const type = this.parseType();
+
+    this.expect('(', '"(" after the type: e.g. []byte("text") gives the bytes of a string');
+
+    const argument = this.nested(() => this.parseExpression());
+
+    this.expect(')');
+
+    return { kind: 'ConversionExpression', type, argument, ...this.span(start) };
+  }
+
   protected override parseObjectLiteral(): ast.ObjectLiteral {
     const start = this.expect('{').start;
     const properties = this.nested(() => this.parseList('}', () => this.parseProperty()));

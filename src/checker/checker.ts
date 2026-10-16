@@ -19,6 +19,7 @@ class Checker extends CompletionChecker {
   run(): CheckResult {
     this.checkStatementList(this.program.body, true);
     this.checkEndlessRecursion();
+    this.checkIterators();
     this.checkHtmlTags();
     this.diagnostics.sort((a, b) => a.start - b.start);
     this.warnings.sort((a, b) => a.start - b.start);

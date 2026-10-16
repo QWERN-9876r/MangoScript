@@ -1,8 +1,9 @@
 import type * as ast from '../ast.ts';
-import { ChannelChecker } from './channels.ts';
+import { IteratorChecker } from './iterators.ts';
 import {
   ARRAY_MEMBERS,
   ATTRIBUTE_NAMES,
+  BIGINT_MEMBERS,
   BOOL_MEMBERS,
   EVENT_ATTRIBUTES,
   HTML_TAGS,
@@ -30,9 +31,14 @@ import {
 // attributes of an element. The name itself is not an error: the check goes on as if it were
 // `unknown`.
 
-const PRIMITIVE_MEMBERS = { string: STRING_MEMBERS, number: NUMBER_MEMBERS, bool: BOOL_MEMBERS };
+const PRIMITIVE_MEMBERS = {
+  string: STRING_MEMBERS,
+  number: NUMBER_MEMBERS,
+  bigint: BIGINT_MEMBERS,
+  bool: BOOL_MEMBERS,
+};
 
-export abstract class CompletionChecker extends ChannelChecker {
+export abstract class CompletionChecker extends IteratorChecker {
   protected completion: CompletionResult | null = null;
 
   private atCursor(node: ast.Identifier): boolean {
@@ -225,6 +231,7 @@ export abstract class CompletionChecker extends ChannelChecker {
 
       case 'string':
       case 'number':
+      case 'bigint':
       case 'bool': {
         const library = this.options.library?.primitive(type.kind);
 
