@@ -3,36 +3,44 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-  margin: 20px 0;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
 }
 
 .card {
-  padding: 18px;
+  padding: 20px;
   border: 1px solid var(--rui-line);
   border-radius: var(--rui-radius-lg);
-  background: var(--rui-surface);
-  box-shadow: var(--rui-shadow);
+  background: var(--rui-bg-subtle);
+  transition: border-color 0.15s;
+}
+
+.card:hover {
+  border-color: var(--rui-line-strong);
 }
 
 .icon {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  margin-bottom: 10px;
-  border-radius: var(--rui-radius-sm);
-  background: var(--rui-accent-soft);
-  color: var(--rui-accent-strong);
+  width: 34px;
+  height: 34px;
+  margin-bottom: 14px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: var(--rui-radius);
+  background: var(--rui-surface);
+  color: var(--rui-accent);
 }
 
 .card .title {
-  margin: 0 0 4px;
-  font-size: 1rem;
+  margin: 0 0 6px;
+  font-size: 0.975rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .card .body {
   color: var(--rui-muted);
-  font-size: 0.925rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }

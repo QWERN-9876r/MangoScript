@@ -5,9 +5,13 @@ import { rook } from './src/vite.ts';
 
 // The documentation site (site/): its pages are Rook modules compiled by the plugin from
 // src/vite.ts. `npm run site:dev` serves it with Vite, `npm run site:build` builds it to site/dist.
-// The English page is index.html, the Russian one ru/index.html.
+// Each language has three pages, each a folder with its index.html: the home page, docs/ and
+// playground/; the English ones are at the root, the Russian ones in ru/.
 
 const site = new URL('./site/', import.meta.url).pathname;
+
+/** The pages of each language, as folders from its root. */
+const PAGES = ['', 'docs', 'playground'];
 
 /** Folders of the examples of each language. */
 const EXAMPLES: Record<string, string> = {
@@ -60,7 +64,11 @@ export default defineConfig({
     // The editor of VS Code in the playground is one chunk of some 3.5 MB, loaded only when the
     // playground comes into view.
     chunkSizeWarningLimit: 4000,
-    rolldownOptions: { input: [join(site, 'index.html'), join(site, 'ru', 'index.html')] },
+    rolldownOptions: {
+      input: ['', 'ru'].flatMap((language) =>
+        PAGES.map((page) => join(site, language, page, 'index.html')),
+      ),
+    },
   },
   plugins: [rook(), examples()],
 });

@@ -1,0 +1,56 @@
+// "Write Rook, ship JavaScript": a piece of Rook beside the JavaScript it compiles to, for a few
+// topics. The JavaScript is fixed text, so the home page does not load the compiler.
+
+import { CodeBlock } from "../../ui/code-block.rk"
+import { highlight } from "../highlight.rk"
+import { text } from "../i18n.rk"
+import { Reveal } from "../layout/reveal.rk"
+import { COMPARISONS } from "./code.rk"
+import styles from "./compare.module.css"
+import common from "./section.module.css"
+
+export comp Compare() {
+    const t = text()
+    const h = t.home
+    const labels { goroutines string; components string; errors string } = {
+        goroutines: h.compareGoroutines,
+        components: h.compareComponents,
+        errors: h.compareErrors,
+    }
+    state active = COMPARISONS[0].id
+    return <section class={common.section}>
+        <div class={common.container}>
+            <Reveal>
+                <div class={common.heading}>
+                    <h2>{h.compareTitle}</h2>
+                    <p>{h.compareLead}</p>
+                </div>
+            </Reveal>
+            <Reveal>
+                <div class={styles.switch} role="tablist">
+                    {for comparison in COMPARISONS {
+                        <button
+                            class={comparison.id == active ? `${styles.option} ${styles.active}` : styles.option}
+                            type="button"
+                            role="tab"
+                            aria-selected={comparison.id == active ? "true" : "false"}
+                            onClick={active = comparison.id}
+                        >
+                            {labels[comparison.id]}
+                        </button>
+                    }}
+                </div>
+                {for comparison in COMPARISONS {
+                    <div class={styles.pair} hidden={comparison.id != active}>
+                        <CodeBlock code={comparison.rook} label="app.rk" copyLabel={t.copy} copiedLabel={t.copied}>
+                            {highlight(comparison.rook, "rook")}
+                        </CodeBlock>
+                        <CodeBlock code={comparison.js} label="app.js" copyLabel={t.copy} copiedLabel={t.copied}>
+                            {highlight(comparison.js, "js")}
+                        </CodeBlock>
+                    </div>
+                }}
+            </Reveal>
+        </div>
+    </section>
+}

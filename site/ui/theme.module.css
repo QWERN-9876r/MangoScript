@@ -1,54 +1,53 @@
-/* RookUI: the tokens of the theme and the base of the page. Colors are light-dark() pairs: the
-   page follows the system unless [data-theme] on <html> chooses light or dark (ThemeToggle). */
+/* RookUI: the tokens of the theme and the base of the page. The theme is dark only: black, thin
+   lines and white text, with the orange of the rook where something runs or is current. */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --rui-bg: light-dark(#fffaf1, #17130f);
-  --rui-bg-glow: light-dark(#ffe7bf, #3a2810);
-  --rui-surface: light-dark(#ffffff, #211b16);
-  --rui-surface-2: light-dark(#fbf4e8, #1b1611);
-  --rui-text: light-dark(#2b2118, #f3eadf);
-  --rui-muted: light-dark(#7d6d5e, #a8998a);
-  --rui-line: light-dark(#f0e3cb, #3a3128);
-  --rui-line-strong: light-dark(#e4cfa9, #4d4135);
+  --rui-bg: #000;
+  --rui-bg-subtle: #0a0a0a;
+  --rui-surface: #0f0f0f;
+  --rui-surface-2: #161616;
+  --rui-text: #ededed;
+  --rui-muted: #a1a1a1;
+  --rui-subtle: #6e6e6e;
+  --rui-line: rgb(255 255 255 / 8%);
+  --rui-line-strong: rgb(255 255 255 / 14%);
+  --rui-hover: rgb(255 255 255 / 6%);
 
-  --rui-accent: light-dark(#e07b00, #ffad42);
-  --rui-accent-strong: light-dark(#bf6700, #ffc070);
-  --rui-accent-soft: light-dark(#fff0d4, #3a2a14);
-  --rui-on-accent: light-dark(#ffffff, #241505);
-  --rui-leaf: light-dark(#3f8f3a, #8fcf6f);
-  --rui-leaf-soft: light-dark(#e9f6e4, #1f2e1a);
-  --rui-info: light-dark(#2f6fb0, #8cbcf0);
-  --rui-info-soft: light-dark(#e8f1fb, #1a2433);
-  --rui-danger: light-dark(#c0392b, #ff8a7a);
-  --rui-danger-soft: light-dark(#fdecea, #3a1d1a);
+  /* The orange of the rook. */
+  --rui-accent: #f59e2a;
+  --rui-accent-strong: #ffb84d;
+  --rui-accent-soft: rgb(245 158 42 / 12%);
+  --rui-accent-gradient: linear-gradient(135deg, #ffc46b 0%, #f59e2a 45%, #d9730b 100%);
+  --rui-on-accent: #000;
 
-  --rui-code-bg: light-dark(#fbf6ec, #120f0c);
-  --rui-code-text: light-dark(#3b2f25, #eadfd1);
-  --rui-inline-code: light-dark(#f6ecda, #2e2720);
+  --rui-info: #52a8ff;
+  --rui-info-soft: rgb(82 168 255 / 10%);
+  --rui-success: #45d483;
+  --rui-success-soft: rgb(69 212 131 / 10%);
+  --rui-danger: #ff6166;
+  --rui-danger-soft: rgb(255 97 102 / 10%);
 
-  --rui-radius-sm: 8px;
-  --rui-radius: 12px;
-  --rui-radius-lg: 18px;
-  --rui-shadow:
-    0 1px 2px light-dark(rgb(43 33 24 / 6%), rgb(0 0 0 / 30%)),
-    0 10px 30px light-dark(rgb(43 33 24 / 7%), rgb(0 0 0 / 35%));
+  --rui-code-bg: #0a0a0a;
+  --rui-code-text: #e6e6e6;
+  --rui-inline-code: rgb(255 255 255 / 7%);
 
-  --rui-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --rui-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --rui-radius-sm: 6px;
+  --rui-radius: 8px;
+  --rui-radius-lg: 12px;
+  --rui-shadow: 0 8px 30px rgb(0 0 0 / 50%);
+
+  /* The width of the content of a page, and the space beside it on narrow screens. */
+  --rui-page: 1200px;
+  --rui-gutter: 24px;
+
+  --rui-font: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --rui-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   font-family: var(--rui-font);
   color: var(--rui-text);
   background: var(--rui-bg);
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
 }
 
 * {
@@ -59,17 +58,36 @@ body {
   margin: 0;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-  color: var(--rui-accent-strong);
+  color: inherit;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--rui-accent) 30%, transparent);
+  background: rgb(245 158 42 / 35%);
 }
 
 :focus-visible {
   outline: 2px solid var(--rui-accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --rui-gutter: 16px;
+  }
+}
+
+/* Animations stay for the eye only where the reader has not asked the system for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

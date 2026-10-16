@@ -85,7 +85,7 @@ describe('Vite plugin', { timeout: 30_000 }, () => {
 });
 
 describe('documentation site', { timeout: 30_000 }, () => {
-  it('is built by Vite: a page for each language, with its examples in its bundle', async () => {
+  it('is built by Vite: the pages of each language, the guide with its examples', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'rook-site-'));
 
     await build({
@@ -94,32 +94,44 @@ describe('documentation site', { timeout: 30_000 }, () => {
       build: { outDir, emptyOutDir: true },
     });
 
-    const pages = [
-      { html: 'index.html', prefix: './', examples: 'site/examples', other: 'site/examples/ru' },
+    for (const html of ['playground/index.html', 'ru/index.html', 'ru/playground/index.html']) {
+      expect(readFileSync(join(outDir, html), 'utf8')).toMatch(/src="(\.\.\/)+assets\/[^"]+\.js"/);
+    }
+
+    const guides = [
       {
-        html: 'ru/index.html',
+        html: 'docs/index.html',
         prefix: '../',
+        examples: 'site/examples',
+        other: 'site/examples/ru',
+      },
+      {
+        html: 'ru/docs/index.html',
+        prefix: '../../',
         examples: 'site/examples/ru',
         other: 'site/examples',
       },
     ];
 
-    for (const page of pages) {
-      const html = readFileSync(join(outDir, page.html), 'utf8');
-      // Relative, so that the site works from any folder, as on GitHub Pages.
-      const script = new RegExp(
-        `src="${page.prefix.replace(/\./g, '\\.')}(assets/[^"]+\\.js)"`,
-      ).exec(html)?.[1];
+    for (const guide of guides) {
+      const html = readFileSync(join(outDir, guide.html), 'utf8');
+      // Relative, so that the site works from any folder, as on GitHub Pages; the script of the
+      // page and the chunks it imports at once, which Vite preloads.
+      const scripts = [
+        ...html.matchAll(
+          new RegExp(`"${guide.prefix.replace(/\./g, '\\.')}(assets/[^"]+\\.js)"`, 'g'),
+        ),
+      ].map((match) => match[1]!);
 
-      expect(script, page.html).toBeDefined();
+      expect(scripts.length, guide.html).toBeGreaterThan(0);
 
-      const code = readFileSync(join(outDir, script!), 'utf8');
+      const code = scripts.map((script) => readFileSync(join(outDir, script), 'utf8')).join('\n');
       // Examples are part of the bundle, not loaded after the page is drawn.
       const hello = (dir: string) =>
         JSON.stringify(readFileSync(join(root, dir, 'hello.rk'), 'utf8').trimEnd()).slice(1, 40);
 
-      expect(code).toContain(hello(page.examples));
-      expect(code).not.toContain(hello(page.other));
+      expect(code).toContain(hello(guide.examples));
+      expect(code).not.toContain(hello(guide.other));
     }
   });
 });

@@ -1,22 +1,47 @@
-// Texts of the Russian page around the guide.
+// Texts of the Russian pages around the guide.
 
 import { Strings } from "../i18n.rk"
+import { HOME } from "./home-strings.rk"
 
 export const STRINGS Strings = {
-    tagline: "JavaScript с горутинами, каналами и типами",
+    tagline: "JavaScript на всех ядрах.",
+    docs: "Документация",
+    playground: "Песочница",
+    getStarted: "Начать",
     repository: "Репозиторий на GitHub",
     sections: "Разделы",
-    playground: "Песочница",
-    playgroundIntro: "Пишите код в редакторе — под ним сразу появится JavaScript, который из него получился, или ошибки компиляции. Кнопка «В песочницу» в любом примере выше открывает его здесь.",
-    footer: "Эта страница написана на Rook и собрана компилятором из",
-    footerLink: "репозитория на GitHub",
+    previous: "Назад",
+    next: "Далее",
+    menu: "Меню",
+    closeMenu: "Закрыть меню",
+    search: "Поиск по руководству",
+    searchPlaceholder: "Поиск по руководству…",
+    searchEmpty: "Ничего не нашлось.",
     otherLanguage: "English",
     otherLanguageCode: "en",
-    otherHref: "../",
+    otherRoot: "../",
+    specification: "Спецификация",
+    specificationPath: "docs/spec.ru.md",
+    vscode: "Расширение VS Code",
+    footerDocs: "Документация",
+    footerResources: "Ресурсы",
+    footerLanguage: "Язык",
+    footerWritten: "Этот сайт написан на Rook.",
+    footerLicense: "Rook — открытый проект под лицензией MIT.",
+    footerSections: [
+        { id: "intro", title: "Что такое Rook" },
+        { id: "goroutines", title: "Горутины" },
+        { id: "channels", title: "Каналы" },
+        { id: "components", title: "Компоненты" },
+        { id: "tools", title: "Инструменты" },
+    ],
     editor: "Код на Rook",
     run: "▶ Запустить",
     openInPlayground: "В песочницу",
     reset: "Сбросить",
+    examples: "Примеры",
+    share: "Поделиться",
+    linkCopied: "Ссылка скопирована",
     position: (line, column) => `строка ${line}, столбец ${column}`,
     noImports: "Импорты в песочнице не работают: здесь нет модулей, кроме самой программы.",
     exception: "Исключение",
@@ -24,18 +49,11 @@ export const STRINGS Strings = {
     emptyPreview: "Программа ничего не добавила на страницу.",
     loadingCompiler: "Загружается компилятор…",
     compilerFailed: "Не удалось загрузить компилятор. Проверьте соединение и попробуйте ещё раз.",
-    heroBadge: "Горутины · Каналы · Типы",
-    heroLead: "Слово go запускает функцию в отдельном потоке, на другом процессоре, а каналы и select связывают горутины, как в Go. Вокруг них — язык с семантикой JavaScript, синтаксисом Go и статическими типами, с разметкой и компонентами, который компилируется в читаемый JavaScript без рантайма.",
-    heroStart: "Читать руководство",
-    heroGoroutines: "Горутины",
-    heroComponents: "Компоненты",
     copy: "Копировать",
     copied: "Скопировано",
-    menu: "Меню",
-    closeMenu: "Закрыть меню",
     terminal: "Терминал",
-    theme: { auto: "Тема: как в системе", light: "Тема: светлая", dark: "Тема: тёмная" },
-    playgroundStart: `// Код компилируется при каждом изменении. «Запустить» выполнит его:
+    home: HOME,
+    playgroundStart: `// Код компилируется при каждом изменении. «Запустить» (Ctrl+Enter) выполнит его:
 // document.body — это область результата, а console.log выводит текст под ней.
 
 comp Fruit(name string, price number) {

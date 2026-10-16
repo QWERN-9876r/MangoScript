@@ -1,22 +1,47 @@
-// Texts of the English page around the guide.
+// Texts of the English pages around the guide.
 
 import { Strings } from "../i18n.rk"
+import { HOME } from "./home-strings.rk"
 
 export const STRINGS Strings = {
-    tagline: "JavaScript with goroutines, channels and types",
+    tagline: "JavaScript on every core.",
+    docs: "Docs",
+    playground: "Playground",
+    getStarted: "Get started",
     repository: "GitHub repository",
     sections: "Sections",
-    playground: "Playground",
-    playgroundIntro: "Write code in the editor: the JavaScript it compiles to, or the compile errors, appear right below it. The \"Open in playground\" button of any example above opens it here.",
-    footer: "This page is written in Rook and built by the compiler from the",
-    footerLink: "GitHub repository",
+    previous: "Previous",
+    next: "Next",
+    menu: "Menu",
+    closeMenu: "Close the menu",
+    search: "Search the guide",
+    searchPlaceholder: "Search the guide…",
+    searchEmpty: "Nothing found.",
     otherLanguage: "Русский",
     otherLanguageCode: "ru",
-    otherHref: "ru/",
+    otherRoot: "ru/",
+    specification: "Specification",
+    specificationPath: "docs/spec.md",
+    vscode: "VS Code extension",
+    footerDocs: "Docs",
+    footerResources: "Resources",
+    footerLanguage: "Language",
+    footerWritten: "This site is written in Rook.",
+    footerLicense: "Rook is open source under the MIT license.",
+    footerSections: [
+        { id: "intro", title: "What is Rook" },
+        { id: "goroutines", title: "Goroutines" },
+        { id: "channels", title: "Channels" },
+        { id: "components", title: "Components" },
+        { id: "tools", title: "Tools" },
+    ],
     editor: "Rook code",
     run: "▶ Run",
     openInPlayground: "Open in playground",
     reset: "Reset",
+    examples: "Examples",
+    share: "Share",
+    linkCopied: "Link copied",
     position: (line, column) => `line ${line}, column ${column}`,
     noImports: "Imports do not work in the playground: there are no modules here but the program itself.",
     exception: "Exception",
@@ -24,18 +49,11 @@ export const STRINGS Strings = {
     emptyPreview: "The program added nothing to the page.",
     loadingCompiler: "Loading the compiler…",
     compilerFailed: "Could not load the compiler. Check the connection and try again.",
-    heroBadge: "Goroutines · Channels · Types",
-    heroLead: "The word go runs a function in a thread of its own, on another processor, and channels and select connect goroutines, as in Go. Around them is a language with the semantics of JavaScript, the syntax of Go and static types, with markup and components, that compiles to readable JavaScript without a runtime.",
-    heroStart: "Read the guide",
-    heroGoroutines: "Goroutines",
-    heroComponents: "Components",
     copy: "Copy",
     copied: "Copied",
-    menu: "Menu",
-    closeMenu: "Close the menu",
     terminal: "Terminal",
-    theme: { auto: "Theme: as in the system", light: "Theme: light", dark: "Theme: dark" },
-    playgroundStart: `// The code compiles on every change. "Run" runs it:
+    home: HOME,
+    playgroundStart: `// The code compiles on every change. "Run" (Ctrl+Enter) runs it:
 // document.body is the result area, and console.log prints below it.
 
 comp Fruit(name string, price number) {

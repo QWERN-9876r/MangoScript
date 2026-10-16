@@ -1,0 +1,59 @@
+// Texts of the Russian home page.
+
+import { HomeStrings } from "../i18n.rk"
+
+/** «раз» or «раза» after a number: 1 раз, 2 раза, 5 раз, 22 раза. */
+func times(count number) string {
+    const last = count % 10
+    const teen = count % 100 >= 12 && count % 100 <= 14
+    return last >= 2 && last <= 4 && !teen ? "раза" : "раз"
+}
+
+export const HOME HomeStrings = {
+    newLabel: "Новое",
+    news: "go for — цикл по массиву на всех ядрах",
+    title: "JavaScript на",
+    titleAccent: "всех ядрах.",
+    lead: "Rook — язык с семантикой JavaScript, синтаксисом Go и статическими типами. Слово go запускает функцию на другом процессоре, каналы связывают горутины, и всё это компилируется в читаемый JavaScript без рантайма.",
+    openPlayground: "Открыть песочницу",
+    lanesTitle: "Один поток или все ядра.",
+    lanesLead: "go for делит массив на части, по одной на процессор, выполняет каждую горутиной и ждёт их все. Тот же цикл, на одно слово длиннее.",
+    oneThread: "один поток",
+    goFor: "все ядра",
+    faster: "быстрее",
+    lanesNote: "Замер в Node на машине с 14 ядрами.",
+    replay: "Ещё раз",
+    featuresTitle: "Идеи Go — в JavaScript.",
+    featuresLead: "Потоки, каналы и типы, которые о них знают, — в языке, который компилируется в обычный JavaScript для браузера и Node.",
+    goroutinesTitle: "Горутины на настоящих потоках",
+    goroutinesText: "go f(x) запускает функцию в пуле Web Worker или worker thread, по одному на процессор, и даёт Promise с её результатом. Без файлов воркеров и сообщений вручную.",
+    channelsTitle: "Каналы и select",
+    channelsText: "Горутины в любых потоках передают значения через каналы, ждут несколько сразу и перестают ждать через after(ms), как в Go.",
+    typesTitle: "Типы, которые знают о потоках",
+    typesText: "Функцию, экземпляр класса или DOM-элемент нельзя скопировать в другой поток. Компилятор скажет об этом до запуска.",
+    jsTitle: "Читаемый JavaScript без рантайма",
+    jsText: "Каждая конструкция становится тем JavaScript, который вы написали бы сами. Немногие помощники, нужные горутинам, идут вместе с модулем.",
+    componentsTitle: "Разметка и компоненты",
+    componentsText: "comp, state и разметка компилируются в прямые вызовы DOM, без виртуального DOM. Этот счётчик — компонент этой страницы:",
+    clicks: count => `Нажато ${count} ${times(count)}`,
+    toolsTitle: "Инструменты в комплекте",
+    toolsText: "CLI, который собирает и запускает, плагин для Vite, расширение для VS Code с ошибками на лету и автодополнением и .d.ts-файлы для TypeScript.",
+    compareTitle: "Пишите на Rook. Получайте JavaScript.",
+    compareLead: "Что вы пишете — и что из этого делает компилятор.",
+    compareGoroutines: "Горутины",
+    compareComponents: "Компоненты",
+    compareErrors: "Ошибки",
+    startTitle: "Старт за минуту.",
+    startLead: "Компилятор — npm-пакет, он работает в Node.js 24.",
+    startInstall: "Установить",
+    startWrite: "Написать",
+    startRun: "Запустить",
+    startCode: `func greet(name string) string {
+    return \`Привет, \${name}!\`
+}
+
+console.log(greet("Rook"))`,
+    startOutput: "Привет, Rook!",
+    ctaTitle: "Начните с руководства.",
+    ctaLead: "От переменных до горутин и компонентов — с примерами, которые запускаются прямо на странице.",
+}

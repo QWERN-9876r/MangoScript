@@ -1,0 +1,84 @@
+// The end of the home page: three steps from nothing to a running program, and the way on, to the
+// guide and the playground, over the board of the rook again.
+
+import { LinkButton } from "../../ui/button.rk"
+import { CodeBlock } from "../../ui/code-block.rk"
+import { Icon } from "../../ui/icon.rk"
+import { highlight } from "../highlight.rk"
+import { pageHref, text } from "../i18n.rk"
+import { Reveal } from "../layout/reveal.rk"
+import logo from "../rook.webp"
+import board from "./board.module.css"
+import { INSTALL, RUN } from "./code.rk"
+import common from "./section.module.css"
+import styles from "./start.module.css"
+
+comp Step(number number, title string, children Content) {
+    return <div class={styles.step}>
+        <p class={styles.stepTitle}>
+            <span class={styles.number}>{number}</span>
+            {title}
+        </p>
+        {children}
+    </div>
+}
+
+export comp Start() {
+    const t = text()
+    const h = t.home
+    return <section class={common.section}>
+        <div class={common.container}>
+            <Reveal>
+                <div class={common.heading}>
+                    <h2>{h.startTitle}</h2>
+                    <p>{h.startLead}</p>
+                </div>
+            </Reveal>
+            <Reveal>
+                <div class={styles.steps}>
+                    <Step number={1} title={h.startInstall}>
+                        <CodeBlock code={INSTALL} label="Terminal" copyLabel={t.copy} copiedLabel={t.copied}>
+                            <span class={styles.prompt}>$ </span>{INSTALL}
+                        </CodeBlock>
+                    </Step>
+                    <Step number={2} title={h.startWrite}>
+                        <CodeBlock code={h.startCode} label="hello.rk" copyLabel={t.copy} copiedLabel={t.copied}>
+                            {highlight(h.startCode, "rook")}
+                        </CodeBlock>
+                    </Step>
+                    <Step number={3} title={h.startRun}>
+                        <CodeBlock code={RUN} label="Terminal" copyLabel={t.copy} copiedLabel={t.copied}>
+                            <span class={styles.prompt}>$ </span>{RUN}
+                            {"\n"}
+                            <span class={styles.output}>{h.startOutput}</span>
+                        </CodeBlock>
+                    </Step>
+                </div>
+            </Reveal>
+        </div>
+    </section>
+}
+
+export comp CallToAction() {
+    const t = text()
+    const h = t.home
+    return <section class={`${common.section} ${styles.cta}`}>
+        <div class={board.board} aria-hidden="true" />
+        <Reveal>
+            <div class={styles.ctaContent}>
+                <img class={styles.logo} src={logo} alt="" width={64} height={64} />
+                <div class={common.heading}>
+                    <h2>{h.ctaTitle}</h2>
+                    <p>{h.ctaLead}</p>
+                </div>
+                <div class={styles.actions}>
+                    <LinkButton kind="primary" size="lg" href={pageHref("docs")}>
+                        {t.getStarted}
+                        <Icon name="arrow-right" size={16} />
+                    </LinkButton>
+                    <LinkButton size="lg" href={pageHref("playground")} icon="play">{h.openPlayground}</LinkButton>
+                </div>
+            </div>
+        </Reveal>
+    </section>
+}

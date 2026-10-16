@@ -113,21 +113,26 @@ see [editors/vscode/README.md](editors/vscode/README.md).
 
 ## Documentation site
 
-[site/](site/) holds the Rook guide in English (`index.html`) and Russian
-(`ru/index.html`). Both the page and its server are written in Rook, and the compiler runs
-right in the browser: every example has a tab with the JavaScript it compiles to and a run button,
-and the bottom of the page has a playground.
+[site/](site/) holds the site of Rook in English and Russian (in `ru/`), three pages in each: the
+home page (`index.html`), the guide (`docs/`) and the playground (`playground/`). The pages and
+their server are written in Rook, and the compiler runs right in the browser: every example of
+the guide has a tab with the JavaScript it compiles to and a run button, and the playground is a
+small IDE.
 
-- [site/src/en/](site/src/en/) and [site/src/ru/](site/src/ru/): the text of the sections in each
-  language, listed in `guide.rk`; the sections about markup and components are in
-  `guide-components.rk`;
+- [site/src/en/](site/src/en/) and [site/src/ru/](site/src/ru/): the entry module of each page
+  (`home.rk`, `docs.rk`, `playground.rk`), the texts (`strings.rk`, `home-strings.rk`) and the
+  sections of the guide, listed in `guide.rk`;
+- [site/src/home/](site/src/home/), [site/src/docs/](site/src/docs/) and
+  [site/src/playground/](site/src/playground/): the three pages; the guide shows one section at a
+  time, chosen by the hash of the address, and has a search; [site/src/layout/](site/src/layout/):
+  the bar at the top and the footer;
+- [site/ui/](site/ui/): RookUI, the kit of components and the dark theme that the pages use;
 - [site/examples/](site/examples/) and [site/examples/ru/](site/examples/ru/): the examples; tests
   check that they all compile and that each has a translation;
 - [site/src/i18n.rk](site/src/i18n.rk): the language of the page and the texts around the
   guide;
-- [site/src/example.rk](site/src/example.rk) and
-  [site/src/playground.rk](site/src/playground.rk): the example with tabs and the playground,
-  components with `state`, `bind:` and `{if}` / `{for}`;
+- [site/src/example.rk](site/src/example.rk) and [site/src/sandbox.rk](site/src/sandbox.rk): the
+  example with tabs, and compiling and running code in the page;
 - [site/src/highlight.rk](site/src/highlight.rk): code highlighting with the compiler's lexer;
 - [site/src/editor/](site/src/editor/): the editor of the playground, the one of VS Code (Monaco)
   with the grammar of the VS Code extension, the compiler's errors under the code and its
@@ -139,9 +144,10 @@ compiles `.rk` modules with type checking, the playground's compiler comes strai
 [src/browser.ts](src/browser.ts), and the code of the examples gets into the bundle from the
 `virtual:examples/en` and `virtual:examples/ru` modules. The compiler is a chunk of its own,
 loaded by [site/src/compiler.ts](site/src/compiler.ts) on the first run, when a JavaScript tab is
-opened and when the playground comes into view: the page itself needs only the lexer, for
-highlighting. The editor of the playground, some 3.5 MB, is loaded then too; until it is, and on
-touch screens, the playground has a text area of its own.
+opened and in the playground: the pages themselves need only the lexer, for highlighting. The
+editor of the playground, some 3.5 MB, is loaded by the playground only; until it is, and on touch
+screens, the playground has a text area of its own. The fonts, Geist and Geist Mono, come with the
+site from npm ([site/src/fonts.css](site/src/fonts.css)).
 
 ```sh
 npm run site:dev    # the Vite dev server: changes show up right away

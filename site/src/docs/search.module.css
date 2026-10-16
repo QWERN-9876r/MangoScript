@@ -1,0 +1,175 @@
+/* The search of the guide: a field in the bar, and a palette over the dimmed page. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 260px;
+  height: 34px;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: var(--rui-radius);
+  background: var(--rui-bg-subtle);
+  color: var(--rui-subtle);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.button:hover {
+  border-color: rgb(255 255 255 / 24%);
+  color: var(--rui-muted);
+}
+
+.placeholder {
+  flex: 1;
+  text-align: left;
+}
+
+.key {
+  padding: 2px 6px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: 4px;
+  background: var(--rui-surface);
+  color: var(--rui-muted);
+  font-family: var(--rui-mono);
+  font-size: 0.7rem;
+}
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  visibility: hidden;
+}
+
+.open {
+  visibility: visible;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 70%);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.open .backdrop {
+  opacity: 1;
+}
+
+.panel {
+  position: absolute;
+  top: 12vh;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  width: min(640px, calc(100vw - 32px));
+  max-height: 70vh;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: var(--rui-radius-lg);
+  background: var(--rui-surface);
+  box-shadow: var(--rui-shadow);
+  opacity: 0;
+  transform: translate(-50%, -8px) scale(0.98);
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+}
+
+.open .panel {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rui-line);
+  color: var(--rui-subtle);
+}
+
+.input {
+  flex: 1;
+  height: 56px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--rui-text);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.results {
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--rui-radius);
+  text-decoration: none;
+}
+
+.selected {
+  background: var(--rui-hover);
+  box-shadow: inset 2px 0 0 var(--rui-accent);
+}
+
+.where {
+  color: var(--rui-subtle);
+  font-size: 0.75rem;
+}
+
+.title {
+  color: var(--rui-text);
+  font-weight: 500;
+}
+
+.snippet {
+  overflow: hidden;
+  color: var(--rui-muted);
+  font-size: 0.825rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.snippet mark {
+  border-radius: 3px;
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
+}
+
+.empty {
+  margin: 0;
+  padding: 24px 12px;
+  color: var(--rui-subtle);
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .button {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .placeholder,
+  .button .key {
+    display: none;
+  }
+}

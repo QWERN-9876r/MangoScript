@@ -1,8 +1,8 @@
 import * as monaco from 'monaco-editor/editor/editor.api';
 
 // The colors of the editor are the variables of the page (site/ui/theme.module.css and
-// site/src/highlight.module.css), so it changes with the theme of the page. They are light-dark()
-// pairs, which only an element resolves: a hidden probe takes each one as its color.
+// site/src/highlight.module.css). Some are rgb() with transparency or color-mix(), which only an
+// element resolves: a hidden probe takes each one as its color.
 
 const THEME = 'rook';
 
@@ -28,14 +28,7 @@ function hex(color: string): string {
   return `#${byte(r)}${byte(g)}${byte(b)}`;
 }
 
-/** Whether the page is dark: chosen by [data-theme] on <html>, or else by the system. */
-function isDark(): boolean {
-  const chosen = document.documentElement.dataset.theme;
-
-  return chosen ? chosen === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
-/** Resolves CSS colors, variables included, for the current theme of the page. */
+/** Resolves CSS colors, variables included. */
 function resolver(): { color: (css: string) => string; done: () => void } {
   const probe = document.createElement('span');
 
@@ -59,7 +52,7 @@ function defineTheme(): void {
   const mixed = (name: string, percent: number) => variable(name) + byte((percent / 100) * 255);
 
   monaco.editor.defineTheme(THEME, {
-    base: isDark() ? 'vs-dark' : 'vs',
+    base: 'vs-dark',
     inherit: true,
     rules: [
       { token: '', foreground: variable('--rui-code-text') },
@@ -95,18 +88,8 @@ function defineTheme(): void {
   done();
 }
 
-/** Gives the editors the colors of the page and changes them with its theme. */
-export function followPageTheme(): void {
-  const update = () => {
-    defineTheme();
-    monaco.editor.setTheme(THEME);
-  };
-
-  update();
-  // The page changes its theme by [data-theme] on <html> (ThemeToggle) or with the system.
-  new MutationObserver(update).observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme'],
-  });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update);
+/** Gives the editors the colors of the page. */
+export function applyPageTheme(): void {
+  defineTheme();
+  monaco.editor.setTheme(THEME);
 }

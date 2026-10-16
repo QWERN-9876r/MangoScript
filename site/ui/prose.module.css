@@ -1,66 +1,108 @@
 /* RookUI prose: the typography of text, for elements written without classes. */
 
 .prose {
-  font-size: 1.02rem;
+  color: var(--rui-muted);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  color: var(--rui-text);
+  font-weight: 600;
+}
+
+.prose h1 {
+  margin: 0 0 16px;
+  font-size: 2.25rem;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
 }
 
 .prose h2 {
-  margin: 0 0 14px;
-  font-size: 1.75rem;
-  letter-spacing: -0.02em;
+  margin: 40px 0 12px;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
 }
 
 .prose h3 {
-  margin: 28px 0 8px;
-  font-size: 1.15rem;
+  margin: 32px 0 8px;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
 }
 
 .prose p,
-.prose ul {
-  margin: 12px 0;
+.prose ul,
+.prose ol {
+  margin: 14px 0;
 }
 
 .prose li + li {
   margin-top: 6px;
 }
 
+.prose strong {
+  color: var(--rui-text);
+  font-weight: 600;
+}
+
+.prose a:not([class]) {
+  color: var(--rui-text);
+  text-decoration: underline;
+  text-decoration-color: var(--rui-line-strong);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s;
+}
+
+.prose a:not([class]):hover {
+  text-decoration-color: var(--rui-accent);
+}
+
 .prose code {
-  padding: 1px 6px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--rui-line);
+  border-radius: 5px;
   background: var(--rui-inline-code);
+  color: var(--rui-text);
   font-family: var(--rui-mono);
-  font-size: 0.88em;
+  font-size: 0.85em;
+  box-decoration-break: clone;
 }
 
 .prose pre code {
   padding: 0;
+  border: 0;
   background: none;
+  color: inherit;
   font-size: inherit;
 }
 
 .prose table {
   width: 100%;
-  margin: 18px 0;
+  margin: 24px 0;
   border: 1px solid var(--rui-line);
-  border-radius: var(--rui-radius);
+  border-radius: var(--rui-radius-lg);
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
+  font-size: 0.925rem;
 }
 
 .prose th,
 .prose td {
-  padding: 9px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--rui-line);
   text-align: left;
   vertical-align: top;
 }
 
 .prose th {
-  background: var(--rui-surface-2);
-  color: var(--rui-muted);
-  font-size: 0.85rem;
-  font-weight: 700;
+  background: var(--rui-surface);
+  color: var(--rui-text);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .prose tr:last-child td {

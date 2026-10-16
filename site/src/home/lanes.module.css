@@ -1,0 +1,119 @@
+/* The code of go for beside the lanes of the cores: one slow bar, many quick ones. */
+
+.demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.code > figure {
+  height: 100%;
+  margin: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 28px;
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
+  background:
+    radial-gradient(circle at 100% 0%, rgb(245 158 42 / 8%), transparent 55%), var(--rui-bg-subtle);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--rui-muted);
+  font-size: 0.875rem;
+}
+
+.label code {
+  color: var(--rui-text);
+  font-family: var(--rui-mono);
+  font-size: 0.85rem;
+}
+
+.time {
+  margin-left: auto;
+  color: var(--rui-text);
+  font-family: var(--rui-mono);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+  overflow: hidden;
+}
+
+.track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.slow {
+  background: #6e6e6e;
+}
+
+.fast {
+  background: var(--rui-accent-gradient);
+  box-shadow: 0 0 10px rgb(245 158 42 / 40%);
+}
+
+.cores {
+  display: grid;
+  gap: 4px;
+}
+
+.cores .track {
+  height: 5px;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--rui-line);
+}
+
+.speedup {
+  margin: 0;
+  color: var(--rui-muted);
+}
+
+.speedup strong {
+  background: var(--rui-accent-gradient);
+  background-clip: text;
+  color: transparent;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.note {
+  margin: -16px 0 0;
+  color: var(--rui-subtle);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .demo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,110 @@
+// What Rook has, as a grid of cards of different sizes, each with a glimpse of it: cores that a
+// goroutine lights up, select, an error of the checker, Rook beside its JavaScript, a counter
+// that is a real component, and the tools.
+
+import { Icon, IconName } from "../../ui/icon.rk"
+import { highlight } from "../highlight.rk"
+import { text } from "../i18n.rk"
+import { Reveal } from "../layout/reveal.rk"
+import { CORES, COUNTER, GOROUTINE, MAPPINGS, SELECT, TYPE_ERROR } from "./code.rk"
+import common from "./section.module.css"
+import styles from "./features.module.css"
+
+interface Tool {
+    icon IconName
+    label string
+}
+
+const TOOLS []Tool = [
+    { icon: "terminal", label: "rook build" },
+    { icon: "terminal", label: "rook run" },
+    { icon: "package", label: "rooklang/vite" },
+    { icon: "code", label: "VS Code" },
+    { icon: "layers", label: ".d.ts" },
+]
+
+/** How many columns of the grid a card takes: one, two, or the whole row. */
+type Span "one" | "two" | "row"
+
+comp Feature(title string, body string, icon IconName, span Span = "one", children Content) {
+    return <article class={`${styles.card} ${styles[span]}`}>
+        <span class={styles.icon}><Icon name={icon} size={18} /></span>
+        <h3 class={styles.title}>{title}</h3>
+        <p class={styles.text}>{body}</p>
+        <div class={styles.visual}>{children}</div>
+    </article>
+}
+
+/** A component of the page itself: the counter that the card about components talks about. */
+comp Counter() {
+    const h = text().home
+    state count = 0
+    return <button class={styles.counter} type="button" onClick={count++}>
+        {h.clicks(count)}
+    </button>
+}
+
+/** The numbers of the cores, which light up one after another as goroutines take them. */
+func cores() []number {
+    const all []number = []
+    for let i = 0; i < CORES; i++ {
+        all.push(i)
+    }
+    return all
+}
+
+export comp Features() {
+    const h = text().home
+    return <section class={common.section}>
+        <div class={common.container}>
+            <Reveal>
+                <div class={common.heading}>
+                    <h2>{h.featuresTitle}</h2>
+                    <p>{h.featuresLead}</p>
+                </div>
+            </Reveal>
+            <Reveal>
+                <div class={styles.grid}>
+                    <Feature title={h.goroutinesTitle} body={h.goroutinesText} icon="cpu" span="two">
+                        <pre class={styles.line}>{highlight(GOROUTINE, "rook")}</pre>
+                        <div class={styles.cores} aria-hidden="true">
+                            {for core in cores() {
+                                <span style={`--i: ${core}`} />
+                            }}
+                        </div>
+                    </Feature>
+                    <Feature title={h.channelsTitle} body={h.channelsText} icon="zap">
+                        <pre class={styles.snippet}>{highlight(SELECT, "rook")}</pre>
+                    </Feature>
+                    <Feature title={h.typesTitle} body={h.typesText} icon="shield">
+                        <pre class={styles.error}>{TYPE_ERROR}</pre>
+                    </Feature>
+                    <Feature title={h.jsTitle} body={h.jsText} icon="code">
+                        <div class={styles.mappings}>
+                            {for mapping in MAPPINGS {
+                                <div class={styles.mapping}>
+                                    <code>{highlight(mapping[0], "rook")}</code>
+                                    <code>{highlight(mapping[1], "js")}</code>
+                                </div>
+                            }}
+                        </div>
+                    </Feature>
+                    <Feature title={h.componentsTitle} body={h.componentsText} icon="layers">
+                        <pre class={styles.line}>{highlight(COUNTER, "rook")}</pre>
+                        <Counter />
+                    </Feature>
+                    <Feature title={h.toolsTitle} body={h.toolsText} icon="package" span="row">
+                        <div class={styles.tools}>
+                            {for tool in TOOLS {
+                                <span class={styles.tool}>
+                                    <Icon name={tool.icon} size={14} />
+                                    {tool.label}
+                                </span>
+                            }}
+                        </div>
+                    </Feature>
+                </div>
+            </Reveal>
+        </div>
+    </section>
+}

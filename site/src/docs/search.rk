@@ -1,0 +1,157 @@
+// The search of the guide: a button in the bar of the page, and a palette over the page that ⌘K,
+// Ctrl+K or / opens. It finds sections by their titles and their text, which it reads from the
+// sections in the page (page.rk keeps the hidden ones there), and opens the chosen one by its hash.
+
+import { Icon } from "../../ui/icon.rk"
+import { Section, text } from "../i18n.rk"
+import styles from "./search.module.css"
+
+/** A section as the search sees it, and a found one with the text around the match. */
+interface Entry {
+    id string
+    title string
+    group string
+    text string
+}
+
+interface Found {
+    entry Entry
+    before string
+    match string
+    after string
+}
+
+/** How many characters of text a result shows around its match. */
+const AROUND = 60
+
+/** The sections with their text, read from the page: the prose, not the labels of the examples. */
+func readEntries(sections []Section) []Entry {
+    return sections.map(section => {
+        const parts []string = []
+        for element in document.querySelectorAll(`[data-section="${section.id}"] :is(p, li, td, h2, h3)`) {
+            parts.push(element.textContent ?? "")
+        }
+        const content = parts.join(" ").replaceAll("\n", " ")
+        return { id: section.id, title: section.title, group: section.group, text: content }
+    })
+}
+
+/** The sections that have the query: those with it in the title first, then by the place of it. */
+func find(entries []Entry, query string) []Found {
+    const needle = query.trim().toLowerCase()
+    if needle == "" {
+        return entries.map(entry => ({ entry: entry, before: "", match: "", after: "" }))
+    }
+    const found []Found = []
+    const titled []Found = []
+    for entry in entries {
+        const at = entry.text.toLowerCase().indexOf(needle)
+        let result Found = { entry: entry, before: "", match: "", after: "" }
+        if at >= 0 {
+            result = {
+                entry: entry,
+                before: (at > AROUND ? "…" : "") + entry.text.slice(Math.max(0, at - AROUND), at),
+                match: entry.text.slice(at, at + needle.length),
+                after: entry.text.slice(at + needle.length, at + needle.length + AROUND) + "…",
+            }
+        }
+        if entry.title.toLowerCase().includes(needle) {
+            titled.push(result)
+        } else if at >= 0 {
+            found.push(result)
+        }
+    }
+    return [...titled, ...found]
+}
+
+/** The field in the bar that opens the search; on narrow screens only its icon. */
+export comp SearchButton(onOpen func()) {
+    const t = text()
+    return <button class={styles.button} type="button" aria-label={t.search} onClick={onOpen()}>
+        <Icon name="search" size={15} />
+        <span class={styles.placeholder}>{t.searchPlaceholder}</span>
+        <kbd class={styles.key}>⌘K</kbd>
+    </button>
+}
+
+export comp SearchDialog(open bool, sections []Section, onClose func()) {
+    const t = text()
+    state query = ""
+    state selected = 0
+    state entries []Entry = []
+    derived results = find(entries, query)
+    ref input
+
+    // The text is read when the palette opens: by then the sections are in the page.
+    effect {
+        if open {
+            entries = readEntries(sections)
+            query = ""
+            selected = 0
+            // Only a visible field takes the focus, and the palette shows itself after this.
+            setTimeout(() => input.focus(), 50)
+        }
+    }
+
+    func choose(found Found) {
+        location.hash = found.entry.id
+        onClose()
+    }
+
+    func onKey(event KeyboardEvent) {
+        if event.key == "Escape" {
+            onClose()
+        } else if event.key == "ArrowDown" {
+            event.preventDefault()
+            selected = Math.min(results.length - 1, selected + 1)
+        } else if event.key == "ArrowUp" {
+            event.preventDefault()
+            selected = Math.max(0, selected - 1)
+        } else if event.key == "Enter" && results.length > 0 {
+            choose(results[Math.min(selected, results.length - 1)])
+        }
+    }
+
+    return <div class={open ? `${styles.dialog} ${styles.open}` : styles.dialog}>
+        <div class={styles.backdrop} onClick={onClose()} />
+        <div class={styles.panel} role="dialog" aria-modal="true" aria-label={t.search}>
+            <div class={styles.field}>
+                <Icon name="search" size={18} />
+                <input
+                    ref={input}
+                    class={styles.input}
+                    type="search"
+                    placeholder={t.searchPlaceholder}
+                    aria-label={t.search}
+                    bind:value={query}
+                    onInput={selected = 0}
+                    onKeyDown={onKey(event)}
+                />
+                <kbd class={styles.key}>Esc</kbd>
+            </div>
+            <div class={styles.results} role="listbox" aria-label={t.search}>
+                {for i, found in results {
+                    <a
+                        class={i == selected ? `${styles.result} ${styles.selected}` : styles.result}
+                        href={`#${found.entry.id}`}
+                        role="option"
+                        aria-selected={i == selected ? "true" : "false"}
+                        onMouseMove={selected = i}
+                        onClick={onClose()}
+                    >
+                        <span class={styles.where}>{found.entry.group}</span>
+                        <span class={styles.title}>{found.entry.title}</span>
+                        {if found.match != "" {
+                            <span class={styles.snippet}>
+                                {found.before}<mark>{found.match}</mark>{found.after}
+                            </span>
+                        }}
+                    </a>
+                }}
+                {if results.length == 0 {
+                    <p class={styles.empty}>{t.searchEmpty}</p>
+                }}
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,28 @@
+// Content that rises into place when it first scrolls into view. For a reader who asked the
+// system for less motion it is simply there.
+
+import styles from "./reveal.module.css"
+
+export comp Reveal(children Content) {
+    state shown = false
+    ref host
+
+    mount() {
+        if matchMedia("(prefers-reduced-motion: reduce)").matches {
+            shown = true
+            return () => {}
+        }
+        const observer = new IntersectionObserver(entries => {
+            if entries.some(entry => entry.isIntersecting) {
+                shown = true
+                observer.disconnect()
+            }
+        }, { rootMargin: "0px 0px -8% 0px" })
+        observer.observe(host)
+        return () => observer.disconnect()
+    }
+
+    return <div ref={host} class={shown ? `${styles.reveal} ${styles.shown}` : styles.reveal}>
+        {children}
+    </div>
+}

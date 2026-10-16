@@ -1,0 +1,222 @@
+/* The grid of what Rook has: three columns of cards, some two columns wide. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  padding: 28px;
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
+  background: linear-gradient(180deg, var(--rui-surface) 0%, var(--rui-bg-subtle) 100%);
+  transition: border-color 0.2s;
+}
+
+.card:hover {
+  border-color: var(--rui-line-strong);
+}
+
+.one {
+  grid-column: span 1;
+}
+
+.two {
+  grid-column: span 2;
+}
+
+.row {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 18px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: var(--rui-radius);
+  background: var(--rui-bg);
+  color: var(--rui-accent);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.075rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.text {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--rui-muted);
+  font-size: 0.925rem;
+  line-height: 1.6;
+}
+
+.visual {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.line,
+.snippet,
+.error {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius);
+  background: var(--rui-bg);
+  font-family: var(--rui-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  overflow-x: auto;
+}
+
+.error {
+  border-color: rgb(255 97 102 / 25%);
+  background: rgb(255 97 102 / 6%);
+  color: #ffb3b5;
+  white-space: pre-wrap;
+}
+
+/* The cores: they light up in the color of the rook one after another, as goroutines take them. */
+.cores {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cores span {
+  height: 22px;
+  border: 1px solid var(--rui-line);
+  border-radius: 4px;
+  background: var(--rui-bg);
+  animation: work 3.2s ease-in-out calc(var(--i) * 0.12s) infinite;
+}
+
+@keyframes work {
+  0%,
+  15% {
+    border-color: var(--rui-line);
+    background: var(--rui-bg);
+  }
+
+  35%,
+  70% {
+    border-color: rgb(245 158 42 / 55%);
+    background: rgb(245 158 42 / 22%);
+  }
+
+  100% {
+    border-color: var(--rui-line);
+    background: var(--rui-bg);
+  }
+}
+
+.mappings {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius);
+  background: var(--rui-bg);
+  overflow: hidden;
+}
+
+.mapping {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 14px;
+  font-family: var(--rui-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.mapping + .mapping {
+  border-top: 1px solid var(--rui-line);
+}
+
+.mapping code:last-child {
+  opacity: 0.7;
+}
+
+.mapping code:last-child::before {
+  content: '→ ';
+  color: var(--rui-subtle);
+}
+
+.counter {
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid rgb(245 158 42 / 40%);
+  border-radius: var(--rui-radius-sm);
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.counter:hover {
+  background: rgb(245 158 42 / 20%);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: 999px;
+  background: var(--rui-bg);
+  color: var(--rui-text);
+  font-family: var(--rui-mono);
+  font-size: 0.8rem;
+}
+
+.tool svg {
+  color: var(--rui-subtle);
+}
+
+@media (max-width: 960px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .two {
+    grid-column: auto;
+  }
+
+  .card {
+    min-height: 0;
+  }
+}

@@ -1,0 +1,74 @@
+// The first screen of the home page: the board of the rook with goroutines running down its
+// lines, what Rook is in one sentence, the ways to the guide and the playground, and the install.
+
+import { LinkButton } from "../../ui/button.rk"
+import { CopyButton } from "../../ui/code-block.rk"
+import { Icon } from "../../ui/icon.rk"
+import { pageHref, text } from "../i18n.rk"
+import { INSTALL } from "./code.rk"
+import board from "./board.module.css"
+import styles from "./hero.module.css"
+
+/** A line of the board that a goroutine runs down: which line, how fast and when it starts. */
+interface Lane {
+    x number
+    seconds number
+    delay number
+}
+
+const LANES []Lane = [
+    { x: -7, seconds: 5.2, delay: 0.3 },
+    { x: -6, seconds: 7, delay: 2.5 },
+    { x: -4, seconds: 4.5, delay: 0 },
+    { x: -3, seconds: 6, delay: 3 },
+    { x: -1, seconds: 3.8, delay: 1.2 },
+    { x: 0, seconds: 5.5, delay: 4 },
+    { x: 2, seconds: 4.2, delay: 0.6 },
+    { x: 3, seconds: 6.5, delay: 2 },
+    { x: 5, seconds: 5, delay: 3.6 },
+    { x: 6, seconds: 3.6, delay: 1.8 },
+    { x: 7, seconds: 4.8, delay: 2.9 },
+]
+
+export comp Hero() {
+    const t = text()
+    const h = t.home
+    return <section class={styles.hero}>
+        <div class={board.board} aria-hidden="true">
+            {for lane in LANES {
+                <span
+                    class={styles.lane}
+                    style={`--x: ${lane.x}; --seconds: ${lane.seconds}s; --delay: ${lane.delay}s`}
+                />
+            }}
+        </div>
+        <div class={styles.glow} aria-hidden="true" />
+        <div class={styles.content}>
+            <a class={styles.news} href={`${pageHref("docs")}#goroutines`}>
+                <span class={styles.newLabel}>{h.newLabel}</span>
+                {h.news}
+                <Icon name="chevron-right" size={14} />
+            </a>
+            <h1 class={styles.title}>
+                <span class={styles.base}>{h.title}</span>
+                {" "}
+                <span class={styles.accent}>{h.titleAccent}</span>
+            </h1>
+            <p class={styles.lead}>{h.lead}</p>
+            <div class={styles.actions}>
+                <LinkButton kind="primary" size="lg" href={pageHref("docs")}>
+                    {t.getStarted}
+                    <Icon name="arrow-right" size={16} />
+                </LinkButton>
+                <LinkButton size="lg" href={pageHref("playground")} icon="play">
+                    {h.openPlayground}
+                </LinkButton>
+            </div>
+            <div class={styles.install}>
+                <span class={styles.prompt} aria-hidden="true">$</span>
+                <code>{INSTALL}</code>
+                <CopyButton text={INSTALL} label={t.copy} doneLabel={t.copied} />
+            </div>
+        </div>
+    </section>
+}

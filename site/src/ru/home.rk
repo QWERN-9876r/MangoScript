@@ -1,0 +1,8 @@
+// The entry module of the Russian home page.
+
+import { renderHome } from "../home/page.rk"
+import { setLanguage } from "../i18n.rk"
+import { STRINGS } from "./strings.rk"
+
+setLanguage(STRINGS, {}, "home")
+renderHome()

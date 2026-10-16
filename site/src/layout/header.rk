@@ -1,0 +1,96 @@
+// The bar at the top of every page: the rook and the name, the pages of the site, the other
+// language, GitHub and the way to the guide. On narrow screens the pages go into a menu that slides
+// in, with what the page adds to it (the sections of the guide).
+
+import { IconButton, IconLink, LinkButton } from "../../ui/button.rk"
+import { Drawer } from "../../ui/drawer.rk"
+import { currentPage, otherLanguageHref, Page, pageHref, REPOSITORY, text } from "../i18n.rk"
+import logo from "../rook.webp"
+import styles from "./header.module.css"
+
+/** The rook and the name, a link to the home page. */
+export comp Brand() {
+    return <a class={styles.brand} href={pageHref("home")}>
+        <img class={styles.logo} src={logo} alt="" width={24} height={24} />
+        Rook
+    </a>
+}
+
+comp PageLink(target Page, label string) {
+    return <a
+        class={styles.link}
+        href={pageHref(target)}
+        aria-current={currentPage() == target ? "page" : null}
+    >
+        {label}
+    </a>
+}
+
+/**
+ * The bar. `wide` lets it span the screen, as the guide and the playground do; `tools` go after
+ * the links (the search of the guide), and `menu` into the menu of narrow screens.
+ */
+export comp SiteHeader(wide bool = false, tools ?Content = null, menu ?Content = null) {
+    const t = text()
+    state open = false
+
+    // The other language opens at the same place: the section of the guide is in the hash.
+    func switchLanguage(event Event) {
+        event.preventDefault()
+        location.assign(otherLanguageHref() + location.hash)
+    }
+
+    // A link in the menu leads somewhere, so the menu closes.
+    func closeOnLink(event Event) {
+        const target = event.target
+        if target instanceof Element && target.closest("a") != null {
+            open = false
+        }
+    }
+
+    return <>
+        <header class={styles.header}>
+            <div class={wide ? `${styles.inner} ${styles.wide}` : styles.inner}>
+                <Brand />
+                <nav class={styles.links} aria-label={t.sections}>
+                    <PageLink target="docs" label={t.docs} />
+                    <PageLink target="playground" label={t.playground} />
+                </nav>
+                {tools}
+                <div class={styles.end}>
+                    <a
+                        class={styles.language}
+                        href={otherLanguageHref()}
+                        hreflang={t.otherLanguageCode}
+                        lang={t.otherLanguageCode}
+                        onClick={switchLanguage(event)}
+                    >
+                        <span class={styles.languageName}>{t.otherLanguage}</span>
+                        <span class={styles.languageCode}>{t.otherLanguageCode.toUpperCase()}</span>
+                    </a>
+                    <IconLink icon="github" label={t.repository} href={REPOSITORY} size="sm" />
+                    {if currentPage() != "docs" {
+                        <span class={styles.start}>
+                            <LinkButton kind="primary" size="sm" href={pageHref("docs")}>
+                                {t.getStarted}
+                            </LinkButton>
+                        </span>
+                    }}
+                    <span class={styles.menuButton}>
+                        <IconButton icon="menu" label={t.menu} size="sm" onClick={open = true} />
+                    </span>
+                </div>
+            </div>
+        </header>
+        <Drawer open={open} onClose={open = false} label={t.menu} closeLabel={t.closeMenu}>
+            <div class={styles.menu} onClick={closeOnLink(event)}>
+                <nav class={styles.menuLinks} aria-label={t.sections}>
+                    <PageLink target="home" label="Rook" />
+                    <PageLink target="docs" label={t.docs} />
+                    <PageLink target="playground" label={t.playground} />
+                </nav>
+                {menu}
+            </div>
+        </Drawer>
+    </>
+}

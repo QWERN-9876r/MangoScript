@@ -1,43 +1,52 @@
-/* RookUI tabs: a row of buttons, the selected one filled, with actions at the end. */
+/* RookUI tabs: the bar at the top of a window of code. The selected tab is white and underlined,
+   the actions sit at the end of the bar. */
 
 .tabs {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
-  padding: 6px;
+  min-height: 44px;
+  padding: 0 6px 0 12px;
   border-bottom: 1px solid var(--rui-line);
   background: var(--rui-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .tab {
-  padding: 6px 12px;
+  position: relative;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--rui-radius-sm);
   background: transparent;
   color: var(--rui-muted);
   font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: color 0.15s;
 }
 
 .tab:hover {
-  background: var(--rui-accent-soft);
   color: var(--rui-text);
 }
 
 .active,
 .active:hover {
-  background: var(--rui-accent-soft);
-  color: var(--rui-accent-strong);
+  color: var(--rui-text);
+}
+
+.active::after {
+  content: '';
+  position: absolute;
+  inset: auto 10px -1px;
+  height: 1px;
+  background: var(--rui-text);
 }
 
 .actions {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
   margin-left: auto;
 }

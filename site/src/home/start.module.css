@@ -1,0 +1,76 @@
+/* Three steps in a row, and the last call over the board of the rook. */
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.step > figure {
+  margin: 0;
+}
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  color: var(--rui-text);
+  font-weight: 500;
+}
+
+.number {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: 999px;
+  background: var(--rui-bg-subtle);
+  color: var(--rui-accent);
+  font-family: var(--rui-mono);
+  font-size: 0.8rem;
+}
+
+.prompt,
+.output {
+  color: var(--rui-subtle);
+}
+
+.cta {
+  overflow: hidden;
+  padding: 140px 0 160px;
+}
+
+.ctaContent {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 var(--rui-gutter);
+}
+
+.ctaContent > div {
+  margin-bottom: 36px;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 28px;
+  filter: drop-shadow(0 10px 30px rgb(245 158 42 / 45%));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

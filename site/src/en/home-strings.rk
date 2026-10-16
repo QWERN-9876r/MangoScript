@@ -1,0 +1,52 @@
+// Texts of the English home page.
+
+import { HomeStrings } from "../i18n.rk"
+
+export const HOME HomeStrings = {
+    newLabel: "New",
+    news: "go for: a loop over an array on every core",
+    title: "JavaScript on",
+    titleAccent: "every core.",
+    lead: "Rook is a language with the semantics of JavaScript, the syntax of Go and static types. The word go runs a function on another processor, channels connect the goroutines, and it all compiles to readable JavaScript without a runtime.",
+    openPlayground: "Open playground",
+    lanesTitle: "One thread, or every core.",
+    lanesLead: "go for splits an array into parts, one per processor, runs each part as a goroutine and waits for all of them. The same loop, one word longer.",
+    oneThread: "one thread",
+    goFor: "every core",
+    faster: "faster",
+    lanesNote: "Measured with Node on a machine with 14 cores.",
+    replay: "Replay",
+    featuresTitle: "The ideas of Go, in JavaScript.",
+    featuresLead: "Threads, channels and types that know about them, in a language that compiles to plain JavaScript for the browser and Node.",
+    goroutinesTitle: "Goroutines on real threads",
+    goroutinesText: "go f(x) runs a function in a pool of Web Workers or worker threads, one per processor, and gives a Promise of its result. No worker files, no messages written by hand.",
+    channelsTitle: "Channels and select",
+    channelsText: "Goroutines in any thread pass values through channels, wait on several at once and stop waiting with after(ms), as in Go.",
+    typesTitle: "Types that know about threads",
+    typesText: "A function, a class or a DOM element cannot be copied to another thread. The compiler says so before the program runs.",
+    jsTitle: "Readable JavaScript, no runtime",
+    jsText: "Each construct becomes the JavaScript you would write by hand. The few helpers that goroutines need come with the module.",
+    componentsTitle: "Markup and components",
+    componentsText: "comp, state and markup compile to direct calls of the DOM, without a virtual DOM. This counter is a component of this page:",
+    clicks: count => `Clicked ${count} ${count == 1 ? "time" : "times"}`,
+    toolsTitle: "Tools included",
+    toolsText: "A CLI that builds and runs, a Vite plugin, an extension for VS Code with errors as you type and completion, and .d.ts files for TypeScript.",
+    compareTitle: "Write Rook. Ship JavaScript.",
+    compareLead: "What you write, beside what the compiler gives.",
+    compareGoroutines: "Goroutines",
+    compareComponents: "Components",
+    compareErrors: "Errors",
+    startTitle: "Start in a minute.",
+    startLead: "The compiler is an npm package and runs on Node.js 24.",
+    startInstall: "Install",
+    startWrite: "Write",
+    startRun: "Run",
+    startCode: `func greet(name string) string {
+    return \`Hello, \${name}!\`
+}
+
+console.log(greet("Rook"))`,
+    startOutput: "Hello, Rook!",
+    ctaTitle: "Start with the guide.",
+    ctaLead: "From variables to goroutines and components, with examples you can run right on the page.",
+}

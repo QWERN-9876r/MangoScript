@@ -3,7 +3,7 @@ import * as monaco from 'monaco-editor/editor/editor.api';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import { complete, compile, type Completion } from '../../../src/browser.ts';
 import { registerHighlighting } from './textmate.ts';
-import { followPageTheme } from './theme.ts';
+import { applyPageTheme } from './theme.ts';
 
 // The editor of the playground: the one of VS Code (Monaco), with the grammar of the VS Code
 // extension, the errors of the compiler under the code and the completion of the language server.
@@ -11,8 +11,6 @@ import { followPageTheme } from './theme.ts';
 // playground.rk shows its own text area.
 
 const LANGUAGE = 'rook';
-/** The editor grows with its code up to this height, then scrolls. */
-const MAX_HEIGHT = 440;
 /** Errors are checked once the typing stops for this long. */
 const DELAY = 250;
 
@@ -21,6 +19,8 @@ export interface EditorOptions {
   /** The accessible name of the text area. */
   label: string;
   onChange: (value: string) => void;
+  /** Ctrl+Enter or ⌘Enter: run the program. */
+  onRun: () => void;
 }
 
 export interface Editor {
@@ -93,7 +93,7 @@ function setUp(): Promise<void> {
         };
       },
     });
-    followPageTheme();
+    applyPageTheme();
     await registerHighlighting(LANGUAGE);
   })();
 
@@ -124,7 +124,7 @@ function check(model: monaco.editor.ITextModel): void {
   ]);
 }
 
-/** Creates the editor in `host`, which it fills. */
+/** Creates the editor in `host`, which it fills; the page gives the host its size. */
 export async function createEditor(host: HTMLElement, options: EditorOptions): Promise<Editor> {
   await setUp();
 
@@ -135,14 +135,13 @@ export async function createEditor(host: HTMLElement, options: EditorOptions): P
     ariaLabel: options.label,
     automaticLayout: true,
     fontFamily: style.getPropertyValue('--rui-mono'),
-    fontSize: 13.5,
+    fontSize: 13,
     lineHeight: 1.6,
     tabSize: 4,
     insertSpaces: true,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
-    // The page scrolls on when the editor is at its end.
-    scrollbar: { alwaysConsumeMouseWheel: false, useShadows: false },
+    scrollbar: { useShadows: false },
     padding: { top: 14, bottom: 14 },
     overviewRulerLanes: 0,
     hideCursorInOverviewRuler: true,
@@ -154,12 +153,9 @@ export async function createEditor(host: HTMLElement, options: EditorOptions): P
   const model = editor.getModel()!;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const resize = () => {
-    host.style.height = `${Math.min(editor.getContentHeight(), MAX_HEIGHT)}px`;
-  };
-
-  editor.onDidContentSizeChange(resize);
-  resize();
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, options.onRun);
+  // The editor measures its font, which may still be loading.
+  void document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   check(model);
   editor.onDidChangeModelContent(() => {
     options.onChange(editor.getValue());

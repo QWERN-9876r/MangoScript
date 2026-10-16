@@ -1,0 +1,163 @@
+/* The playground: a toolbar over two panes, the code and its output, as tall as the screen under
+   the bar of the site. On narrow screens the panes go one under the other and the page scrolls. */
+
+.ide {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: calc(100dvh - 65px);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px var(--rui-gutter);
+  border-bottom: 1px solid var(--rui-line);
+}
+
+.examples {
+  height: 32px;
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: var(--rui-radius-sm);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a1' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+      no-repeat right 10px center,
+    var(--rui-bg-subtle);
+  color: var(--rui-text);
+  font: inherit;
+  font-size: 0.85rem;
+  appearance: none;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.key {
+  margin-left: 4px;
+  color: rgb(0 0 0 / 55%);
+  font-family: var(--rui-mono);
+  font-size: 0.75rem;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--rui-code-bg);
+}
+
+.pane + .pane {
+  border-left: 1px solid var(--rui-line);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rui-line);
+  background: var(--rui-surface);
+  color: var(--rui-muted);
+  font-family: var(--rui-mono);
+  font-size: 0.8rem;
+}
+
+/* The editor of VS Code fills the pane: it takes the size of its host (src/editor/editor.ts). */
+.vscode {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The text area with transparent text lies over a <pre> with the same code highlighted. */
+.editor {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(100%, max-content);
+  align-content: start;
+  min-height: 0;
+  overflow: auto;
+}
+
+.code,
+.input {
+  grid-area: 1 / 1;
+  margin: 0;
+  padding: 14px 18px;
+  border: 0;
+  font-family: var(--rui-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.code {
+  color: var(--rui-code-text);
+  pointer-events: none;
+}
+
+.input {
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--rui-text);
+}
+
+.input::selection {
+  background: rgb(245 158 42 / 30%);
+}
+
+.hidden {
+  display: none;
+}
+
+.output {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (max-width: 860px) {
+  .ide {
+    height: auto;
+  }
+
+  .panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pane + .pane {
+    border-top: 1px solid var(--rui-line);
+    border-left: 0;
+  }
+
+  .vscode {
+    flex: none;
+    height: 60vh;
+  }
+
+  .key,
+  .label {
+    display: none;
+  }
+
+  .examples {
+    min-width: 0;
+    flex: 1;
+  }
+}

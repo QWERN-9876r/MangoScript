@@ -1,0 +1,27 @@
+// The home page: what Rook is and why, in sections one under another, from the first screen to
+// the way into the guide.
+
+import "../../ui/theme.rk"
+import { SiteFooter } from "../layout/footer.rk"
+import { SiteHeader } from "../layout/header.rk"
+import { Compare } from "./compare.rk"
+import { Features } from "./features.rk"
+import { Hero } from "./hero.rk"
+import { Lanes } from "./lanes.rk"
+import { CallToAction, Start } from "./start.rk"
+
+/** Draws the page; the entry module of the language calls it after setLanguage(). */
+export func renderHome() {
+    document.body.append(<>
+        <SiteHeader />
+        <main>
+            <Hero />
+            <Lanes />
+            <Features />
+            <Compare />
+            <Start />
+            <CallToAction />
+        </main>
+        <SiteFooter />
+    </>)
+}

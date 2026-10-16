@@ -1,0 +1,125 @@
+/* The guide: the tree of sections at the side, one section in the middle, the way to the next one
+   under it. */
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.sidebar {
+  position: sticky;
+  top: 65px;
+  align-self: start;
+  height: calc(100vh - 65px);
+  padding: 32px 20px 48px 24px;
+  border-right: 1px solid var(--rui-line);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rui-line-strong) transparent;
+}
+
+.main {
+  min-width: 0;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 40px 64px;
+}
+
+.article[hidden] {
+  display: none;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  color: var(--rui-subtle);
+  font-size: 0.85rem;
+}
+
+.breadcrumb span {
+  color: var(--rui-accent);
+}
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 1px solid var(--rui-line);
+}
+
+.previous,
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px;
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.previous:hover,
+.next:hover {
+  border-color: var(--rui-line-strong);
+}
+
+.next {
+  grid-column: 2;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--rui-subtle);
+  font-size: 0.8rem;
+}
+
+.name {
+  color: var(--rui-text);
+  font-weight: 500;
+}
+
+.footer {
+  margin: 48px 0 0;
+  color: var(--rui-subtle);
+  font-size: 0.85rem;
+}
+
+.footer a {
+  color: var(--rui-muted);
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    padding: 32px var(--rui-gutter) 48px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pager {
+    grid-template-columns: 1fr;
+  }
+
+  .next {
+    grid-column: auto;
+  }
+}

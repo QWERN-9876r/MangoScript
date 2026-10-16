@@ -6,5 +6,4 @@
   border-radius: var(--rui-radius-lg);
   overflow: hidden;
   background: var(--rui-code-bg);
-  box-shadow: var(--rui-shadow);
 }

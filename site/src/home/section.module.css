@@ -1,0 +1,47 @@
+/* What the sections of the home page share: the width and the heading. */
+
+.section {
+  position: relative;
+  padding: 120px 0;
+  border-top: 1px solid var(--rui-line);
+}
+
+.container {
+  max-width: var(--rui-page);
+  margin: 0 auto;
+  padding: 0 var(--rui-gutter);
+}
+
+.heading {
+  max-width: 680px;
+  margin: 0 auto 56px;
+  text-align: center;
+}
+
+.heading h2 {
+  margin: 0;
+  background: linear-gradient(180deg, #fff 30%, #a1a1a1 100%);
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.heading p {
+  max-width: 600px;
+  margin: 16px auto 0;
+  color: var(--rui-muted);
+  font-size: 1.075rem;
+}
+
+@media (max-width: 760px) {
+  .section {
+    padding: 80px 0;
+  }
+
+  .heading {
+    margin-bottom: 40px;
+  }
+}

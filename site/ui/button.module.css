@@ -1,4 +1,5 @@
-/* RookUI buttons and links that look like buttons. */
+/* RookUI buttons and links that look like buttons: white for the main action, outlined for the
+   others, plain text for actions in a toolbar. Large ones are pills. */
 
 .button {
   display: inline-flex;
@@ -6,9 +7,9 @@
   justify-content: center;
   gap: 8px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--rui-radius-sm);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   text-decoration: none;
@@ -16,50 +17,46 @@
   transition:
     background 0.15s,
     border-color 0.15s,
-    color 0.15s,
-    transform 0.15s;
-}
-
-.button:active {
-  transform: translateY(1px);
+    color 0.15s;
 }
 
 .sm {
   height: 32px;
   padding: 0 12px;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 .md {
   height: 38px;
   padding: 0 16px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .lg {
-  height: 46px;
-  padding: 0 22px;
-  font-size: 1.05rem;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 1rem;
 }
 
 .primary {
-  background: var(--rui-accent);
-  color: var(--rui-on-accent);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--rui-accent) 30%, transparent);
+  background: var(--rui-text);
+  color: var(--rui-bg);
 }
 
 .primary:hover {
-  background: var(--rui-accent-strong);
+  background: #fff;
 }
 
 .secondary {
   border-color: var(--rui-line-strong);
-  background: var(--rui-surface);
+  background: var(--rui-bg-subtle);
   color: var(--rui-text);
 }
 
 .secondary:hover {
-  border-color: var(--rui-accent);
+  border-color: rgb(255 255 255 / 24%);
+  background: var(--rui-surface-2);
 }
 
 .ghost {
@@ -68,11 +65,11 @@
 }
 
 .ghost:hover {
-  background: var(--rui-accent-soft);
+  background: var(--rui-hover);
   color: var(--rui-text);
 }
 
-/* A button with only an icon is round. */
+/* A button with only an icon is square. */
 .icon {
   width: 38px;
   padding: 0;

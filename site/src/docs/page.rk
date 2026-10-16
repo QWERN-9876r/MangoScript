@@ -1,0 +1,130 @@
+// The guide: the sections in a tree on the left and one section at a time on the right, chosen by
+// the hash of the address, `docs/#goroutines`, so that the links of the guide to each other, `#id`,
+// work as they are. All the sections are in the page, the others hidden, so that the search of the
+// guide finds their text.
+
+import "../../ui/theme.rk"
+import { Icon } from "../../ui/icon.rk"
+import { NavGroup, NavList } from "../../ui/nav-list.rk"
+import { Prose } from "../../ui/prose.rk"
+import { REPOSITORY, Section, text } from "../i18n.rk"
+import { SiteHeader } from "../layout/header.rk"
+import styles from "./page.module.css"
+import { SearchButton, SearchDialog } from "./search.rk"
+
+/** The sections in the groups of the tree, in order. */
+func navGroups(sections []Section) []NavGroup {
+    const groups []NavGroup = []
+    for section in sections {
+        const last = groups.at(-1)
+        const link = { id: section.id, title: section.title }
+        if last != null && last.title == section.group {
+            last.links.push(link)
+        } else {
+            groups.push({ title: section.group, links: [link] })
+        }
+    }
+    return groups
+}
+
+/** The index of the section that the hash names, or of the first one. */
+func indexOf(sections []Section, hash string) number {
+    const id = decodeURIComponent(hash.slice(1))
+    return Math.max(0, sections.findIndex(section => section.id == id))
+}
+
+comp DocsPage(sections []Section) {
+    const t = text()
+    const groups = navGroups(sections)
+    state current = indexOf(sections, location.hash)
+    derived section = sections[current]
+    state searching = false
+
+    // A new section starts at the top of the page, with its name in the title of the tab.
+    func update() {
+        const next = indexOf(sections, location.hash)
+        if next != current {
+            current = next
+            window.scrollTo(0, 0)
+        }
+        document.title = `${sections[current].title} — Rook`
+    }
+
+    // ⌘K or Ctrl+K opens the search anywhere, and / where nothing is being typed.
+    func onKey(event KeyboardEvent) {
+        const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+        if (event.key == "k" && (event.metaKey || event.ctrlKey)) || (event.key == "/" && !typing) {
+            event.preventDefault()
+            searching = true
+        }
+    }
+
+    mount() {
+        update()
+        window.addEventListener("hashchange", update)
+        window.addEventListener("keydown", onKey)
+        return () => {
+            window.removeEventListener("hashchange", update)
+            window.removeEventListener("keydown", onKey)
+        }
+    }
+
+    return <>
+        <SiteHeader
+            wide={true}
+            tools={<SearchButton onOpen={searching = true} />}
+            menu={<NavList groups={groups} active={section.id} label={t.sections} />}
+        />
+        <SearchDialog open={searching} sections={sections} onClose={searching = false} />
+        <div class={styles.layout}>
+            <aside class={styles.sidebar}>
+                <NavList groups={groups} active={section.id} label={t.sections} />
+            </aside>
+            <main class={styles.main}>
+                <div class={styles.content}>
+                    {for each in sections {
+                        <article class={styles.article} data-section={each.id} hidden={each.id != section.id}>
+                            <div class={styles.breadcrumb}>
+                                {each.group}
+                                <Icon name="chevron-right" size={14} />
+                                <span>{each.title}</span>
+                            </div>
+                            <Prose>
+                                <h1>{each.title}</h1>
+                                <each.content />
+                            </Prose>
+                        </article>
+                    }}
+                    <nav class={styles.pager} aria-label={t.sections}>
+                        {if current > 0 {
+                            <a class={styles.previous} href={`#${sections[current - 1].id}`}>
+                                <span class={styles.direction}>
+                                    <Icon name="chevron-left" size={14} />
+                                    {t.previous}
+                                </span>
+                                <span class={styles.name}>{sections[current - 1].title}</span>
+                            </a>
+                        }}
+                        {if current < sections.length - 1 {
+                            <a class={styles.next} href={`#${sections[current + 1].id}`}>
+                                <span class={styles.direction}>
+                                    {t.next}
+                                    <Icon name="chevron-right" size={14} />
+                                </span>
+                                <span class={styles.name}>{sections[current + 1].title}</span>
+                            </a>
+                        }}
+                    </nav>
+                    <p class={styles.footer}>
+                        {t.footerWritten}{" "}<a href={REPOSITORY}>GitHub</a>
+                    </p>
+                </div>
+            </main>
+        </div>
+    </>
+}
+
+/** Draws the page; the entry module of the language calls it after setLanguage(). */
+export func renderDocs(sections []Section) {
+    document.body.append(<DocsPage sections={sections} />)
+}

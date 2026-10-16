@@ -1,0 +1,130 @@
+// The code that the home page shows. The JavaScript is what the compiler gives for the Rook next
+// to it (the helpers of goroutines aside), and the error is its message for TYPE_ERROR_CODE.
+
+export const INSTALL = "npm install -D rooklang"
+
+export const GO_FOR = `func isPrime(n number) bool {
+    for let d = 2; d * d <= n; d++ {
+        if n % d == 0 {
+            return false
+        }
+    }
+    return n > 1
+}
+
+const primes = make([]uint8, 10_000_000)
+
+let started = Date.now()
+for i, _ in primes {
+    primes[i] = isPrime(i) ? 1 : 0
+}
+console.log(\`one thread: \${Date.now() - started} ms\`)
+
+started = Date.now()
+go for i, _ in primes {
+    primes[i] = isPrime(i) ? 1 : 0
+}
+console.log(\`go for:     \${Date.now() - started} ms\`)`
+
+/** What GO_FOR printed under Node on a machine with CORES processors. */
+export const ONE_THREAD_MS = 1736
+export const GO_FOR_MS = 377
+export const CORES = 14
+
+export const GOROUTINE = "const n = await go countPrimes(0, N)"
+
+export const SELECT = `select {
+case msg = <-messages:
+    console.log(msg)
+case <-after(500):
+    console.log("timeout")
+}`
+
+export const TYPE_ERROR_CODE = `func render(title HTMLElement) {
+    go func() {
+        title.append("done")
+    }()
+}`
+
+export const TYPE_ERROR = `main.rk:3:9: error: the goroutine runs in a worker, which gets a copy of "title", but a copy of HTMLElement would lose its methods`
+
+/** Lines of Rook and the JavaScript they become. */
+export const MAPPINGS [][]string = [
+    ["for i, x in items {", "for (const [i, x] of items.entries()) {"],
+    ["const n, err = parse(s)", "const [n, err] = parse(s);"],
+    ["if a == b {", "if (a === b) {"],
+]
+
+export const COUNTER = "<button onClick={count++}>"
+
+export type Topic "goroutines" | "components" | "errors"
+
+/** The tabs of "Rook → JavaScript": the code of each and what it compiles to. */
+export interface Comparison {
+    id Topic
+    rook string
+    js string
+}
+
+export const COMPARISONS []Comparison = [
+    {
+        id: "goroutines",
+        rook: `func fib(n number) number {
+    return n < 2 ? n : fib(n - 1) + fib(n - 2)
+}
+
+const results = await Promise.all([go fib(40), go fib(41)])
+console.log(results)`,
+        js: `function fib(n) {
+  return n < 2 ? n : fib(n - 1) + fib(n - 2);
+}
+
+// fib runs in app.worker.js, in a pool of workers
+const results = await Promise.all([$$go("fib", [40]), $$go("fib", [41])]);
+console.log(results);`,
+    },
+    {
+        id: "components",
+        rook: `comp Counter() {
+    state count = 0
+    return <button onClick={count++}>
+        Clicked {count} times
+    </button>
+}`,
+        js: `let count = 0;
+const $$button = document.createElement("button");
+$$button.addEventListener("click", () => {
+  count++;
+  $$text.data = count;
+});
+const $$text = document.createTextNode(count);
+$$button.append("Clicked ", $$text, " times");`,
+    },
+    {
+        id: "errors",
+        rook: `func divide(a, b number) (number, error) {
+    if b == 0 {
+        return 0, error("division by zero")
+    }
+    return a / b, null
+}
+
+const result, err = divide(1, 0)
+if err != null {
+    console.log(err.message)
+}`,
+        js: `function divide(a, b) {
+  if (b === 0) {
+    return [0, new Error("division by zero")];
+  }
+  return [a / b, null];
+}
+
+const [result, err] = divide(1, 0);
+if (err != null) {
+  console.log(err.message);
+}`,
+    },
+]
+
+export const RUN = "npx rook run hello.rk"

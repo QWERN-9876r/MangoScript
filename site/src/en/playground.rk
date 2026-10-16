@@ -1,0 +1,9 @@
+// The entry module of the English playground.
+
+import { EXAMPLES } from "virtual:examples/en"
+import { setLanguage } from "../i18n.rk"
+import { renderPlayground } from "../playground/page.rk"
+import { STRINGS } from "./strings.rk"
+
+setLanguage(STRINGS, EXAMPLES, "playground")
+renderPlayground()

@@ -96,5 +96,6 @@ Go through the whole list; tests must cover each layer that changed.
 6. A guide section and an example on the site, in both languages.
 7. Highlighting: the VS Code grammar in `editors/vscode/syntaxes/` with a case in
    `tests/vscode-grammar.test.ts`, and the site highlighter `site/src/highlight.rk`.
-8. The playground (`site/src/sandbox.rk`) if the generated code needs something from the page.
+8. The playground (`site/src/sandbox.rk`, the page in `site/src/playground/`) if the generated code
+   needs something from the page.
 9. `npm run check`; for site changes also `npm run site:build`.

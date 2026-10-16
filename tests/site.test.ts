@@ -19,26 +19,41 @@ describe('documentation site', () => {
     expect(result.errors.flatMap((error) => error.diagnostics)).toEqual([]);
     expect(result.outputs.map((output) => output.output.slice(outDir.length + 1)).sort()).toEqual([
       'server.js',
-      'src/app.js',
+      'src/docs/page.js',
+      'src/docs/search.js',
+      'src/en/docs.js',
       'src/en/guide-components.js',
       'src/en/guide-concurrency.js',
       'src/en/guide.js',
-      'src/en/main.js',
+      'src/en/home-strings.js',
+      'src/en/home.js',
+      'src/en/playground.js',
       'src/en/strings.js',
       'src/example.js',
-      'src/hero.js',
       'src/highlight-css.js',
       'src/highlight.js',
+      'src/home/code.js',
+      'src/home/compare.js',
+      'src/home/features.js',
+      'src/home/hero.js',
+      'src/home/lanes.js',
+      'src/home/page.js',
+      'src/home/start.js',
       'src/i18n.js',
-      'src/playground.js',
+      'src/layout/footer.js',
+      'src/layout/header.js',
+      'src/layout/reveal.js',
+      'src/playground/page.js',
+      'src/ru/docs.js',
       'src/ru/guide-components.js',
       'src/ru/guide-concurrency.js',
       'src/ru/guide.js',
-      'src/ru/main.js',
+      'src/ru/home-strings.js',
+      'src/ru/home.js',
+      'src/ru/playground.js',
       'src/ru/strings.js',
       'src/sandbox.js',
       // The RookUI kit, which the pages import.
-      'ui/badge.js',
       'ui/button.js',
       'ui/callout.js',
       'ui/card.js',
@@ -88,6 +103,30 @@ describe('documentation site', () => {
       [...readFileSync(site(path), 'utf8').matchAll(/\{ id: "([^"]+)"/g)].map((match) => match[1]);
 
     expect(sections('src/ru/guide.rk')).toEqual(sections('src/en/guide.rk'));
+  });
+
+  // Each language has a home page, docs/ and playground/, each drawn by its own entry module.
+  it.each(['en', 'ru'])('has the three pages of %s', (language) => {
+    const root = language === 'en' ? '' : 'ru/';
+    const pages = { home: '', docs: 'docs/', playground: 'playground/' };
+
+    for (const [page, folder] of Object.entries(pages)) {
+      const html = readFileSync(site(`${root}${folder}index.html`), 'utf8');
+
+      expect(html).toContain(`<html lang="${language}">`);
+      expect(html).toContain(`<script type="module" src="/src/${language}/${page}.rk"></script>`);
+    }
+  });
+
+  it.each(['en', 'ru'])('links the footer of %s to sections of its guide', (language) => {
+    const ids = (path: string) =>
+      [...readFileSync(site(path), 'utf8').matchAll(/\{ id: "([^"]+)", title/g)].map(
+        (match) => match[1],
+      );
+    const footer = ids(`src/${language}/strings.rk`);
+
+    expect(footer.length).toBeGreaterThan(0);
+    expect(ids(`src/${language}/guide.rk`)).toEqual(expect.arrayContaining(footer));
   });
 
   it('reports errors with lines and columns of their start and end', () => {

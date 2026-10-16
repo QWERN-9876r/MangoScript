@@ -1,0 +1,41 @@
+// The bottom of the home page and the guide: the rook, links into the guide and to the other
+// resources, the other language.
+
+import { otherLanguageHref, pageHref, REPOSITORY, text } from "../i18n.rk"
+import { Brand } from "./header.rk"
+import styles from "./footer.module.css"
+
+export comp SiteFooter() {
+    const t = text()
+    return <footer class={styles.footer}>
+        <div class={styles.inner}>
+            <div class={styles.about}>
+                <Brand />
+                <p class={styles.tagline}>{t.tagline}</p>
+                <p class={styles.written}>{t.footerWritten}</p>
+            </div>
+            <nav class={styles.column} aria-label={t.footerDocs}>
+                <p class={styles.heading}>{t.footerDocs}</p>
+                {for link in t.footerSections {
+                    <a href={`${pageHref("docs")}#${link.id}`}>{link.title}</a>
+                }}
+            </nav>
+            <nav class={styles.column} aria-label={t.footerResources}>
+                <p class={styles.heading}>{t.footerResources}</p>
+                <a href={pageHref("playground")}>{t.playground}</a>
+                <a href={REPOSITORY}>GitHub</a>
+                <a href={`${REPOSITORY}/blob/main/${t.specificationPath}`}>{t.specification}</a>
+                <a href={`${REPOSITORY}/tree/main/editors/vscode`}>{t.vscode}</a>
+            </nav>
+            <div class={styles.column}>
+                <p class={styles.heading}>{t.footerLanguage}</p>
+                <a href={otherLanguageHref()} hreflang={t.otherLanguageCode} lang={t.otherLanguageCode}>
+                    {t.otherLanguage}
+                </a>
+            </div>
+        </div>
+        <div class={styles.bottom}>
+            <p class={styles.license}>{t.footerLicense}</p>
+        </div>
+    </footer>
+}

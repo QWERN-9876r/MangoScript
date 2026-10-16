@@ -1,9 +1,10 @@
 // RookUI icons: SVG paths on a 24 × 24 grid, drawn with the color of the text. The GitHub mark is
 // the one of Octicons (MIT), filled on its own 16 × 16 grid.
 
-export type IconName "sun" | "moon" | "monitor" | "copy" | "check" | "play" | "menu" | "close" |
-    "arrow-right" | "external" | "github" | "info" | "lightbulb" | "alert" | "code" | "zap" |
-    "shield" | "layers" | "cpu"
+export type IconName "copy" | "check" | "play" | "menu" | "close" | "arrow-right" | "external" |
+    "github" | "info" | "lightbulb" | "alert" | "code" | "zap" | "shield" | "layers" | "cpu" |
+    "search" | "chevron-left" | "chevron-right" | "chevron-down" | "terminal" | "share" | "refresh" |
+    "book" | "package"
 
 interface Shape {
     paths []string
@@ -17,12 +18,6 @@ func line(paths []string) Shape {
 
 // Read by an IconName: every name is a field.
 const SHAPES = {
-    sun: line([
-        "M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z",
-        "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4",
-    ]),
-    moon: line(["M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"]),
-    monitor: line(["M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z", "M8 21h8M12 17v4"]),
     copy: line([
         "M11 9h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z",
         "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
@@ -50,6 +45,18 @@ const SHAPES = {
         "M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
         "M9 9h6v6H9z",
         "M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3",
+    ]),
+    search: line(["M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0z", "M21 21l-4.3-4.3"]),
+    "chevron-left": line(["M15 18l-6-6 6-6"]),
+    "chevron-right": line(["M9 18l6-6-6-6"]),
+    "chevron-down": line(["M6 9l6 6 6-6"]),
+    terminal: line(["M4 17l6-6-6-6M12 19h8"]),
+    share: line(["M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8", "M16 6l-4-4-4 4M12 2v13"]),
+    refresh: line(["M3 12a9 9 0 0 1 15.5-6.2L21 8", "M21 3v5h-5", "M21 12a9 9 0 0 1-15.5 6.2L3 16", "M3 21v-5h5"]),
+    book: line(["M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z", "M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"]),
+    package: line([
+        "M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z",
+        "M3.3 7 12 12l8.7-5M12 22V12",
     ]),
 }
 

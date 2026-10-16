@@ -1,0 +1,130 @@
+// "One thread, or every core": the code of go for next to what it did. A bar for the loop in one
+// thread and a lane for each core under go for fill as the time goes, in the proportion that Node
+// measured; it plays once the block is seen, and again on request.
+
+import { Button } from "../../ui/button.rk"
+import { CodeBlock } from "../../ui/code-block.rk"
+import { highlight } from "../highlight.rk"
+import { text } from "../i18n.rk"
+import { Reveal } from "../layout/reveal.rk"
+import { CORES, GO_FOR, GO_FOR_MS, ONE_THREAD_MS } from "./code.rk"
+import common from "./section.module.css"
+import styles from "./lanes.module.css"
+
+/** Milliseconds on the screen for a millisecond measured: the loop in one thread takes 2.6 s. */
+const SLOWER = 1.5
+
+/**
+ * How long each lane of go for takes, as a share of the slowest: equal parts end at about the same
+ * time, not at once. The order is shuffled so that the lanes do not end as a staircase.
+ */
+func shares() []number {
+    const all []number = []
+    for let i = 0; i < CORES; i++ {
+        all.push(0.86 + 0.14 * ((i * 5) % CORES) / (CORES - 1))
+    }
+    return all
+}
+
+const SHARES = shares()
+
+func percent(done number) string {
+    return `${Math.round(Math.min(1, done) * 1000) / 10}%`
+}
+
+export comp Lanes() {
+    const t = text()
+    const h = t.home
+    // How many measured milliseconds have passed.
+    state elapsed = 0
+    let frame = 0
+    ref host
+
+    func play() {
+        cancelAnimationFrame(frame)
+        if matchMedia("(prefers-reduced-motion: reduce)").matches {
+            elapsed = ONE_THREAD_MS
+            return
+        }
+        const start = performance.now()
+        const step func(number) = (now number) => {
+            elapsed = Math.min(ONE_THREAD_MS, (now - start) / SLOWER)
+            if elapsed < ONE_THREAD_MS {
+                frame = requestAnimationFrame(step)
+            }
+        }
+        elapsed = 0
+        frame = requestAnimationFrame(step)
+    }
+
+    mount() {
+        const observer = new IntersectionObserver(entries => {
+            if entries.some(entry => entry.isIntersecting) {
+                play()
+                observer.disconnect()
+            }
+        }, { threshold: 0.4 })
+        observer.observe(host)
+        return () => {
+            observer.disconnect()
+            cancelAnimationFrame(frame)
+        }
+    }
+
+    return <section class={common.section}>
+        <div class={common.container}>
+            <Reveal>
+                <div class={common.heading}>
+                    <h2>{h.lanesTitle}</h2>
+                    <p>{h.lanesLead}</p>
+                </div>
+            </Reveal>
+            <Reveal>
+                <div class={styles.demo}>
+                    <div class={styles.code}>
+                        <CodeBlock code={GO_FOR} label="primes.rk" copyLabel={t.copy} copiedLabel={t.copied}>
+                            {highlight(GO_FOR, "rook")}
+                        </CodeBlock>
+                    </div>
+                    <div ref={host} class={styles.panel}>
+                        <div class={styles.row}>
+                            <div class={styles.label}>
+                                <code>for</code>
+                                <span>{h.oneThread}</span>
+                                <span class={styles.time}>{Math.round(elapsed)} ms</span>
+                            </div>
+                            <div class={styles.track}>
+                                <i class={styles.slow} style={`width: ${percent(elapsed / ONE_THREAD_MS)}`} />
+                            </div>
+                        </div>
+                        <div class={styles.row}>
+                            <div class={styles.label}>
+                                <code>go for</code>
+                                <span>{h.goFor}</span>
+                                <span class={styles.time}>{Math.round(Math.min(elapsed, GO_FOR_MS))} ms</span>
+                            </div>
+                            <div class={styles.cores}>
+                                {for share in SHARES {
+                                    <div class={styles.track}>
+                                        <i
+                                            class={styles.fast}
+                                            style={`width: ${percent(elapsed / (GO_FOR_MS * share))}`}
+                                        />
+                                    </div>
+                                }}
+                            </div>
+                        </div>
+                        <div class={styles.result}>
+                            <p class={styles.speedup}>
+                                <strong>{(ONE_THREAD_MS / GO_FOR_MS).toFixed(1)}×</strong>
+                                {" "}{h.faster}
+                            </p>
+                            <Button kind="ghost" size="sm" icon="refresh" onClick={play()}>{h.replay}</Button>
+                        </div>
+                        <p class={styles.note}>{h.lanesNote}</p>
+                    </div>
+                </div>
+            </Reveal>
+        </div>
+    </section>
+}

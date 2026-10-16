@@ -1,0 +1,10 @@
+// The entry module of the Russian guide.
+
+import { EXAMPLES } from "virtual:examples/ru"
+import { renderDocs } from "../docs/page.rk"
+import { setLanguage } from "../i18n.rk"
+import { SECTIONS } from "./guide.rk"
+import { STRINGS } from "./strings.rk"
+
+setLanguage(STRINGS, EXAMPLES, "docs")
+renderDocs(SECTIONS)

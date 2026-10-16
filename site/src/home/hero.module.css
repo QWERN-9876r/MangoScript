@@ -1,0 +1,167 @@
+/* The first screen: the board, goroutines falling down its lines like light, a glow in the color
+   of the rook, and the title over them. */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 120px 0 112px;
+}
+
+/* A goroutine: a short trail of light running down a line of the board, again and again. */
+.lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 40px + var(--x) * 80px);
+  width: 1px;
+}
+
+.lane::after {
+  content: '';
+  position: absolute;
+  top: -200px;
+  left: -0.5px;
+  width: 2px;
+  height: 200px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, transparent, rgb(245 158 42 / 70%) 75%, #ffd9a0);
+  filter: drop-shadow(0 0 6px rgb(245 158 42 / 90%));
+  animation: run var(--seconds) linear var(--delay) infinite;
+}
+
+@keyframes run {
+  from {
+    top: -200px;
+  }
+
+  to {
+    top: 100%;
+  }
+}
+
+.glow {
+  position: absolute;
+  top: -260px;
+  left: 50%;
+  width: min(1000px, 120vw);
+  height: 620px;
+  background: radial-gradient(closest-side, rgb(245 158 42 / 16%), transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 var(--rui-gutter);
+  text-align: center;
+}
+
+.news {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  white-space: nowrap;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--rui-line-strong);
+  border-radius: 999px;
+  background: rgb(10 10 10 / 80%);
+  color: var(--rui-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.news:hover {
+  border-color: rgb(245 158 42 / 45%);
+  color: var(--rui-text);
+}
+
+.newLabel {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--rui-accent-soft);
+  color: var(--rui-accent-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.title {
+  margin: 28px 0 0;
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+}
+
+.base,
+.accent {
+  background-clip: text;
+  color: transparent;
+}
+
+.base {
+  background-image: linear-gradient(180deg, #fff 20%, #a8a8a8 100%);
+}
+
+.accent {
+  display: block;
+  padding-bottom: 0.06em;
+  background-image: var(--rui-accent-gradient);
+}
+
+.lead {
+  max-width: 640px;
+  margin: 24px 0 0;
+  color: var(--rui-muted);
+  font-size: clamp(1.05rem, 2vw, 1.2rem);
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.install {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+  padding: 4px 4px 4px 16px;
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius);
+  background: rgb(10 10 10 / 85%);
+  color: var(--rui-muted);
+  font-family: var(--rui-mono);
+  font-size: 0.85rem;
+}
+
+.prompt {
+  color: var(--rui-subtle);
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 72px 0 80px;
+  }
+
+  .news {
+    font-size: 0.8rem;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-self: stretch;
+  }
+}

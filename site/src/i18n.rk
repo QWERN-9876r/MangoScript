@@ -1,10 +1,13 @@
-// The language of the page. Each page has its own entry module: en/main.rk for index.html and
-// ru/main.rk for ru/index.html. It sets the texts and the examples of its language before the
-// page is drawn, and the shared code (app, example, playground, sandbox) reads them here.
+// The language and the page. Each page of each language has its own entry module, e.g. en/home.rk
+// for index.html and ru/docs.rk for ru/docs/index.html. It sets the texts and the examples of its
+// language before the page is drawn, and the shared code reads them here.
 
-import { ThemeLabels } from "../ui/theme.rk"
+import { NavLink } from "../ui/nav-list.rk"
 
 export const REPOSITORY = "https://github.com/QWERN-9876r/RookLang"
+
+/** The pages of the site: the same three in each language. */
+export type Page "home" | "docs" | "playground"
 
 /** A section of the guide: its anchor, its title in the menu, its group there and its content. */
 export interface Section {
@@ -14,25 +17,49 @@ export interface Section {
     content comp()
 }
 
-/** Texts of the page around the guide itself. */
+/** Texts of the pages around the guide itself. */
 export interface Strings {
     tagline string
+    docs string
+    playground string
+    getStarted string
     /** The name of the GitHub link when only its icon is shown. */
     repository string
     sections string
-    playground string
-    playgroundIntro string
-    footer string
-    footerLink string
-    /** The link to the same page in the other language, and its name. */
+    /** The links to the section before and after in the guide. */
+    previous string
+    next string
+    menu string
+    closeMenu string
+    /** The search of the guide: its name, the text in its empty field, and when nothing is found. */
+    search string
+    searchPlaceholder string
+    searchEmpty string
+    /** The other language: its name, its code and its root from the root of this one. */
     otherLanguage string
     otherLanguageCode string
-    otherHref string
+    otherRoot string
+    /** The specification in the repository, in this language. */
+    specification string
+    specificationPath string
+    vscode string
+    footerDocs string
+    footerResources string
+    footerLanguage string
+    footerWritten string
+    footerLicense string
+    /** Sections of the guide that the footer links to. */
+    footerSections []NavLink
     /** The name of the playground's text area. */
     editor string
     run string
     openInPlayground string
     reset string
+    /** The list of examples in the playground. */
+    examples string
+    /** "Share" puts the code into a link and copies it. */
+    share string
+    linkCopied string
     /** `line 3, column 5`, before a compile error. */
     position func(number, number) string
     noImports string
@@ -44,28 +71,76 @@ export interface Strings {
     compilerFailed string
     /** The program the playground starts with. */
     playgroundStart string
-    /** The first screen: what the language is and where to go. */
-    heroBadge string
-    heroLead string
-    heroStart string
-    /** The tabs of code on the first screen. */
-    heroGoroutines string
-    heroComponents string
     copy string
     copied string
-    menu string
-    closeMenu string
     /** The label of the commands in "Tools". */
     terminal string
-    theme ThemeLabels
+    home HomeStrings
+}
+
+/** Texts of the home page. */
+export interface HomeStrings {
+    newLabel string
+    news string
+    title string
+    /** The end of the title, in the color of the rook. */
+    titleAccent string
+    lead string
+    openPlayground string
+    lanesTitle string
+    lanesLead string
+    oneThread string
+    goFor string
+    faster string
+    lanesNote string
+    replay string
+    featuresTitle string
+    featuresLead string
+    goroutinesTitle string
+    goroutinesText string
+    channelsTitle string
+    channelsText string
+    typesTitle string
+    typesText string
+    jsTitle string
+    jsText string
+    componentsTitle string
+    componentsText string
+    clicks func(number) string
+    toolsTitle string
+    toolsText string
+    compareTitle string
+    compareLead string
+    compareGoroutines string
+    compareComponents string
+    compareErrors string
+    startTitle string
+    startLead string
+    startInstall string
+    startWrite string
+    startRun string
+    /** The program of the second step, and what the third prints. */
+    startCode string
+    startOutput string
+    ctaTitle string
+    ctaLead string
 }
 
 let strings ?Strings = null
 let examples any = null
+let page Page = "home"
 
-export func setLanguage(text Strings, code any) {
+/** Where each page is, from the root of its language. */
+const PATHS { home string; docs string; playground string } = {
+    home: "",
+    docs: "docs/",
+    playground: "playground/",
+}
+
+export func setLanguage(text Strings, code any, current Page) {
     strings = text
     examples = code
+    page = current
 }
 
 /** The texts of the current language. */
@@ -76,7 +151,31 @@ export func text() Strings {
     return strings
 }
 
+export func currentPage() Page {
+    return page
+}
+
 /** The code of an example in site/examples (or site/examples/ru) by its file name. */
 export func exampleCode(name string) string {
     return examples[name]
+}
+
+/** The names of the examples, as files in site/examples. */
+export func exampleNames() []string {
+    return Object.keys(examples)
+}
+
+// The pages are folders, so the root of the language is one level up from all but the home page.
+func root() string {
+    return page == "home" ? "./" : "../"
+}
+
+/** A link to a page of this language, relative to the current page. */
+export func pageHref(target Page) string {
+    return root() + PATHS[target]
+}
+
+/** A link to the same page in the other language. */
+export func otherLanguageHref() string {
+    return root() + text().otherRoot + PATHS[page]
 }

@@ -1,0 +1,60 @@
+/* Rook beside its JavaScript, with a switch of topics above them. */
+
+.switch {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  margin: 0 auto 28px;
+  padding: 4px;
+  border: 1px solid var(--rui-line);
+  border-radius: 999px;
+  background: var(--rui-bg-subtle);
+}
+
+.option {
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--rui-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.option:hover {
+  color: var(--rui-text);
+}
+
+.active,
+.active:hover {
+  background: var(--rui-surface-2);
+  box-shadow: inset 0 0 0 1px var(--rui-line-strong);
+  color: var(--rui-text);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pair[hidden] {
+  display: none;
+}
+
+.pair > figure {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

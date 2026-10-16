@@ -1,0 +1,32 @@
+/* The board of the rook: the lines of a chessboard that fade out from the middle of the top. */
+
+/* Squares of 80px: lines at their edges and every other square a little lighter. The lines are at
+   the middle of the screen ± 40px, so that the lanes of hero.module.css can run along them. */
+.board {
+  --cell: 80px;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-image:
+    linear-gradient(to right, var(--rui-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rui-line) 1px, transparent 1px),
+    conic-gradient(
+      rgb(255 255 255 / 2.5%) 25%,
+      transparent 0 50%,
+      rgb(255 255 255 / 2.5%) 0 75%,
+      transparent 0
+    );
+  /* A tile in the middle puts the lines at its edges, 40px from the middle; the squares, two cells
+     wide, need 40px more to meet them. */
+  background-position:
+    50% 0,
+    50% 0,
+    calc(50% + 40px) 0;
+  background-size:
+    var(--cell) var(--cell),
+    var(--cell) var(--cell),
+    calc(var(--cell) * 2) calc(var(--cell) * 2);
+  mask-image: radial-gradient(ellipse 65% 70% at 50% 0%, #000 35%, transparent 100%);
+  pointer-events: none;
+}

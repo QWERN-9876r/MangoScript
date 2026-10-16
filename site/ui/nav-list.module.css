@@ -1,54 +1,49 @@
-/* RookUI navigation: groups of links with headings, the current one highlighted. */
+/* RookUI navigation: groups of links with small headings; the current link is white, with the
+   orange line of the rook beside it. */
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
 }
 
 .heading {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   padding: 0 12px;
-  color: var(--rui-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: var(--rui-subtle);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .links {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  border-left: 1px solid var(--rui-line);
 }
 
 .link {
   position: relative;
-  padding: 6px 12px;
-  border-radius: var(--rui-radius-sm);
+  margin-left: -1px;
+  padding: 5px 12px;
+  border-left: 1px solid transparent;
   color: var(--rui-muted);
-  font-size: 0.925rem;
+  font-size: 0.875rem;
   text-decoration: none;
   transition:
-    background 0.15s,
+    border-color 0.15s,
     color 0.15s;
 }
 
 .link:hover {
+  border-left-color: var(--rui-line-strong);
   color: var(--rui-text);
 }
 
-.active {
-  background: var(--rui-accent-soft);
-  color: var(--rui-accent-strong);
-  font-weight: 600;
-}
-
-.active::before {
-  content: '';
-  position: absolute;
-  inset: 8px auto 8px 0;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--rui-accent);
+.active,
+.active:hover {
+  border-left-color: var(--rui-accent);
+  color: var(--rui-text);
+  font-weight: 500;
 }

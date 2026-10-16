@@ -1,4 +1,4 @@
-/* RookUI drawer: a panel that slides in from the left over a dimmed page. */
+/* RookUI drawer: a black panel that slides in from the left over a dimmed page. */
 
 .drawer {
   position: fixed;
@@ -15,7 +15,8 @@
 .backdrop {
   position: absolute;
   inset: 0;
-  background: rgb(23 19 15 / 45%);
+  background: rgb(0 0 0 / 70%);
+  backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity 0.25s;
 }
@@ -30,8 +31,8 @@
   width: min(320px, 86vw);
   padding: 16px;
   overflow-y: auto;
-  background: var(--rui-surface);
-  box-shadow: var(--rui-shadow);
+  border-right: 1px solid var(--rui-line);
+  background: var(--rui-bg);
   transform: translateX(-100%);
   transition: transform 0.25s;
 }

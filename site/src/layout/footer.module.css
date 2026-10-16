@@ -1,0 +1,83 @@
+/* The bottom of a page: columns of links over a line with the license. */
+
+.footer {
+  border-top: 1px solid var(--rui-line);
+  background: var(--rui-bg);
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  gap: 40px;
+  max-width: var(--rui-page);
+  margin: 0 auto;
+  padding: 56px var(--rui-gutter) 40px;
+}
+
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tagline {
+  margin: 12px 0 0;
+  color: var(--rui-muted);
+  font-size: 0.9rem;
+}
+
+.written {
+  margin: 0;
+  color: var(--rui-subtle);
+  font-size: 0.85rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.column a {
+  width: fit-content;
+  color: var(--rui-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.column a:hover {
+  color: var(--rui-text);
+}
+
+.heading {
+  margin: 0 0 4px;
+  color: var(--rui-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.bottom {
+  max-width: var(--rui-page);
+  margin: 0 auto;
+  padding: 0 var(--rui-gutter) 32px;
+}
+
+.license {
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--rui-line);
+  color: var(--rui-subtle);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 760px) {
+  .inner {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+
+  .about {
+    grid-column: 1 / -1;
+  }
+}

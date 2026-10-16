@@ -1,0 +1,5 @@
+/* The fonts of the site, Geist and Geist Mono (OFL), served with the site instead of from a font
+   service. Each page links this file from its HTML, and Vite puts the fonts into assets/. */
+
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';

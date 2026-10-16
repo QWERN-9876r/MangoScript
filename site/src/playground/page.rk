@@ -1,0 +1,229 @@
+// The playground: a small IDE as tall as the screen. The code is on the left, in the editor of VS
+// Code (src/editor), or, while it loads, if it cannot and on touch screens, where it works badly,
+// in a text area of its own over a <pre> with the same code highlighted. The JavaScript and the
+// result of running are on the right. The address can bring the code: `#example=goroutines` opens
+// an example of the guide, `#code=...` code that "Share" put into a link.
+
+import "../../ui/theme.rk"
+import { Button } from "../../ui/button.rk"
+import { TabItem, Tabs } from "../../ui/tabs.rk"
+import { loadEditor } from "../editor/load.ts"
+import { highlight } from "../highlight.rk"
+import { exampleCode, exampleNames, text } from "../i18n.rk"
+import { SiteHeader } from "../layout/header.rk"
+import { compiledView, previewArea, resultView, runProgram } from "../sandbox.rk"
+import styles from "./page.module.css"
+
+/** The editor of VS Code once it is loaded, as the page uses it (src/editor/editor.ts). */
+interface CodeEditor {
+    setValue func(string)
+    dispose func()
+}
+
+/** Code as a part of an address: its UTF-8 bytes in base64url. */
+func encode(code string) string {
+    let binary = ""
+    for byte in []byte(code) {
+        binary += String.fromCharCode(byte)
+    }
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")
+}
+
+func decode(encoded string) (string, error) {
+    try {
+        const binary = atob(encoded.replaceAll("-", "+").replaceAll("_", "/"))
+        const bytes = make([]uint8, binary.length)
+        for i, _ in bytes {
+            bytes[i] = binary.charCodeAt(i)
+        }
+        return string(bytes), null
+    } catch {
+        return "", error("the code in the address is damaged")
+    }
+}
+
+/** The code that the address brings, or the program the playground starts with. */
+func initialCode() string {
+    const hash = location.hash.slice(1)
+    if hash.startsWith("example=") {
+        const code any = exampleCode(decodeURIComponent(hash.slice("example=".length)))
+        if typeof code == "string" {
+            return code
+        }
+    } else if hash.startsWith("code=") {
+        const code, err = decode(hash.slice("code=".length))
+        if err == null {
+            return code
+        }
+    }
+    return text().playgroundStart
+}
+
+comp Playground() {
+    const t = text()
+    state source = initialCode()
+    state tab = "js"
+    state lines []string = []
+    state linkCopied = false
+    const preview = previewArea()
+    const tabs []TabItem = [{ id: "js", label: "JavaScript" }, { id: "result", label: t.run }]
+    // The editor of VS Code has taken the place of the text area.
+    state vscode = false
+    let editor ?CodeEditor = null
+    ref host
+
+    func run() {
+        runProgram(source, preview, output => {
+            lines = output
+        })
+        tab = "result"
+    }
+
+    func setSource(code string) {
+        source = code
+        editor?.setValue(code)
+    }
+
+    func chooseExample(event Event) {
+        const select = event.target as HTMLSelectElement
+        if select.value != "" {
+            setSource(exampleCode(select.value))
+            history.replaceState(null, "", `#example=${select.value}`)
+            tab = "js"
+        }
+    }
+
+    // The link has the code itself, so it works without a server.
+    func share() {
+        const link = `${location.origin}${location.pathname}#code=${encode(source)}`
+        history.replaceState(null, "", link)
+        navigator.clipboard.writeText(link).then(() => {
+            linkCopied = true
+            setTimeout(() => {
+                linkCopied = false
+            }, 2000)
+        })
+    }
+
+    func select(id string) {
+        if id == "result" {
+            run()
+        } else {
+            tab = id
+        }
+    }
+
+    // Tab inserts an indent instead of moving the focus out of the text area; Ctrl+Enter runs.
+    func onKey(event any) {
+        if event.key == "Enter" && (event.ctrlKey || event.metaKey) {
+            event.preventDefault()
+            run()
+            return
+        }
+        if event.key != "Tab" {
+            return
+        }
+        event.preventDefault()
+        const input = event.currentTarget
+        input.setRangeText("    ", input.selectionStart, input.selectionEnd, "end")
+        source = input.value
+    }
+
+    mount() {
+        if !matchMedia("(pointer: coarse)").matches {
+            loadEditor()
+                .then(module => module.createEditor(host, {
+                    value: source,
+                    label: t.editor,
+                    onChange: value => {
+                        source = value
+                    },
+                    onRun: run,
+                }))
+                .then(
+                    created => {
+                        // What was typed while it loaded.
+                        created.setValue(source)
+                        editor = created
+                        vscode = true
+                    },
+                    // The text area stays.
+                    error => console.warn("the editor of VS Code did not load:", error),
+                )
+        }
+        return () => editor?.dispose()
+    }
+
+    return <div class={styles.ide}>
+        <div class={styles.toolbar}>
+            <select class={styles.examples} aria-label={t.examples} onChange={chooseExample(event)}>
+                <option value="">{t.examples}</option>
+                {for name in exampleNames() {
+                    <option value={name}>{name}</option>
+                }}
+            </select>
+            <div class={styles.actions}>
+                <Button
+                    kind="ghost"
+                    size="sm"
+                    icon="refresh"
+                    aria-label={t.reset}
+                    onClick={setSource(t.playgroundStart)}
+                >
+                    <span class={styles.label}>{t.reset}</span>
+                </Button>
+                <Button
+                    kind="ghost"
+                    size="sm"
+                    icon={linkCopied ? "check" : "share"}
+                    aria-label={linkCopied ? t.linkCopied : t.share}
+                    onClick={share()}
+                >
+                    <span class={styles.label}>{linkCopied ? t.linkCopied : t.share}</span>
+                </Button>
+                <Button kind="primary" size="sm" onClick={run()}>
+                    {t.run}
+                    <kbd class={styles.key}>⌘↵</kbd>
+                </Button>
+            </div>
+        </div>
+        <div class={styles.panes}>
+            <section class={styles.pane}>
+                <div class={styles.bar}>main.rk</div>
+                <div ref={host} class={vscode ? styles.vscode : styles.hidden} />
+                <div class={vscode ? styles.hidden : styles.editor}>
+                    <pre class={styles.code} aria-hidden="true">{highlight(source, "rook")} </pre>
+                    <textarea
+                        class={styles.input}
+                        aria-label={t.editor}
+                        bind:value={source}
+                        rows={source.split("\n").length}
+                        wrap="off"
+                        spellcheck={false}
+                        onKeyDown={onKey(event)}
+                    />
+                </div>
+            </section>
+            <section class={styles.pane}>
+                <Tabs items={tabs} active={tab} onSelect={select(event)} />
+                <div class={styles.output}>
+                    {if tab == "js" {
+                        <div>{compiledView(source)}</div>
+                    } else {
+                        <div>{resultView(preview, lines)}</div>
+                    }}
+                </div>
+            </section>
+        </div>
+    </div>
+}
+
+/** Draws the page; the entry module of the language calls it after setLanguage(). */
+export func renderPlayground() {
+    document.body.append(<>
+        <SiteHeader wide={true} />
+        <main>
+            <Playground />
+        </main>
+    </>)
+}

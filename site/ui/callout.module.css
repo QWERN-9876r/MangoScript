@@ -1,37 +1,35 @@
-/* RookUI callouts: a note, a tip or a warning beside the text. */
+/* RookUI callouts: a note, a tip or a warning beside the text, marked by the color of its kind. */
 
 .callout {
   display: flex;
   gap: 12px;
-  margin: 20px 0;
+  margin: 24px 0;
   padding: 14px 16px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--rui-radius);
+  border: 1px solid var(--rui-line);
+  border-radius: var(--rui-radius-lg);
   background: var(--tone-soft);
+  font-size: 0.95rem;
 }
 
 .callout > svg {
   flex: none;
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--tone);
 }
 
 .note {
   --tone: var(--rui-info);
   --tone-soft: var(--rui-info-soft);
-  --tone-line: color-mix(in srgb, var(--rui-info) 25%, transparent);
 }
 
 .tip {
-  --tone: var(--rui-leaf);
-  --tone-soft: var(--rui-leaf-soft);
-  --tone-line: color-mix(in srgb, var(--rui-leaf) 25%, transparent);
+  --tone: var(--rui-success);
+  --tone-soft: var(--rui-success-soft);
 }
 
 .warning {
   --tone: var(--rui-accent);
   --tone-soft: var(--rui-accent-soft);
-  --tone-line: color-mix(in srgb, var(--rui-accent) 30%, transparent);
 }
 
 .body > :first-child {
@@ -45,4 +43,5 @@
 .title {
   display: block;
   margin-bottom: 2px;
+  font-weight: 600;
 }

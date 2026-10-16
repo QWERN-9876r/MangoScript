@@ -114,19 +114,24 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 
 ## Сайт с документацией
 
-В [site/](site/) лежит руководство по Rook на английском (`index.html`) и русском
-(`ru/index.html`). И страница, и сервер написаны на Rook, а компилятор работает прямо в
-браузере: у каждого примера есть вкладка с JavaScript, который из него получается, и кнопка
-запуска, а внизу страницы — песочница.
+В [site/](site/) лежит сайт Rook на английском и русском (в `ru/`), в каждом по три страницы:
+главная (`index.html`), руководство (`docs/`) и песочница (`playground/`). И страницы, и сервер
+написаны на Rook, а компилятор работает прямо в браузере: у каждого примера руководства есть
+вкладка с JavaScript, который из него получается, и кнопка запуска, а песочница — маленькая IDE.
 
-- [site/src/en/](site/src/en/) и [site/src/ru/](site/src/ru/) — текст разделов на каждом языке,
-  перечисленных в `guide.rk`; разделы о разметке и компонентах — в `guide-components.rk`;
+- [site/src/en/](site/src/en/) и [site/src/ru/](site/src/ru/) — входной модуль каждой страницы
+  (`home.rk`, `docs.rk`, `playground.rk`), тексты (`strings.rk`, `home-strings.rk`) и разделы
+  руководства, перечисленные в `guide.rk`;
+- [site/src/home/](site/src/home/), [site/src/docs/](site/src/docs/) и
+  [site/src/playground/](site/src/playground/) — три страницы; руководство показывает по одному
+  разделу, выбранному хешем адреса, и умеет искать; [site/src/layout/](site/src/layout/) — шапка
+  и подвал;
+- [site/ui/](site/ui/) — RookUI, набор компонентов и тёмная тема, на которых построены страницы;
 - [site/examples/](site/examples/) и [site/examples/ru/](site/examples/ru/) — примеры кода; тесты
   проверяют, что все они компилируются и что у каждого есть перевод;
 - [site/src/i18n.rk](site/src/i18n.rk) — язык страницы и тексты вокруг руководства;
-- [site/src/example.rk](site/src/example.rk) и
-  [site/src/playground.rk](site/src/playground.rk) — пример с вкладками и песочница,
-  компоненты со `state`, `bind:` и `{if}` / `{for}`;
+- [site/src/example.rk](site/src/example.rk) и [site/src/sandbox.rk](site/src/sandbox.rk) — пример
+  с вкладками, компиляция и запуск кода на странице;
 - [site/src/highlight.rk](site/src/highlight.rk) — подсветка кода лексером компилятора;
 - [site/src/editor/](site/src/editor/) — редактор песочницы, тот же, что в VS Code (Monaco), с
   грамматикой расширения VS Code, ошибками компилятора прямо в коде и его автодополнением;
@@ -138,9 +143,9 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 [src/browser.ts](src/browser.ts), а код примеров попадает в бандл из модулей
 `virtual:examples/en` и `virtual:examples/ru`. Компилятор вынесен в отдельный чанк, его загружает
 [site/src/compiler.ts](site/src/compiler.ts) при первом запуске, при открытии вкладки JavaScript и
-когда песочница появляется на экране: самой странице нужен только лексер для подсветки. Тогда же
-загружается редактор песочницы, около 3,5 МБ; до этого и на сенсорных экранах у песочницы свой
-textarea.
+в песочнице: самим страницам нужен только лексер для подсветки. Редактор песочницы, около 3,5 МБ,
+загружает только песочница; до этого и на сенсорных экранах у неё свой textarea. Шрифты Geist и
+Geist Mono идут вместе с сайтом из npm ([site/src/fonts.css](site/src/fonts.css)).
 
 ```sh
 npm run site:dev    # сервер разработки Vite: изменения видны сразу
