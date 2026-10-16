@@ -3,7 +3,7 @@ import { isIterator } from '../iterators.ts';
 import { decoratedName, moduleNamesOf } from '../decorators.ts';
 import { inlinePackages, type InlinePackage } from '../inline-packages.ts';
 import { packageExports } from './imported.ts';
-import { ControlStatementEmitter } from './control-statements.ts';
+import { ParallelLoopEmitter } from './parallel.ts';
 import { ARROW, POSTFIX } from './syntax.ts';
 
 /**
@@ -13,7 +13,7 @@ import { ARROW, POSTFIX } from './syntax.ts';
  * So does an inlined component of another module; a called one brings its function, `$$Card`.
  */
 
-export abstract class StatementEmitter extends ControlStatementEmitter {
+export abstract class StatementEmitter extends ParallelLoopEmitter {
   /** A CSS module: its object and CSS go with the styles (StyleEmitter), not to an import. */
   protected abstract styleModuleImport(node: ast.ImportDeclaration): boolean;
 

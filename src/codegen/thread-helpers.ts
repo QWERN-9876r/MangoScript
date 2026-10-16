@@ -176,6 +176,8 @@ export const THREAD_HELPERS: Readonly<Record<ThreadHelper, readonly string[]>> =
     '  seen.add(value);',
     '  const buffer =',
     '    value instanceof ArrayBuffer ? value : ArrayBuffer.isView(value) ? value.buffer : null;',
+    '  // A SharedArrayBuffer is shared with the other thread, not moved.',
+    '  if (buffer && !(buffer instanceof ArrayBuffer)) return found;',
     '  if (buffer) {',
     '    const { moved } = $$registry();',
     '    if (own) moved.add(buffer);',

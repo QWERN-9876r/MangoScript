@@ -19,8 +19,11 @@ export abstract class ControlFlowParser extends StatementParser {
   }
 
   protected override parseFor(): ast.ForStatement | ast.ForInStatement {
-    const start = this.next().start;
+    return this.parseForAfter(this.next().start);
+  }
 
+  /** The rest of a `for` statement that starts at `start`, after the keyword. */
+  private parseForAfter(start: number): ast.ForStatement | ast.ForInStatement {
     if (this.isForInHeader()) return this.parseForIn(start);
 
     const [init, condition, update] = this.withContext({ noObjectLiteral: true }, () =>
@@ -66,7 +69,7 @@ export abstract class ControlFlowParser extends StatementParser {
     return [init, condition, update];
   }
 
-  protected parseForIn(start: number): ast.ForInStatement {
+  protected parseForIn(start: number, go = false): ast.ForInStatement {
     let key: ast.Identifier | null = null;
     let value = this.parseIdentifier('loop variable');
 
@@ -78,9 +81,35 @@ export abstract class ControlFlowParser extends StatementParser {
     this.expect('in');
 
     const iterable = this.parseHeaderExpression();
-    const body = this.parseLoopBody();
 
-    return { kind: 'ForInStatement', key, value, iterable, body, ...this.span(start) };
+    if (!go) {
+      const body = this.parseLoopBody();
+
+      return { kind: 'ForInStatement', key, value, iterable, body, ...this.span(start) };
+    }
+
+    // The parts run at once in workers: nothing can leave the loop but `continue`.
+    const body = this.withContext({ inLoop: true, inBreakable: false, inGoFor: true }, () =>
+      this.parseBlock(),
+    );
+
+    return { kind: 'ForInStatement', key, value, iterable, body, go, ...this.span(start) };
+  }
+
+  /** `go for i, v in items { }`: the parts of the array run as goroutines, and the loop waits. */
+  protected override parseGoFor(): ast.ForStatement | ast.ForInStatement {
+    const start = this.next().start;
+    const keyword = this.next();
+
+    this.requireAsync('go for', start, keyword.end);
+    if (this.isForInHeader()) return this.parseForIn(start, true);
+    this.error(
+      '"go for" goes over an array: write "go for i, v in items { ... }"',
+      start,
+      keyword.end,
+    );
+
+    return this.parseForAfter(start);
   }
 
   protected parseLoopBody(): ast.BlockStatement {
@@ -214,7 +243,13 @@ export abstract class ControlFlowParser extends StatementParser {
 
     if (token.kind === 'break') {
       if (!this.context.inBreakable) {
-        this.error('"break" outside of a loop or switch', token.start, token.end);
+        this.error(
+          this.context.inGoFor
+            ? '"break" cannot stop "go for": its parts run at once in workers; skip an element with "continue"'
+            : '"break" outside of a loop or switch',
+          token.start,
+          token.end,
+        );
       }
 
       statement = { kind: 'BreakStatement', start: token.start, end: token.end };
@@ -271,6 +306,12 @@ export abstract class ControlFlowParser extends StatementParser {
 
     if (!this.context.inFunction) {
       this.error('"defer" outside of a function', start, this.span(start).end);
+    } else if (this.context.inGoFor) {
+      this.error(
+        '"defer" cannot be used in the body of "go for": it runs in workers, apart from the function; defer it before the loop',
+        start,
+        this.span(start).end,
+      );
     }
 
     if (this.check('{')) {

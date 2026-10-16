@@ -32,7 +32,7 @@ export abstract class StatementParser extends SimpleStatementParser {
     const allowed =
       statement.kind === 'IfStatement' ||
       statement.kind === 'ForStatement' ||
-      statement.kind === 'ForInStatement' ||
+      (statement.kind === 'ForInStatement' && !statement.go) ||
       statement.kind === 'SwitchStatement' ||
       (statement.kind === 'VariableDeclaration' && statement.keyword === 'const');
 
@@ -79,6 +79,10 @@ export abstract class StatementParser extends SimpleStatementParser {
 
       case 'for':
         return this.parseFor();
+
+      case 'go':
+        if (this.peek(1).kind === 'for') return this.parseGoFor();
+        break;
 
       case 'switch':
         return this.parseSwitch();
@@ -343,7 +347,13 @@ export abstract class StatementParser extends SimpleStatementParser {
   protected parseReturn(): ast.ReturnStatement {
     const start = this.next().start;
 
-    if (!this.context.inFunction) {
+    if (this.context.inGoFor) {
+      this.error(
+        '"return" cannot leave "go for": its body runs in workers; skip an element with "continue"',
+        start,
+        this.span(start).end,
+      );
+    } else if (!this.context.inFunction) {
       this.error('"return" outside of a function', start, this.span(start).end);
     } else if (this.context.inDefer) {
       this.error('"return" is not allowed inside "defer"', start, this.span(start).end);

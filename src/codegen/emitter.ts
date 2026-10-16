@@ -68,9 +68,9 @@ interface FunctionContext {
  * current function. The generator is split into layers, each adding to the previous one:
  *
  *     Emitter → ExpressionEmitter → CallEmitter → SimpleStatementEmitter → ControlStatementEmitter
- *       → StatementEmitter → UpdateEmitter → AttributeEmitter → CreationEmitter
- *       → ElementEmitter → ControlFlowEmitter → ComponentPropsEmitter → ComponentValueEmitter
- *       → EarlyReturnEmitter → RefEmitter
+ *       → ParallelLoopEmitter → StatementEmitter → UpdateEmitter → AttributeEmitter
+ *       → CreationEmitter → ElementEmitter → ControlFlowEmitter → ComponentPropsEmitter
+ *       → ComponentValueEmitter → EarlyReturnEmitter → RefEmitter
  *       → StyleEmitter → ComponentEmitter → WebComponentEmitter → FunctionEmitter → JsGenerator
  */
 export abstract class Emitter {

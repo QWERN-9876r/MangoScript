@@ -259,6 +259,8 @@ describe('VS Code grammar', () => {
   it('colours go', () => {
     expect(scopeOf('const n = await go count(1, 2)', 'go')).toBe('keyword.control.flow');
     expect(scopeOf('go count(1, 2)', 'go')).toBe('keyword.control.flow');
+    expect(scopeOf('go for i, v in pixels {', 'go')).toBe('keyword.control.flow');
+    expect(scopeOf('go for i, v in pixels {', 'for')).toBe(scopeOf('for i, v in pixels {', 'for'));
     expect(scopeOf('const ago = 1', 'ago')).not.toBe('keyword.control.flow');
   });
 

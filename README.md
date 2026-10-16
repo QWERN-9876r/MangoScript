@@ -27,8 +27,9 @@ for let i = 0; i < 4; i++ {
 ```
 
 - **Goroutines and channels.** `go f(x)` runs a function as a goroutine, on another processor, and
-  channels, `select`, `after`, `tick` and `cancel` work as in Go. The compiler checks that what goes
-  to another thread can be copied there.
+  channels, `select`, `after`, `tick` and `cancel` work as in Go; `go for i, v in pixels { ... }`
+  splits an array among the processors. The compiler checks that what goes to another thread can be
+  copied there.
 - **Go syntax.** `func`, the type after the name, several results, errors as a second value,
   `defer`, a single `for` loop:
 

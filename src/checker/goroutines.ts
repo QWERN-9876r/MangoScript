@@ -127,7 +127,7 @@ export abstract class GoroutineChecker extends CallChecker {
       this.checkReach('the goroutine', [name], firstUse(literal.body, name) ?? node);
   }
 
-  private checkReach(name: string, names: string[], node: ast.NodeBase): void {
+  protected checkReach(name: string, names: string[], node: ast.NodeBase): void {
     const { lets, markup } = reach(this.program, names);
 
     for (const variable of lets) {
@@ -147,7 +147,7 @@ export abstract class GoroutineChecker extends CallChecker {
 }
 
 /** The first place where code uses a name, for a message about it. */
-function firstUse(node: ast.Node, name: string): ast.Identifier | null {
+export function firstUse(node: ast.Node, name: string): ast.Identifier | null {
   if (node.kind === 'Identifier') return node.name === name ? node : null;
 
   let found: ast.Identifier | null = null;

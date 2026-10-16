@@ -37,6 +37,7 @@ export const PREDECLARED: Readonly<Record<string, Helper>> = {
 /** Helpers that use other helpers. */
 export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> = {
   go: ['threads'],
+  goFor: ['threads'],
   goLocal: ['threads'],
   serve: ['threads'],
   chan: ['threads', 'select'],

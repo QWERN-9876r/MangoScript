@@ -1,7 +1,7 @@
 import type * as ast from '../ast.ts';
 import { isIterator, isYieldCall } from '../iterators.ts';
 import { forEachChild } from '../walk.ts';
-import { LoopChecker } from './loops.ts';
+import { GoForChecker } from './go-for.ts';
 import {
   ANY,
   arrayOf,
@@ -28,7 +28,7 @@ const NESTED: ReadonlySet<ast.Node['kind']> = new Set([
   'ClassDeclaration',
 ]);
 
-export abstract class IteratorChecker extends LoopChecker {
+export abstract class IteratorChecker extends GoForChecker {
   protected override checkCall(
     node: ast.CallExpression,
     callee: Type,

@@ -119,6 +119,8 @@ export interface Context {
   /** Inside a loop or switch, where `break` is allowed. */
   inBreakable: boolean;
   inDefer: boolean;
+  /** In the body of `go for`, which `return` and `break` cannot leave. */
+  inGoFor: boolean;
   /** In an async function or at the top level of the module, where `await` is allowed. */
   inAsync: boolean;
   /** In an if/for/switch header, where `{` starts the block rather than an object literal. */
@@ -135,6 +137,7 @@ export const FUNCTION_BODY: Partial<Context> = {
   inLoop: false,
   inBreakable: false,
   inDefer: false,
+  inGoFor: false,
   inAsync: false,
   noObjectLiteral: false,
   inMarkup: false,

@@ -138,13 +138,17 @@ export interface ForStatement extends NodeBase {
   body: BlockStatement;
 }
 
-/** `for x in items { }` (key is `null`) and `for i, x in items { }`. */
+/**
+ * `for x in items { }` (key is `null`) and `for i, x in items { }`; with `go`, `go for i, x in
+ * items { }`, the parts of the array run as goroutines and the loop waits for them (go-for.ts).
+ */
 export interface ForInStatement extends NodeBase {
   kind: 'ForInStatement';
   key: Identifier | null;
   value: Identifier;
   iterable: Expression;
   body: BlockStatement;
+  go?: boolean;
 }
 
 /** `switch cmd { ... }`, or `switch { ... }` without a discriminant as an if/else chain. */

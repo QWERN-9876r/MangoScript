@@ -41,6 +41,14 @@ export comp Goroutines() {
             at once in the same thread.
         </p>
         {example("go-func")}
+        <p>
+            <code>{"go for i, v in items { ... }"}</code> is a parallel loop: the array is split into
+            parts, one per processor, each part runs as a goroutine, and the loop waits for all of
+            them. A worker gets only its part, so the body writes only its own element,
+            {" "}<code>items[i]</code>, and reads other elements from another array; the other names
+            it uses are copied to it, as to a function literal.
+        </p>
+        {example("go-for")}
     </>
 }
 

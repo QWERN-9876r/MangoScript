@@ -2,7 +2,7 @@
 // with Web Workers and with the worker threads of Node, whose API differs: `on("message")` instead
 // of `onmessage`, and `unref()`, so that idle workers do not keep the program running.
 
-export type GoHelper = 'go' | 'goLocal' | 'serve' | 'cancel';
+export type GoHelper = 'go' | 'goLocal' | 'goFor' | 'serve' | 'cancel';
 
 export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
   /** `go` in a module: a call in a worker of the pool, started by $$startWorker of the module. */
@@ -190,6 +190,31 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '    cancel = null;',
     '  });',
     '  return task;',
+    '}',
+  ],
+  goFor: [
+    '// `go for`: the array is split into parts, one per processor, each part runs as a goroutine, and',
+    '// the loop waits for all of them. A typed array on a SharedArrayBuffer is shared with the workers,',
+    '// which write into it; other parts are copies, moved to the workers and back into the array.',
+    'async function $$goFor(name, items, ...captured) {',
+    '  const count = Math.min(globalThis.navigator?.hardwareConcurrency ?? 4, items.length);',
+    '  const shared =',
+    '    typeof SharedArrayBuffer === "function" && items.buffer instanceof SharedArrayBuffer;',
+    '  const parts = [];',
+    '  for (let k = 0; k < count; k++) {',
+    '    const from = Math.floor((items.length * k) / count);',
+    '    const to = Math.floor((items.length * (k + 1)) / count);',
+    '    const part = shared ? items.subarray(from, to) : items.slice(from, to);',
+    '    if (ArrayBuffer.isView(part) && !shared) $$transfer(part);',
+    '    parts.push(',
+    '      $$go(name, [part, from, ...captured]).then((written) => {',
+    '        if (written === undefined || shared) return;',
+    '        if (ArrayBuffer.isView(items)) items.set(written, from);',
+    '        else for (let i = 0; i < written.length; i++) items[from + i] = written[i];',
+    '      }),',
+    '    );',
+    '  }',
+    '  await Promise.all(parts);',
     '}',
   ],
   serve: [

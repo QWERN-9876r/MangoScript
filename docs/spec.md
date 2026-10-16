@@ -655,6 +655,58 @@ thread: the call of an async function without `await`, `search(query, out)`, run
 thread at once with the rest of the program, sharing its memory, as goroutines of Go share theirs.
 It talks to the others through channels as well.
 
+### go for
+
+```go
+async func lighten(pixels Uint8ClampedArray, amount number) {
+    go for i, v in pixels {
+        pixels[i] = v + (255 - v) * amount
+    }
+}
+```
+
+```js
+async function lighten(pixels, amount) {
+  await $$goFor("$$goroutine0", pixels, amount);
+}
+
+// app.worker.js
+async function $$goroutine0(pixels, $$from, amount) {
+  for (let $$i = 0; $$i < pixels.length; $$i++) {
+    const i = $$from + $$i;
+    const v = pixels[$$i];
+    pixels[$$i] = v + (255 - v) * amount;
+  }
+  return $$transfer(pixels);
+}
+```
+
+`go for i, v in items` is a parallel loop over an array: the array is split into parts, one per
+processor, each part runs as a goroutine, and the loop waits for all of them, as a `WaitGroup`
+would. After it, the array has what the body wrote into it.
+
+- **What it goes over:** an array `[]T` or a typed array (`Uint8Array`, `Float64Array`, `[]byte`
+  and the others) whose elements can be copied, as the arguments of `go`. `i` is the index in the
+  whole array, `v` the element; one variable gets the element, as in `for`.
+- **Its own element:** a worker gets only its part, so the body uses the array only as `items[i]`,
+  with the index of the loop, to read the element or write it. Other elements, such as neighbours,
+  come from another array: `go for i, _ in out { out[i] = (src[i - 1] + src[i + 1]) / 2 }`. The
+  array that the body writes is a name, the one in the header.
+- **Other names** that the body uses are copied to each worker, as for a function literal of `go`:
+  they must be data, and the body cannot change them or the names of the module, since only a copy
+  would change. The results go into the array, or through a channel.
+- **It waits,** so it is allowed where `await` is: in async functions and at the top level of a
+  module. An exception in a part fails the loop, as in `Promise.all`. `continue` skips an element;
+  `break`, `return` and `defer` are errors, since the parts run at once and apart from the
+  function.
+- **Memory:** the part of a typed array is a copy that moves to its worker and back with
+  `transfer`, and goes into the array with `set`; the part of a `[]T` is copied there and back. If
+  the body writes nothing into the array, nothing comes back. A typed array on a
+  `SharedArrayBuffer` is not copied: the workers write into it.
+  Only a page with cross-origin isolation (the COOP and COEP headers) can make one; GitHub Pages, where the site of MangoScript
+  is, cannot send them, so its playground copies.
+- Inside a goroutine, `go for` runs its parts in the same worker, as `go` does.
+
 ### Channels
 
 ```go
@@ -1878,11 +1930,6 @@ types of other imports come from TypeScript declarations (section 10).
 
 Planned next, around goroutines and what the browser has:
 
-- **A parallel loop over an array,** for example `go for i, v in pixels { ... }`: the array is
-  split into parts, one per processor, each part runs as a goroutine, and the loop waits for all of
-  them, as a `WaitGroup` would. On a page with cross-origin isolation the parts write into a shared
-  `SharedArrayBuffer`, without copies; elsewhere they are moved to the workers with `transfer` and
-  back. GitHub Pages cannot send the COOP and COEP headers, so the site needs the second way.
 - **`topic T`, channels between the tabs of a site,** over `BroadcastChannel`, for example
   `const cart = topic<CartEvent>("cart")`. It is a type of its own, not a `chan`: every tab that
   listens gets each value, and sending waits for nobody, so the promises of `chan` would not hold.

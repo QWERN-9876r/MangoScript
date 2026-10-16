@@ -119,6 +119,9 @@ export abstract class ExpressionParser extends TypeParser {
 
     if (token.kind === 'go') {
       this.next();
+      if (this.check('for')) {
+        this.fail('"go for" is a statement: it waits for its parts and gives no value');
+      }
 
       const call = this.parsePostfix(this.parsePrimary());
 

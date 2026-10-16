@@ -12,7 +12,7 @@ import type { ImportedComponent } from './codegen/imported.ts';
 import { generateJs } from './codegen/js.ts';
 import { printDeclarations } from './declarations.ts';
 import type { Diagnostic } from './diagnostics.ts';
-import { goExpressions, goTarget, workerProgram } from './goroutines.ts';
+import { goroutines, goTarget, workerProgram } from './goroutines.ts';
 import { parse } from './parser/parser.ts';
 import { isStyleModule, styleModule, unusedClasses, type StyleModule } from './style-modules.ts';
 
@@ -106,7 +106,7 @@ export function compileModule(source: string, options: CoreCompileOptions = {}):
     goroutines: { workerUrl: options.workerUrl ?? workerUrl('main.mango', rewriteImports) },
   });
   const targets = [
-    ...new Set(goExpressions(program).flatMap((node) => goTarget(program, node) ?? [])),
+    ...new Set(goroutines(program).flatMap((node) => goTarget(program, node) ?? [])),
   ];
   const worker =
     targets.length > 0

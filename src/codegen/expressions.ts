@@ -36,6 +36,9 @@ export abstract class ExpressionEmitter extends Emitter {
   /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
   protected readonly commaOk = new WeakSet<ast.Expression>();
 
+  /** `items[i]` in a part of `go for`, which is `items[$$i]` there (parallel.ts). */
+  protected readonly partElements = new Set<ast.Expression>();
+
   /** In the worker module, `go` runs in the same worker (go-helpers.ts). */
   protected get inWorker(): boolean {
     return this.options.goroutines !== undefined && 'targets' in this.options.goroutines;
@@ -236,7 +239,7 @@ export abstract class ExpressionEmitter extends Emitter {
 
       case 'IndexExpression': {
         const object = this.memberObject(node.object, (o) => this.expression(o, POSTFIX));
-        const index = this.expression(node.index, 0);
+        const index = this.partElements.has(node) ? '$$i' : this.expression(node.index, 0);
 
         return [`${object}${node.optional ? '?.[' : '['}${index}]`, POSTFIX];
       }

@@ -1,0 +1,25 @@
+// go for делит массив между процессорами: каждая часть выполняется
+// горутиной, а цикл ждёт их все
+const pixels = new Uint8ClampedArray(1_000_000)
+for i, _ in pixels {
+    pixels[i] = i % 256
+}
+
+const contrast = 1.5
+go for i, v in pixels {
+    pixels[i] = (v - 128) * contrast + 128
+}
+console.log("контраст:", pixels[100], pixels[200])
+
+// тело пишет только свой элемент; соседние берутся из другого массива
+async func smooth(values []number) []number {
+    const out = values.map(_ => 0)
+    go for i, _ in out {
+        const left = values[Math.max(i - 1, 0)]
+        const right = values[Math.min(i + 1, values.length - 1)]
+        out[i] = (left + values[i] + right) / 3
+    }
+    return out
+}
+
+console.log("сглаживание:", await smooth([3, 6, 9, 12, 15]))

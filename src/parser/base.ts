@@ -19,6 +19,8 @@ export abstract class ParserBase {
 
   protected abstract parseFor(): ast.ForStatement | ast.ForInStatement;
 
+  protected abstract parseGoFor(): ast.ForStatement | ast.ForInStatement;
+
   protected abstract parseIf(): ast.IfStatement;
 
   protected abstract parseSwitch(): ast.SwitchStatement;
@@ -115,6 +117,7 @@ export abstract class ParserBase {
     inLoop: false,
     inBreakable: false,
     inDefer: false,
+    inGoFor: false,
     // Modules are ES modules: `await` works at their top level.
     inAsync: true,
     noObjectLiteral: false,

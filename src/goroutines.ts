@@ -1,4 +1,5 @@
 import type * as ast from './ast.ts';
+import { arrayName, isGoFor, loopParams, partFunction } from './go-for.ts';
 import { declaredNames, freeNames } from './names.ts';
 import { forEachChild } from './walk.ts';
 
@@ -7,7 +8,11 @@ import { forEachChild } from './walk.ts';
 // but not the rest of the module: its top-level code would run again there, and a worker has no
 // `document`. The imports that this code uses are imported there too. A function literal,
 // `go func(x) { ... }(y)`, becomes a function of the worker module, `$$goroutine0`, and the local
-// names it uses are passed to it first, as copies.
+// names it uses are passed to it first, as copies. So is the body of `go for`, which becomes a
+// function that loops over a part of the array (go-for.ts).
+
+/** What runs as a goroutine: the call of `go`, or the body of `go for`. */
+export type Goroutine = ast.GoExpression | ast.ForInStatement;
 
 /** What a goroutine reaches from the function it calls. */
 export interface Reach {
@@ -21,11 +26,11 @@ export interface Reach {
   markup: string | null;
 }
 
-/** Every `go` expression of the program, nested ones too. */
-export function goExpressions(program: ast.Program): ast.GoExpression[] {
-  const found: ast.GoExpression[] = [];
+/** Every `go` expression and `go for` loop of the program, nested ones too. */
+export function goroutines(program: ast.Program): Goroutine[] {
+  const found: Goroutine[] = [];
   const visit = (node: ast.Node) => {
-    if (node.kind === 'GoExpression') found.push(node);
+    if (node.kind === 'GoExpression' || isGoFor(node)) found.push(node);
     forEachChild(node, visit);
   };
 
@@ -34,57 +39,72 @@ export function goExpressions(program: ast.Program): ast.GoExpression[] {
   return found;
 }
 
-/** The literals of `go` in a program, by the names of their functions in the worker module. */
-const literalNames = new WeakMap<ast.Program, Map<ast.GoExpression, string>>();
-
-/** The local names that the literal of a `go` uses, which the checker finds in its scopes. */
-const captures = new WeakMap<ast.GoExpression, string[]>();
-
 /**
- * The function that a `go` calls in the worker module: a name, or the name given to a function
- * literal; anything else is reported by the checker.
+ * The names of the functions of the literals of `go` and of the `go for` loops in the worker
+ * module, numbered in the module as written. The worker module has the same nodes, and keeps them.
  */
-export function goTarget(program: ast.Program, node: ast.GoExpression): string | null {
-  const { callee } = node.call;
+const literalNames = new WeakMap<Goroutine, string>();
 
-  if (callee.kind === 'Identifier') return callee.name;
-  if (callee.kind !== 'FuncExpression') return null;
+/** The programs whose literals have names. */
+const named = new WeakSet<ast.Program>();
 
-  let names = literalNames.get(program);
+/** The local names that a literal of `go` or a `go for` uses, as the checker finds them. */
+const captures = new WeakMap<Goroutine, string[]>();
 
-  if (!names) {
-    const literals = goExpressions(program).filter(
-      (each) => each.call.callee.kind === 'FuncExpression',
-    );
-
-    names = new Map(literals.map((each, i) => [each, `$$goroutine${i}`]));
-    literalNames.set(program, names);
-  }
-
-  return names.get(node) ?? null;
+/** A function literal of `go`, or a `go for`: code that becomes a function of the worker module. */
+function isLiteral(node: Goroutine): boolean {
+  return node.kind === 'ForInStatement' || node.call.callee.kind === 'FuncExpression';
 }
 
-export function recordCaptures(node: ast.GoExpression, names: string[]): void {
+/**
+ * The function that a goroutine calls in the worker module: a name, or the name given to a
+ * function literal or a `go for`; anything else is reported by the checker.
+ */
+export function goTarget(program: ast.Program, node: Goroutine): string | null {
+  if (node.kind === 'GoExpression' && node.call.callee.kind === 'Identifier') {
+    return node.call.callee.name;
+  }
+
+  if (!isLiteral(node)) return null;
+
+  if (!named.has(program) && !literalNames.has(node)) {
+    named.add(program);
+    goroutines(program)
+      .filter(isLiteral)
+      .forEach((each, i) => literalNames.set(each, `$$goroutine${i}`));
+  }
+
+  return literalNames.get(node) ?? null;
+}
+
+export function recordCaptures(node: Goroutine, names: string[]): void {
   captures.set(node, names);
 }
 
 /**
- * The local names that the literal of a `go` gets first: those the checker found. Code that was
- * not checked passes the names that the literal uses and the declaration around it declares.
+ * The local names that the literal of a `go` or a `go for` gets first: those the checker found.
+ * Code that was not checked passes the names that the code uses and the declaration around it
+ * declares, but not the array of `go for`, which goes in parts.
  */
-export function goCaptures(program: ast.Program, node: ast.GoExpression): string[] {
+export function goCaptures(program: ast.Program, node: Goroutine): string[] {
   const recorded = captures.get(node);
 
   if (recorded) return recorded;
 
-  const literal = node.call.callee as ast.FuncExpression;
+  const literal =
+    node.kind === 'ForInStatement'
+      ? { params: loopParams(node), body: node.body }
+      : (node.call.callee as ast.FuncExpression);
+  const array = node.kind === 'ForInStatement' ? arrayName(node) : null;
   const outer = program.body.find((each) => each.start <= node.start && node.end <= each.end);
   const module = new Set(program.body.flatMap(declaredBy));
   const local = outer
     ? declaredNames({ kind: 'BlockStatement', body: [outer], start: outer.start, end: outer.end })
     : new Set<string>();
 
-  return [...freeNames(literal)].filter((name) => local.has(name) && !module.has(name));
+  return [...freeNames(literal)].filter(
+    (name) => local.has(name) && !module.has(name) && name !== array,
+  );
 }
 
 /** Parameters for the local names that a literal of `go` gets first. */
@@ -100,9 +120,16 @@ export function goParams(literal: ast.FuncExpression, names: string[]): ast.Para
   }));
 }
 
-/** The functions of the literals of `go`, with the local names they use as their first parameters. */
+/**
+ * The functions of the literals of `go`, with the local names they use as their first parameters,
+ * and of the `go for` loops.
+ */
 function literalFunctions(program: ast.Program): ast.FuncDeclaration[] {
-  return goExpressions(program).flatMap((node): ast.FuncDeclaration[] => {
+  return goroutines(program).flatMap((node): ast.FuncDeclaration[] => {
+    if (node.kind === 'ForInStatement') {
+      return [partFunction(node, goTarget(program, node)!, goCaptures(program, node))];
+    }
+
     const literal = node.call.callee;
 
     if (literal.kind !== 'FuncExpression') return [];
