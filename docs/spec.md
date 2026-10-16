@@ -135,7 +135,7 @@ A variable or a class field without an initial value gets the zero value of its 
 | `string`                    | `""`                          |
 | `bool`                      | `false`                       |
 | `[]T`                       | `[]` (a new array each time)  |
-| `[]byte`                    | an empty `Uint8Array`         |
+| `[]byte`, `[]float64`, ...  | an empty typed array          |
 | `?T`, `error`, `any`        | `null`                        |
 | classes, interfaces, `func` | none: the value must be given |
 
@@ -188,27 +188,28 @@ only reports at compile time what would fail at run time.
 
 ## 3. Types
 
-| MangoScript       | Values                                       | In JS             |
-| ----------------- | -------------------------------------------- | ----------------- |
-| `number`          | numbers                                      | `number`          |
-| `bigint`          | whole numbers of any size, `10n`             | `bigint`          |
-| `byte`            | a number from 0 to 255                       | `number`          |
-| `string`          | strings                                      | `string`          |
-| `bool`            | `true`, `false`                              | `boolean`         |
-| `any`             | anything, unchecked                          | —                 |
-| `error`           | an error or `null`                           | `Error` or `null` |
-| `[]T`             | an array                                     | `Array`           |
-| `[]byte`          | bytes                                        | `Uint8Array`      |
-| `?T`              | a value of type `T` or `null`                | a value or `null` |
-| `func(A, B) R`    | a function                                   | a function        |
-| `(a A) => R`      | the same function type, written as an arrow  | a function        |
-| `comp(a A)`       | a component, which a tag takes from a value  | a function        |
-| `A \| B`          | a value of type `A` or of type `B`           | a value           |
-| `"all"`, `42`     | exactly that value                           | a value           |
-| `{ x number }`    | an object with these fields                  | an object         |
-| `{ [string]: T }` | an object used as a map: any key, values `T` | an object         |
-| a class name      | an instance of the class                     | an instance       |
-| an interface      | any value with the needed fields and methods | —                 |
+| MangoScript       | Values                                       | In JS               |
+| ----------------- | -------------------------------------------- | ------------------- |
+| `number`          | numbers                                      | `number`            |
+| `bigint`          | whole numbers of any size, `10n`             | `bigint`            |
+| `byte`            | a number from 0 to 255                       | `number`            |
+| `string`          | strings                                      | `string`            |
+| `bool`            | `true`, `false`                              | `boolean`           |
+| `any`             | anything, unchecked                          | —                   |
+| `error`           | an error or `null`                           | `Error` or `null`   |
+| `[]T`             | an array                                     | `Array`             |
+| `[]byte`          | bytes                                        | `Uint8Array`        |
+| `[]float64`, ...  | numbers of a fixed size                      | `Float64Array`, ... |
+| `?T`              | a value of type `T` or `null`                | a value or `null`   |
+| `func(A, B) R`    | a function                                   | a function          |
+| `(a A) => R`      | the same function type, written as an arrow  | a function          |
+| `comp(a A)`       | a component, which a tag takes from a value  | a function          |
+| `A \| B`          | a value of type `A` or of type `B`           | a value             |
+| `"all"`, `42`     | exactly that value                           | a value             |
+| `{ x number }`    | an object with these fields                  | an object           |
+| `{ [string]: T }` | an object used as a map: any key, values `T` | an object           |
+| a class name      | an instance of the class                     | an instance         |
+| an interface      | any value with the needed fields and methods | —                   |
 
 The type goes after the name, without a colon: `x number`, `xs []string`, `cb func(number) bool`,
 `user ?User`.
@@ -270,6 +271,58 @@ are those of `Uint8Array`: `subarray`, `slice`, `set`, and no `push`, since its 
   other values use `String(x)` or a template string. A program that declares a type `byte` or a
   value `string` uses its own.
 - A `[]byte` goes to a goroutine as a copy, or without one with `transfer(data)`.
+
+### Typed arrays
+
+```go
+const samples = make([]float32, 4)
+let weights []float64 = [0.25, 0.5, 0.25]
+let ids []uint32
+const counts = make([]int64, 8)
+const field = make([]float64, 1_000_000, shared)
+```
+
+```js
+const samples = new Float32Array(4);
+let weights = new Float64Array([0.25, 0.5, 0.25]);
+let ids = new Uint32Array();
+const counts = new BigInt64Array(8);
+const field = new Float64Array($$shared(8 * 1_000_000));
+```
+
+The typed arrays of JS are written as slices of Go, as `[]byte` is: their lengths are fixed, and
+their elements are numbers of a fixed size, stored in a buffer without boxes.
+
+| MangoScript | JS               | Elements                     |
+| ----------- | ---------------- | ---------------------------- |
+| `[]int8`    | `Int8Array`      | `number`, from -128 to 127   |
+| `[]uint8`   | `Uint8Array`     | `number`, the same as `byte` |
+| `[]int16`   | `Int16Array`     | `number`                     |
+| `[]uint16`  | `Uint16Array`    | `number`                     |
+| `[]int32`   | `Int32Array`     | `number`                     |
+| `[]uint32`  | `Uint32Array`    | `number`                     |
+| `[]float32` | `Float32Array`   | `number`                     |
+| `[]float64` | `Float64Array`   | `number`                     |
+| `[]int64`   | `BigInt64Array`  | `bigint`                     |
+| `[]uint64`  | `BigUint64Array` | `bigint`                     |
+
+- **The element types** are other names of `number`, and of `bigint` for `int64` and `uint64`, as
+  `byte` is: `const x float64 = data[0]`. The ranges are not checked, as for other numbers; a
+  value is converted to the element when it is stored, as in JS. `[]uint8` is `[]byte`.
+- **The JS names are the same types:** a `Float64Array` of a library goes where a `[]float64` is
+  expected. `Uint8ClampedArray`, whose values stop at 0 and 255 (the pixels of a canvas), has no
+  name in Go and keeps its own.
+- **`make([]float64, n)`** makes a typed array of `n` zeros, as `make` does in Go. `make` makes
+  only typed arrays: a list, `[]number`, starts empty and grows.
+- **`make([]float64, n, shared)`** puts it on a `SharedArrayBuffer`, which the workers of
+  `go for` write into without copies. A page has one only with cross-origin isolation (the
+  headers `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy:
+require-corp`); elsewhere `make` throws an error that says so. Node always has it.
+- **A list** where a typed array is expected becomes one, as for `[]byte`; the zero value is an
+  empty one. The methods are those of the typed arrays: `subarray`, `slice`, `set`, `fill`, and no
+  `push`.
+- A program that declares a type `float64` or another of these names uses its own: `[]float64`
+  is then an array of it.
 
 ### Type declarations
 
@@ -685,8 +738,8 @@ async function $$goroutine0(pixels, $$from, amount) {
 processor, each part runs as a goroutine, and the loop waits for all of them, as a `WaitGroup`
 would. After it, the array has what the body wrote into it.
 
-- **What it goes over:** an array `[]T` or a typed array (`Uint8Array`, `Float64Array`, `[]byte`
-  and the others) whose elements can be copied, as the arguments of `go`. `i` is the index in the
+- **What it goes over:** an array `[]T` or a typed array (`[]float64`, `[]byte` and the others)
+  whose elements can be copied, as the arguments of `go`. `i` is the index in the
   whole array, `v` the element; one variable gets the element, as in `for`.
 - **Its own element:** a worker gets only its part, so the body uses the array only as `items[i]`,
   with the index of the loop, to read the element or write it. Other elements, such as neighbours,
@@ -702,7 +755,7 @@ would. After it, the array has what the body wrote into it.
 - **Memory:** the part of a typed array is a copy that moves to its worker and back with
   `transfer`, and goes into the array with `set`; the part of a `[]T` is copied there and back. If
   the body writes nothing into the array, nothing comes back. A typed array on a
-  `SharedArrayBuffer` is not copied: the workers write into it.
+  `SharedArrayBuffer`, `make([]float64, n, shared)`, is not copied: the workers write into it.
   Only a page with cross-origin isolation (the COOP and COEP headers) can make one; GitHub Pages, where the site of MangoScript
   is, cannot send them, so its playground copies.
 - Inside a goroutine, `go for` runs its parts in the same worker, as `go` does.
@@ -1241,21 +1294,21 @@ func handle(request IncomingMessage, response ServerResponse) {
 
 How TypeScript types become MangoScript types:
 
-| TypeScript                                      | MangoScript                                  |
-| ----------------------------------------------- | -------------------------------------------- |
-| `boolean`, `string`, `number`, literals, unions | `bool`, `string`, `number`, literals, unions |
-| `T \| undefined`, `T \| null`, `x?: T`          | `?T`                                         |
-| `T[]`, `Array<T>`; a tuple `[A, B]`             | `[]T`; `[](A \| B)`                          |
-| `void` as a result                              | a function without a result                  |
-| an interface, an object type, an intersection   | an interface                                 |
-| a class                                         | a class: `new`, `extends`, `instanceof`      |
-| `Box<T>`, `function first<T>(...)`              | generics: `Box<T>`, inferred type arguments  |
-| overloads                                       | a call picks the first signature that fits   |
-| `enum`                                          | a union of literals                          |
-| `[key: string]: T`                              | unknown members have the type `T`            |
-| `bigint`; `Uint8Array`                          | `bigint`; `[]byte`, the same type            |
-| `unknown`, `object`, `symbol`                   | `any`                                        |
-| conditional and mapped types TS did not reduce  | `any`                                        |
+| TypeScript                                      | MangoScript                                     |
+| ----------------------------------------------- | ----------------------------------------------- |
+| `boolean`, `string`, `number`, literals, unions | `bool`, `string`, `number`, literals, unions    |
+| `T \| undefined`, `T \| null`, `x?: T`          | `?T`                                            |
+| `T[]`, `Array<T>`; a tuple `[A, B]`             | `[]T`; `[](A \| B)`                             |
+| `void` as a result                              | a function without a result                     |
+| an interface, an object type, an intersection   | an interface                                    |
+| a class                                         | a class: `new`, `extends`, `instanceof`         |
+| `Box<T>`, `function first<T>(...)`              | generics: `Box<T>`, inferred type arguments     |
+| overloads                                       | a call picks the first signature that fits      |
+| `enum`                                          | a union of literals                             |
+| `[key: string]: T`                              | unknown members have the type `T`               |
+| `bigint`; `Uint8Array`, `Float64Array`, ...     | `bigint`; `[]byte`, `[]float64`, the same types |
+| `unknown`, `object`, `symbol`                   | `any`                                           |
+| conditional and mapped types TS did not reduce  | `any`                                           |
 
 - `import x from "pkg"` is the default export; for modules with `export =` it is the value itself,
   and named imports are its properties: `import { join } from "node:path"`.

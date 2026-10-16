@@ -5,15 +5,12 @@ import { assignedNames, freeNames } from '../names.ts';
 import { forEachChild } from '../walk.ts';
 import { firstUse } from './goroutines.ts';
 import { LoopChecker } from './loops.ts';
-import { BUFFERS, notCopied } from './transfer.ts';
-import { typeToString, type Type } from './types.ts';
+import { notCopied } from './transfer.ts';
+import { typedArrayOf, typeToString, type Type } from './types.ts';
 
 // `go for i, v in items { ... }`: the parts of an array or a typed array run as goroutines. Each
 // worker gets its part and copies of the local names that the body uses, so the body reaches the
 // array only through its own element, `items[i]`, and changes nothing else that would stay here.
-
-/** Typed arrays: the buffers that a loop goes over by index. */
-const TYPED = new Set(BUFFERS.filter((name) => name !== 'ArrayBuffer' && name !== 'DataView'));
 
 export abstract class GoForChecker extends LoopChecker {
   protected override checkForIn(node: ast.ForInStatement): void {
@@ -102,9 +99,7 @@ export abstract class GoForChecker extends LoopChecker {
 
 /** An array or a typed array, which `go for` splits into parts. */
 function isSplit(type: Type): boolean {
-  if (type.kind === 'array') return true;
-
-  return type.kind === 'object' && TYPED.has(type.instanceOf?.template.name ?? type.name ?? '');
+  return type.kind === 'array' || typedArrayOf(type) !== null;
 }
 
 /** The names whose elements or properties code writes: `out[i] = v`, `point.x++`. */

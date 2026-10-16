@@ -52,6 +52,9 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
     case 'ChanExpression':
       return `(chan ${ty(node.element)}${node.size ? ` ${sx(node.size)}` : ''})`;
 
+    case 'MakeExpression':
+      return `(make ${ty(node.type)} ${sx(node.length)}${node.shared ? ' shared' : ''})`;
+
     case 'NumberLiteral':
     case 'BigIntLiteral':
     case 'StringLiteral':

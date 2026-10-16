@@ -1,3 +1,4 @@
+import { holdsBigInts, TYPED_ELEMENTS } from '../typed-arrays.ts';
 import { BIGINT_OBJECT } from './bigint.ts';
 import { DOM_TYPES, EVENT } from './dom.ts';
 import { SVG_TYPES } from './dom-svg.ts';
@@ -376,8 +377,12 @@ export const LIBRARY_TYPES: ReadonlySet<string> = new Set([
 
 export const GLOBAL_TYPES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['number', NUMBER],
-  // A number from 0 to 255; `[]byte` is a Uint8Array (resolution.ts).
-  ['byte', NUMBER],
+  // A number from 0 to 255; `[]byte` is a Uint8Array, and `[]float64` a Float64Array
+  // (typed-arrays.ts). The ranges of the elements are not checked.
+  ...[...TYPED_ELEMENTS].map(([name, array]): [string, Type] => [
+    name,
+    holdsBigInts(array) ? BIGINT : NUMBER,
+  ]),
   ['bigint', BIGINT],
   ['string', STRING],
   ['bool', BOOL],

@@ -101,6 +101,9 @@ describe('VS Code grammar', () => {
     expect(scopeOf('let big = 10n * 0xffn', '10n')).toBe('constant.numeric.decimal');
     expect(scopeOf('let big = 10n * 0xffn', '0xffn')).toBe('constant.numeric.hex');
     expect(scopeOf('let data []byte = []byte("mango")', 'byte')).toBe('support.type.primitive');
+    expect(scopeOf('const xs = make([]float64, n)', 'float64')).toBe('support.type.primitive');
+    expect(scopeOf('let ids []uint32', 'uint32')).toBe('support.type.primitive');
+    expect(scopeOf('const int32s = 1', 'int32s')).not.toBe('support.type.primitive');
 
     const iterator = 'func count(yield func(number) bool) {';
 

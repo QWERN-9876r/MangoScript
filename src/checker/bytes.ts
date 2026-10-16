@@ -1,34 +1,67 @@
 import type * as ast from '../ast.ts';
 import { ChannelChecker } from './channels.ts';
 import { isUntyped } from './helpers.ts';
-import { isBytes, nonNull, NUMBER, STRING, typeToString, UNKNOWN, type Type } from './types.ts';
+import { holdsBigInts } from '../typed-arrays.ts';
+import {
+  BIGINT,
+  isBytes,
+  nonNull,
+  NUMBER,
+  STRING,
+  typedArrayOf,
+  typeToString,
+  UNKNOWN,
+  type Type,
+} from './types.ts';
 
-// `[]byte`, a Uint8Array: an array literal where one is expected, `let data []byte = [1, 2]`, and
-// the conversions of Go between text and its UTF-8 bytes, `[]byte("mango")` and `string(data)`.
+// `[]byte`, a Uint8Array, and the other typed arrays, `[]float64`: an array literal where one is
+// expected, `let data []byte = [1, 2]`; and the conversions of Go between text and its UTF-8
+// bytes, `[]byte("mango")` and `string(data)`.
 
 export abstract class BytesChecker extends ChannelChecker {
   protected override checkArrayLiteral(node: ast.ArrayLiteral, expected: Type | null): Type {
-    const bytes = expected && nonNull(expected);
+    const typed = expected && nonNull(expected);
+    const name = typed && typedArrayOf(typed);
 
-    if (!bytes || !isBytes(bytes)) return super.checkArrayLiteral(node, expected);
+    if (!typed || name === null) return super.checkArrayLiteral(node, expected);
+
+    const element = holdsBigInts(name) ? BIGINT : NUMBER;
 
     for (const item of node.elements) {
       if (item.kind === 'SpreadElement') {
-        const spread = this.checkValue(item.argument, bytes);
+        const spread = this.checkValue(item.argument, typed);
 
-        if (!isBytes(spread) && !this.isNumbers(spread)) {
-          this.error(`cannot spread ${typeToString(spread)} into []byte`, item.argument);
+        if (typedArrayOf(spread) !== name && !this.isElements(spread, element)) {
+          this.error(
+            `cannot spread ${typeToString(spread)} into ${typeToString(typed)}`,
+            item.argument,
+          );
         }
       } else {
-        this.expectAssignable(this.checkValue(item, NUMBER), NUMBER, item);
+        this.expectAssignable(this.checkValue(item, element), element, item);
       }
     }
 
-    return bytes;
+    return typed;
   }
 
-  private isNumbers(type: Type): boolean {
-    return isUntyped(type) || (type.kind === 'array' && type.element.kind === 'number');
+  private isElements(type: Type, element: Type): boolean {
+    return isUntyped(type) || (type.kind === 'array' && type.element.kind === element.kind);
+  }
+
+  /** `make([]float64, n)`: a typed array of `n` zeros. */
+  protected override checkMake(node: ast.MakeExpression): Type {
+    const type = this.resolveType(node.type);
+
+    this.expectAssignable(this.checkValue(node.length, NUMBER), NUMBER, node.length);
+    if (typedArrayOf(type) === null) {
+      this.error(
+        `make makes a typed array, e.g. make([]float64, n), not ${typeToString(type)}; a list starts empty and grows, e.g. let names []string = []`,
+        node.type,
+      );
+    }
+
+    return type;
   }
 
   protected override checkConversion(node: ast.ConversionExpression): Type {

@@ -1,0 +1,18 @@
+// typed arrays are written as slices of Go: []float64 is a Float64Array,
+// and make([]float64, n) makes one of n zeros
+const samples = make([]float64, 8)
+for i, _ in samples {
+    samples[i] = Math.sin(i / 2)
+}
+
+let weights []float32 = [0.25, 0.5, 0.25]
+let total float64 = 0
+for i, w in weights {
+    total += w * samples[i]
+}
+console.log("weighted:", total.toFixed(3))
+
+// []int64 holds bigints
+const counts = make([]int64, 3)
+counts[0] = 2n ** 62n
+console.log("counts:", counts.join(", "))

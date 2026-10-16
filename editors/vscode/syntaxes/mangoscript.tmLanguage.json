@@ -307,7 +307,7 @@
         },
         {
           "name": "support.type.primitive.mango",
-          "match": "(?<![\\w$])(?<![^.]\\.)(?:number|bigint|byte|string|bool|any|void|error|Content)(?![\\w$])"
+          "match": "(?<![\\w$])(?<![^.]\\.)(?:number|bigint|byte|u?int(?:8|16|32|64)|float(?:32|64)|string|bool|any|void|error|Content)(?![\\w$])"
         },
         {
           "name": "variable.other.constant.mango",

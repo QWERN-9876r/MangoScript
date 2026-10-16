@@ -1,3 +1,4 @@
+import { TYPED_ARRAYS, typedArrayName } from '../../typed-arrays.ts';
 import { ERROR_CLASS } from './classes.ts';
 import { nullable } from './constructors.ts';
 import type { Type } from './model.ts';
@@ -12,7 +13,14 @@ let objectDepth = 0;
 
 /** `[]byte`: a Uint8Array, of the lib files or the built-in one. */
 export function isBytes(type: Type): boolean {
-  return type.kind === 'object' && (type.instanceOf?.template.name ?? type.name) === 'Uint8Array';
+  return typedArrayOf(type) === 'Uint8Array';
+}
+
+/** The name of a typed array, `[]float64` or `Float64Array`, or null for other types. */
+export function typedArrayOf(type: Type): string | null {
+  const name = type.kind === 'object' ? (type.instanceOf?.template.name ?? type.name) : null;
+
+  return name !== null && TYPED_ARRAYS.has(name) ? name : null;
 }
 
 export function typeToString(type: Type): string {
@@ -63,7 +71,9 @@ export function typeToString(type: Type): string {
     }
 
     case 'object': {
-      if (isBytes(type)) return '[]byte';
+      const typed = typedArrayOf(type);
+
+      if (typed !== null) return typedArrayName(typed);
 
       // `chan T`, `chan<- T` and `<-chan T` are written with spaces, not as type arguments.
       if (

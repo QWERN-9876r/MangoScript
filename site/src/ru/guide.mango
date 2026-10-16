@@ -13,7 +13,7 @@ import { Async, Channels, Goroutines, Select } from "./guide-concurrency.mango"
 export const SECTIONS []Section = [
     { id: "intro", title: "Что такое MangoScript", group: "Язык", content: Intro },
     { id: "variables", title: "Переменные и типы", group: "Язык", content: Variables },
-    { id: "bigint", title: "bigint и []byte", group: "Язык", content: Numbers },
+    { id: "bigint", title: "bigint и типизированные массивы", group: "Язык", content: Numbers },
     { id: "null", title: "null, union и сужение", group: "Язык", content: NullSafety },
     { id: "functions", title: "Функции", group: "Язык", content: Functions },
     { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
@@ -149,6 +149,16 @@ comp Numbers() {
             UTF-8, а <code>string(bytes)</code> читает их обратно.
         </p>
         {example("bytes")}
+        <p>
+            Остальные типизированные массивы тоже пишутся как срезы Go: <code>[]float64</code> — это
+            {" "}<code>Float64Array</code>, <code>[]int32</code> — <code>Int32Array</code>, а
+            {" "}<code>[]int64</code> — <code>BigInt64Array</code> из bigint.
+            {" "}<code>make([]float64, n)</code> создаёт такой из <code>n</code> нулей, а
+            {" "}<code>make([]float64, n, shared)</code> кладёт его на
+            {" "}<code>SharedArrayBuffer</code>, в который горутины <code>go for</code> пишут без
+            копий.
+        </p>
+        {example("typed-arrays")}
     </>
 }
 

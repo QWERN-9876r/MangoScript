@@ -1,6 +1,6 @@
 {
   "name": "mangoscript",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A language with JavaScript semantics, Go-style syntax, goroutines on real threads and static types that compiles to readable JavaScript",
   "keywords": [
     "mangoscript",

@@ -1,4 +1,5 @@
 import type * as ast from '../ast.ts';
+import { holdsBigInts, TYPED_ELEMENTS } from '../typed-arrays.ts';
 import { chanOf } from './channel.ts';
 import { ClassChecker } from './classes.ts';
 import type { AliasEntry } from './context.ts';
@@ -6,8 +7,9 @@ import { CONTENT } from './dom.ts';
 import {
   ANY,
   arrayOf,
-  BYTES,
+  BIGINT,
   bindParams,
+  builtInTypedArray,
   classInstance,
   func,
   instantiate,
@@ -33,8 +35,11 @@ export abstract class TypeResolver extends ClassChecker {
       case 'TypeReference':
         return this.resolveTypeName(node.name, node.typeArgs);
 
-      case 'ArrayType':
-        return this.isByte(node.element) ? this.bytes() : arrayOf(this.resolveType(node.element));
+      case 'ArrayType': {
+        const typed = this.typedArrayClass(node.element);
+
+        return typed === null ? arrayOf(this.resolveType(node.element)) : this.typedArray(typed);
+      }
 
       case 'ChanType':
         return chanOf(this.resolveType(node.element), node.direction);
@@ -90,19 +95,25 @@ export abstract class TypeResolver extends ClassChecker {
     return { kind: 'component', params };
   }
 
-  /** `byte`, unless the program declares a type of that name. */
-  private isByte(node: ast.TypeNode): boolean {
-    return (
-      node.kind === 'TypeReference' &&
-      node.name.name === 'byte' &&
-      node.typeArgs.length === 0 &&
-      this.lookupType('byte') === NUMBER
-    );
+  /**
+   * The typed array of `[]T` when `T` is `byte`, `float64` or another element of one, unless the
+   * program declares a type of that name: `Float64Array`.
+   */
+  private typedArrayClass(node: ast.TypeNode): string | null {
+    if (node.kind !== 'TypeReference' || node.typeArgs.length > 0) return null;
+
+    const typed = TYPED_ELEMENTS.get(node.name.name);
+
+    if (typed === undefined) return null;
+
+    return this.lookupType(node.name.name) === (holdsBigInts(typed) ? BIGINT : NUMBER)
+      ? typed
+      : null;
   }
 
-  /** `[]byte`: the Uint8Array of the lib files, with its default type argument, or BYTES. */
-  protected bytes(): Type {
-    const library = this.options.library?.type('Uint8Array');
+  /** A typed array of the lib files, with its default type argument, or the built-in one. */
+  protected typedArray(name: string): Type {
+    const library = this.options.library?.type(name);
 
     if (library?.kind === 'object' && library.typeParams) {
       return instantiate(
@@ -111,7 +122,12 @@ export abstract class TypeResolver extends ClassChecker {
       );
     }
 
-    return library ?? BYTES;
+    return library ?? builtInTypedArray(name);
+  }
+
+  /** `[]byte`, a Uint8Array. */
+  protected bytes(): Type {
+    return this.typedArray('Uint8Array');
   }
 
   protected override resolveTypeName(

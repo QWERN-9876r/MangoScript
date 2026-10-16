@@ -135,6 +135,17 @@ export abstract class ExpressionParser extends TypeParser {
     return this.parsePostfix(this.parsePrimary());
   }
 
+  /** `make([]float64` starts a `make`: an array literal is not followed by a name. */
+  private isMake(): boolean {
+    return (
+      this.checkWord('make') &&
+      this.peek(1).kind === '(' &&
+      this.peek(2).kind === '[' &&
+      this.peek(3).kind === ']' &&
+      this.peek(4).kind === 'Identifier'
+    );
+  }
+
   /** Member access, indexing and calls: `a.b`, `a?.b`, `a[i]`, `a?.[i]`, `f(x)`, `f?.(x)`. */
   protected override parsePostfix(expression: ast.Expression): ast.Expression {
     while (true) {
@@ -218,6 +229,7 @@ export abstract class ExpressionParser extends TypeParser {
       case 'Identifier':
         if (this.peek(1).kind === '=>') return this.parseArrowFunction();
         if (this.isDecoratorGet()) return this.parseDecoratorGet();
+        if (this.isMake()) return this.parseMake();
         this.next();
 
         return { kind: 'Identifier', name: token.text, start, end };

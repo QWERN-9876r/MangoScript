@@ -31,7 +31,8 @@ export type Expression =
   | AsExpression
   | GoExpression
   | ChanExpression
-  | ConversionExpression;
+  | ConversionExpression
+  | MakeExpression;
 
 /**
  * `[]byte("mango")`: the UTF-8 bytes of a string. `string(data)`, the way back, is a call, since
@@ -41,6 +42,17 @@ export interface ConversionExpression extends NodeBase {
   kind: 'ConversionExpression';
   type: TypeNode;
   argument: Expression;
+}
+
+/**
+ * `make([]float64, n)`: a new typed array of `n` zeros; with `shared`, `make([]float64, n,
+ * shared)`, on a SharedArrayBuffer, which the workers of `go for` write into without copies.
+ */
+export interface MakeExpression extends NodeBase {
+  kind: 'MakeExpression';
+  type: TypeNode;
+  length: Expression;
+  shared: boolean;
 }
 
 /** `chan<number>(10)`: a new channel with room for 10 values; `chan<number>()` has none. */

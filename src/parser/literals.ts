@@ -134,6 +134,38 @@ export abstract class LiteralParser extends ExpressionParser {
     return { kind: 'ArrayLiteral', elements, ...this.span(start) };
   }
 
+  /** `make([]float64, n)` or `make([]float64, n, shared)`. */
+  protected override parseMake(): ast.MakeExpression {
+    const start = this.next().start;
+
+    this.expect('(');
+
+    const [type, length, shared] = this.nested(() => {
+      const type = this.parseType();
+
+      this.expect(',', '"," and the length: e.g. make([]float64, 100)');
+
+      const length = this.parseExpression();
+      let shared = false;
+
+      if (this.accept(',') && !this.check(')')) {
+        if (!this.checkWord('shared')) {
+          this.fail('the third argument of make is the word shared: make([]float64, n, shared)');
+        }
+
+        this.next();
+        shared = true;
+        this.accept(',');
+      }
+
+      return [type, length, shared] as const;
+    });
+
+    this.expect(')');
+
+    return { kind: 'MakeExpression', type, length, shared, ...this.span(start) };
+  }
+
   /** `[]byte("text")`: a type, then its value in parentheses. */
   protected override parseConversion(): ast.ConversionExpression {
     const { start } = this.peek();

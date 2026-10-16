@@ -33,6 +33,8 @@ export abstract class ExpressionEmitter extends Emitter {
 
   protected abstract conversion(node: ast.ConversionExpression): string;
 
+  protected abstract make(node: ast.MakeExpression): string;
+
   /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
   protected readonly commaOk = new WeakSet<ast.Expression>();
 
@@ -230,6 +232,9 @@ export abstract class ExpressionEmitter extends Emitter {
 
       case 'ConversionExpression':
         return [this.conversion(node), POSTFIX];
+
+      case 'MakeExpression':
+        return [this.make(node), POSTFIX];
 
       case 'MemberExpression': {
         const object = this.memberObject(node.object, (o) => this.expression(o, POSTFIX));

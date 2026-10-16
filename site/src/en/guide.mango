@@ -13,7 +13,7 @@ import { Async, Channels, Goroutines, Select } from "./guide-concurrency.mango"
 export const SECTIONS []Section = [
     { id: "intro", title: "What is MangoScript", group: "Language", content: Intro },
     { id: "variables", title: "Variables and types", group: "Language", content: Variables },
-    { id: "bigint", title: "bigint and []byte", group: "Language", content: Numbers },
+    { id: "bigint", title: "bigint and typed arrays", group: "Language", content: Numbers },
     { id: "null", title: "null, unions and narrowing", group: "Language", content: NullSafety },
     { id: "functions", title: "Functions", group: "Language", content: Functions },
     { id: "errors", title: "Errors and defer", group: "Language", content: Errors },
@@ -148,6 +148,15 @@ comp Numbers() {
             UTF-8 bytes of a string, and <code>string(bytes)</code> reads them back.
         </p>
         {example("bytes")}
+        <p>
+            The other typed arrays are written as slices of Go too: <code>[]float64</code> is a
+            {" "}<code>Float64Array</code>, <code>[]int32</code> an <code>Int32Array</code>, and
+            {" "}<code>[]int64</code> a <code>BigInt64Array</code> of bigints.
+            {" "}<code>make([]float64, n)</code> makes one of <code>n</code> zeros, and
+            {" "}<code>make([]float64, n, shared)</code> puts it on a <code>SharedArrayBuffer</code>,
+            which the goroutines of <code>go for</code> write into without copies.
+        </p>
+        {example("typed-arrays")}
     </>
 }
 

@@ -10,30 +10,33 @@ import styles from "./hero.module.css"
 import { highlight } from "./highlight.mango"
 import { REPOSITORY, text } from "./i18n.mango"
 
-const GOROUTINES = `func countPrimes(from, to number) number {
-    let count = 0
-    for let n = from; n < to; n++ {
-        let prime = n > 1
-        for let d = 2; d * d <= n && prime; d++ {
-            prime = n % d != 0
+const GOROUTINES = `func isPrime(n number) bool {
+    for let d = 2; d * d <= n; d++ {
+        if n % d == 0 {
+            return false
         }
-        count += prime ? 1 : 0
     }
-    return count
+    return n > 1
 }
 
-const N = 2_500_000
+const primes = make([]uint8, 10_000_000)
+
 let started = Date.now()
-countPrimes(0, 4 * N)
-console.log(\`one thread:   \${Date.now() - started} ms\`)
+for i, _ in primes {
+    primes[i] = isPrime(i) ? 1 : 0
+}
+console.log(\`one thread: \${Date.now() - started} ms\`)
 
 started = Date.now()
-await Promise.all([0, 1, 2, 3].map(i => go countPrimes(i * N, (i + 1) * N)))
-console.log(\`4 goroutines: \${Date.now() - started} ms\`)`
+go for i, _ in primes {
+    primes[i] = isPrime(i) ? 1 : 0
+}
+console.log(\`go for:     \${Date.now() - started} ms\`)`
 
-// What GOROUTINES printed under Node on a machine with more than four processors.
-const OUTPUT = `one thread:   1451 ms
-4 goroutines: 601 ms`
+// What GOROUTINES printed under Node on a machine with 14 processors: `go for` splits the array
+// among them.
+const OUTPUT = `one thread: 1736 ms
+go for:     377 ms`
 
 const COMPONENT = `comp Counter() {
     state count = 0

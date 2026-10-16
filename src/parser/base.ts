@@ -83,6 +83,8 @@ export abstract class ParserBase {
 
   protected abstract parseConversion(): ast.ConversionExpression;
 
+  protected abstract parseMake(): ast.MakeExpression;
+
   protected abstract parseArrowFunction(async?: boolean): ast.ArrowFunction;
 
   protected abstract parseFuncExpression(async?: boolean): ast.FuncExpression;

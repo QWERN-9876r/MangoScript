@@ -40,6 +40,8 @@ export abstract class ExpressionChecker extends FunctionChecker {
   /** `[]byte("text")`; implemented by BytesChecker. */
   protected abstract checkConversion(node: ast.ConversionExpression): Type;
 
+  protected abstract checkMake(node: ast.MakeExpression): Type;
+
   /** The type of an expression that must be a single value (not `void` or several results). */
   protected override checkValue(node: ast.Expression, expected: Type | null = null): Type {
     return this.single(this.checkExpression(node, expected), node);
@@ -138,6 +140,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
       case 'ConversionExpression':
         return this.checkConversion(node);
 
+      case 'MakeExpression':
+        return this.checkMake(node);
+
       case 'NewExpression':
         return this.checkNew(node, expected);
 
@@ -175,7 +180,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
       this.error(
         this.lookupType(node.name)
           ? `"${node.name}" is a type, not a value`
-          : `"${node.name}" is not defined`,
+          : node.name === 'make'
+            ? 'make takes the type of a typed array first, e.g. make([]float64, n)'
+            : `"${node.name}" is not defined`,
         node,
       );
 

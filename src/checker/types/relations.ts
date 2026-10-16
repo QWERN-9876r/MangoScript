@@ -9,7 +9,7 @@ import {
   type Member,
   type Type,
 } from './model.ts';
-import { isBytes, typeToString } from './printing.ts';
+import { typedArrayOf, typeToString } from './printing.ts';
 
 // Relations between types: assignability, comparison, equality, common types.
 
@@ -347,7 +347,7 @@ export function typesEqual(a: Type, b: Type): boolean {
 
 /** Types that a variable can have without an initial value: `0`, `""`, `false`, `[]`, `null`. */
 export function hasZeroValue(type: Type): boolean {
-  if (isBytes(type)) return true;
+  if (typedArrayOf(type) !== null) return true;
 
   switch (type.kind) {
     case 'number':

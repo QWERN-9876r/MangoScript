@@ -1,0 +1,18 @@
+// типизированные массивы пишутся как срезы Go: []float64 — это Float64Array,
+// а make([]float64, n) создаёт такой из n нулей
+const samples = make([]float64, 8)
+for i, _ in samples {
+    samples[i] = Math.sin(i / 2)
+}
+
+let weights []float32 = [0.25, 0.5, 0.25]
+let total float64 = 0
+for i, w in weights {
+    total += w * samples[i]
+}
+console.log("взвешенно:", total.toFixed(3))
+
+// []int64 хранит bigint
+const counts = make([]int64, 3)
+counts[0] = 2n ** 62n
+console.log("счётчики:", counts.join(", "))

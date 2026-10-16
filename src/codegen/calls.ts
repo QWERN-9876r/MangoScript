@@ -1,9 +1,10 @@
 import type * as ast from '../ast.ts';
-import { isBytes } from '../checker/types.ts';
+import { typedArrayOf } from '../checker/types.ts';
 import { isYieldCall } from '../iterators.ts';
+import { TYPED_ARRAYS, TYPED_ELEMENTS } from '../typed-arrays.ts';
 import { hasOptionalLink } from './analysis.ts';
 import { ExpressionEmitter } from './expressions.ts';
-import { ARROW, POSTFIX } from './syntax.ts';
+import { ARROW, BINARY, POSTFIX } from './syntax.ts';
 
 // Calls, `new`, array literals and conversions. A `[]byte` is a Uint8Array: a literal where the
 // checker found one expected becomes `new Uint8Array([...])`, and the conversions of Go between
@@ -96,8 +97,36 @@ export abstract class CallEmitter extends ExpressionEmitter {
   protected override arrayLiteral(node: ast.ArrayLiteral): string {
     const array = `[${this.elements(node.elements)}]`;
     const type = this.options.types?.get(node);
+    const typed = type && typedArrayOf(type);
 
-    return type && isBytes(type) ? `new Uint8Array(${array})` : array;
+    return typed ? `new ${typed}(${array})` : array;
+  }
+
+  /**
+   * `make([]float64, n)` → `new Float64Array(n)`; with `shared`, on a SharedArrayBuffer of its
+   * size in bytes, `new Float64Array($$shared(8 * n))`. Without types the name is the one written.
+   */
+  protected override make(node: ast.MakeExpression): string {
+    const type = this.options.types?.get(node);
+    const written =
+      node.type.kind === 'ArrayType' && node.type.element.kind === 'TypeReference'
+        ? TYPED_ELEMENTS.get(node.type.element.name.name)
+        : node.type.kind === 'TypeReference'
+          ? node.type.name.name
+          : undefined;
+    const typed = (type && typedArrayOf(type)) ?? written ?? 'Array';
+
+    if (!node.shared) return `new ${typed}(${this.expression(node.length, ARROW)})`;
+
+    const size = TYPED_ARRAYS.get(typed) ?? 1;
+    const bytes =
+      size === 1
+        ? this.expression(node.length, ARROW)
+        : `${size} * ${this.expression(node.length, BINARY['*'] + 1)}`;
+
+    this.helpers.add('shared');
+
+    return `new ${typed}($$shared(${bytes}))`;
   }
 
   protected override conversion(node: ast.ConversionExpression): string {

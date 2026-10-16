@@ -1,5 +1,6 @@
 import type * as ast from '../ast.ts';
 import { isIterator } from '../iterators.ts';
+import { holdsBigInts, TYPED_ARRAYS, TYPED_ELEMENTS } from '../typed-arrays.ts';
 import { declarationsOf } from './analysis.ts';
 import { CallEmitter } from './calls.ts';
 import { ARROW, arrayPattern, POSTFIX } from './syntax.ts';
@@ -274,13 +275,17 @@ export abstract class SimpleStatementEmitter extends CallEmitter {
       case 'NullableType':
         return 'null';
 
-      // `[]byte` is a Uint8Array, unless the program declares a type `byte`.
-      case 'ArrayType':
-        return type.element.kind === 'TypeReference' &&
-          type.element.name.name === 'byte' &&
-          !this.typeAliases.has('byte')
-          ? 'new Uint8Array()'
-          : '[]';
+      // `[]byte` is a Uint8Array and `[]float64` a Float64Array, unless the program declares a
+      // type of that name.
+      case 'ArrayType': {
+        const { element } = type;
+        const typed =
+          element.kind === 'TypeReference' && !this.typeAliases.has(element.name.name)
+            ? TYPED_ELEMENTS.get(element.name.name)
+            : undefined;
+
+        return typed === undefined ? '[]' : `new ${typed}()`;
+      }
 
       case 'FuncType':
       case 'ComponentType':
@@ -295,9 +300,10 @@ export abstract class SimpleStatementEmitter extends CallEmitter {
         const alias = this.typeAliases.get(name);
 
         if (alias && !seen.has(name)) return this.zeroValue(alias, seen.add(name));
+        if (TYPED_ARRAYS.has(name)) return `new ${name}()`;
+        if (TYPED_ELEMENTS.has(name)) return holdsBigInts(TYPED_ELEMENTS.get(name)!) ? '0n' : '0';
         switch (name) {
           case 'number':
-          case 'byte':
             return '0';
 
           case 'bigint':

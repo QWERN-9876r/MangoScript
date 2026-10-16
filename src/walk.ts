@@ -123,6 +123,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       optional(node.size);
       break;
 
+    case 'MakeExpression':
+      visit(node.type);
+      visit(node.length);
+      break;
+
     case 'ConversionExpression':
       visit(node.type);
       visit(node.argument);

@@ -2,7 +2,7 @@
 // with Web Workers and with the worker threads of Node, whose API differs: `on("message")` instead
 // of `onmessage`, and `unref()`, so that idle workers do not keep the program running.
 
-export type GoHelper = 'go' | 'goLocal' | 'goFor' | 'serve' | 'cancel';
+export type GoHelper = 'go' | 'goLocal' | 'goFor' | 'shared' | 'serve' | 'cancel';
 
 export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
   /** `go` in a module: a call in a worker of the pool, started by $$startWorker of the module. */
@@ -215,6 +215,18 @@ export const GO_HELPERS: Readonly<Record<GoHelper, readonly string[]>> = {
     '    );',
     '  }',
     '  await Promise.all(parts);',
+    '}',
+  ],
+  shared: [
+    '// `make([]T, n, shared)`: the memory of a typed array that the workers of `go for` write into,',
+    '// without copies. A page has SharedArrayBuffer only with cross-origin isolation.',
+    'function $$shared(bytes) {',
+    '  if (typeof SharedArrayBuffer !== "function") {',
+    '    throw new Error(',
+    '      "make(..., shared) needs SharedArrayBuffer, which a page has only with cross-origin isolation: the headers Cross-Origin-Opener-Policy: same-origin and Cross-Origin-Embedder-Policy: require-corp",',
+    '    );',
+    '  }',
+    '  return new SharedArrayBuffer(bytes);',
     '}',
   ],
   serve: [
