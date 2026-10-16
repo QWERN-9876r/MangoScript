@@ -19,9 +19,13 @@ class Parser extends MarkupParser {
   }
 }
 
-export function parse(text: string): ParseResult {
+/**
+ * Parses a module. Markup and components are read unless `markup` is false: the entries of the
+ * compiler (src/config.ts) turn them off unless the package turns them on.
+ */
+export function parse(text: string, options: { markup?: boolean } = {}): ParseResult {
   const { tokens, diagnostics } = tokenize(text);
-  const parser = new Parser(tokens);
+  const parser = new Parser(tokens, options.markup ?? true);
   const program = parser.parseProgram();
 
   return {

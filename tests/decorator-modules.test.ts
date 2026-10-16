@@ -1,11 +1,11 @@
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { build } from 'vite';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index.ts';
 import { mango } from '../src/vite.ts';
 import { mountJsWithDom } from './fake-dom.ts';
+import { markupProject } from './project.ts';
 
 // Exported decorators, `export dec counter() { ... }`, applied in other modules. Their code is
 // inlined there, and the names of their module that it uses come through hidden exports:
@@ -41,7 +41,7 @@ document.body.append(<Clicker />)
 
 /** Writes the files to a new directory. */
 function project(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-dec-'));
+  const dir = markupProject('mango-dec-');
 
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
 

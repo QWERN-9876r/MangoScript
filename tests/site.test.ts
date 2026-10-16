@@ -66,7 +66,7 @@ describe('documentation site', () => {
   );
 
   it.each(all)('compiles the example %s in the browser compiler', (path) => {
-    const result = compile(readFileSync(site(path), 'utf8'));
+    const result = compile(readFileSync(site(path), 'utf8'), null, { markup: true });
 
     expect(result.diagnostics).toEqual([]);
     expect(result.code).not.toBe('');

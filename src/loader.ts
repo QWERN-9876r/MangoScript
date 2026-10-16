@@ -13,9 +13,11 @@ import { compileFile } from './compile-file.ts';
 // thread compiles a module before any worker needs it, so it leaves the code of each module and
 // of its worker module in MANGO_RUN_CACHE, a directory of the run, and the workers take it from
 // there: compiling again, with the types, would take each of them as long. MANGO_NO_CHECK turns
-// type checking off.
+// type checking off, and MANGO_MARKUP, 1 or 0, markup and components on or off for every file.
 
 const typeCheck = process.env['MANGO_NO_CHECK'] === undefined;
+const markupSetting = process.env['MANGO_MARKUP'];
+const markup = markupSetting === undefined ? undefined : markupSetting === '1';
 const cache = process.env['MANGO_RUN_CACHE'];
 
 /** The file of the cache for the code of a URL, query included. */
@@ -37,7 +39,12 @@ registerHooks({
 
     const moduleUrl = new URL(pathname, url).href;
     const path = displayPath(fileURLToPath(moduleUrl));
-    const result = compileFile(path, { rewriteImports: false, typeCheck, quiet: !isMainThread });
+    const result = compileFile(path, {
+      rewriteImports: false,
+      typeCheck,
+      markup,
+      quiet: !isMainThread,
+    });
 
     if (isMainThread && cache) {
       writeFileSync(cached(moduleUrl)!, result.code);

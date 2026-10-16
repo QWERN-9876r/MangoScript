@@ -1,11 +1,11 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { check } from '../src/checker/checker.ts';
 import { compile } from '../src/index.ts';
 import { parse } from '../src/parser/parser.ts';
 import { mountWithDom } from './fake-dom.ts';
+import { markupProject } from './project.ts';
 
 // `<Card ref={card} />` points to the element at the top of what Card returns: the ref creates it
 // in advance, and Card fills it in, whether it is inlined or a function. The children of a
@@ -259,7 +259,7 @@ document.body.append(<App />)
 `;
 
   it('creates the element of a component of another module, inlined or called', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-ref-'));
+    const dir = markupProject('mango-ref-');
 
     writeFileSync(join(dir, 'card.mango'), card);
     writeFileSync(join(dir, 'main.mango'), main);

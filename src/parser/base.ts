@@ -125,8 +125,20 @@ export abstract class ParserBase {
   /** Expressions written in parentheses, which the tree itself does not record. */
   protected readonly parenthesized = new WeakSet<ast.Expression>();
 
-  constructor(tokens: Token[]) {
+  /** Markup and components: the entries turn them off unless the package turns them on. */
+  protected readonly markup: boolean;
+
+  constructor(tokens: Token[], markup = true) {
     this.tokens = tokens;
+    this.markup = markup;
+  }
+
+  /** Fails at markup, a component or a decorator when they are off, saying how to turn them on. */
+  protected requireMarkup(what: string): void {
+    if (this.markup) return;
+    this.fail(
+      `${what} off: turn on markup and components with "mangoscript": { "markup": true } in package.json, or with --markup`,
+    );
   }
 
   protected peek(offset = 0): Token {

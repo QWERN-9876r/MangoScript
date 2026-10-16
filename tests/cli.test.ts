@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { markupProject } from './project.ts';
 
 const cli = new URL('../src/cli.ts', import.meta.url).pathname;
 
@@ -16,7 +16,7 @@ function node(cwd: string, file: string) {
 
 /** A temporary project: `files` maps relative paths to contents. */
 function project(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-cli-'));
+  const dir = markupProject('mango-cli-');
 
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(join(dir, path, '..'), { recursive: true });

@@ -75,7 +75,7 @@ function setUp(): Promise<void> {
     monaco.languages.registerCompletionItemProvider(LANGUAGE, {
       triggerCharacters: ['.', '<'],
       provideCompletionItems(model, position) {
-        const list = complete(model.getValue(), model.getOffsetAt(position));
+        const list = complete(model.getValue(), model.getOffsetAt(position), { markup: true });
         const start = model.getPositionAt(list.start);
         const end = model.getPositionAt(list.end);
         const range = new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column);
@@ -102,7 +102,7 @@ function setUp(): Promise<void> {
 
 /** The errors and warnings of the compiler, under the code they are about. */
 function check(model: monaco.editor.ITextModel): void {
-  const result = compile(model.getValue());
+  const result = compile(model.getValue(), null, { markup: true });
   const marker =
     (severity: monaco.MarkerSeverity) =>
     (diagnostic: (typeof result.diagnostics)[number]): monaco.editor.IMarkerData => ({

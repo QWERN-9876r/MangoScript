@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { check, type ImportResult, type ModuleExports } from './checker/checker.ts';
+import { markupFor } from './config.ts';
 import { parse } from './parser/parser.ts';
 import { importDeclarations, libraryFor } from './typescript/importer.ts';
 
@@ -9,7 +10,11 @@ const cache = new Map<string, { version: string; exports: ModuleExports }>();
 const loading = new Set<string>();
 
 /** Finds the types exported by a `.mango` module imported from the file `fromFile`. */
-export function loadModuleExports(fromFile: string, specifier: string): ImportResult {
+export function loadModuleExports(
+  fromFile: string,
+  specifier: string,
+  markup?: boolean,
+): ImportResult {
   if (!specifier.startsWith('./') && !specifier.startsWith('../')) return undefined;
 
   const path = resolve(dirname(fromFile), specifier);
@@ -32,13 +37,16 @@ export function loadModuleExports(fromFile: string, specifier: string): ImportRe
   if (loading.has(path)) return undefined;
   loading.add(path);
   try {
-    const { program, diagnostics } = parse(readFileSync(path, 'utf8'));
+    // The markup of the CLI or the Vite plugin, else that of the package of the module.
+    const { program, diagnostics } = parse(readFileSync(path, 'utf8'), {
+      markup: markup ?? markupFor(path),
+    });
 
     // Syntax errors in the imported module are reported when that module itself is compiled.
     if (diagnostics.length > 0) return undefined;
 
     const { exports } = check(program, {
-      importModule: (next) => loadModuleExports(path, next),
+      importModule: (next) => loadModuleExports(path, next, markup),
       importDeclarations: (next) => importDeclarations(path, next),
       library: libraryFor(path),
     });

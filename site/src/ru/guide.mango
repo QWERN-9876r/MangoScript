@@ -310,7 +310,8 @@ comp Modules() {
 const COMMANDS = `npm install --save-dev mangoscript
 npx mango build app.mango            # app.js рядом с исходником
 npx mango build src --out-dir dist   # все модули папки
-npx mango run app.mango              # скомпилировать и запустить`
+npx mango run app.mango              # скомпилировать и запустить
+npx mango build app.mango --markup   # с разметкой и компонентами`
 
 const REPOSITORY_COMMANDS = `npm run site:dev         # этот сайт на сервере разработки Vite
 npm run vscode:install   # подсветка синтаксиса в VS Code`
@@ -331,7 +332,8 @@ comp Tools() {
         <p>
             Для проектов на Vite есть плагин <code>mangoscript/vite</code>: с ним
             {" "}<code>.mango</code>-модули импортируются как обычные, а ошибки типов показываются
-            поверх страницы. Этот сайт собран именно так.
+            поверх страницы. Этот сайт собран именно так; его <code>package.json</code> включает
+            разметку и компоненты.
         </p>
         <p>
             Компилятор написан на TypeScript, исходный код — в

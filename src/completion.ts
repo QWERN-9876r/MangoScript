@@ -81,7 +81,7 @@ export function completeModule(
   }
 
   for (const text of attempts) {
-    const { program } = parse(text);
+    const { program } = parse(text, { markup: options.markup ?? true });
     const result = completeIn(program, options);
 
     if (result) {

@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { compile as compileInBrowser } from '../src/browser.ts';
 import { compile } from '../src/index.ts';
 import { styleModule } from '../src/style-modules.ts';
 import { mountJsWithDom } from './fake-dom.ts';
+import { markupProject } from './project.ts';
 
 // CSS modules: `import styles from "./button.module.css"`. The compiler reads the file, gives its
 // classes names of their own and types `styles` with them; the module adds the CSS to the page.
@@ -34,7 +34,7 @@ document.body.append(<Button kind="ghost" active>Hi</Button>)
 
 /** Compiles `main` in a directory with button.module.css. */
 function compileWithCss(main: string, files: Record<string, string> = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-css-'));
+  const dir = markupProject('mango-css-');
 
   writeFileSync(join(dir, 'button.module.css'), css);
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);

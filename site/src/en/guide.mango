@@ -306,7 +306,8 @@ comp Modules() {
 const COMMANDS = `npm install --save-dev mangoscript
 npx mango build app.mango            # app.js next to the source
 npx mango build src --out-dir dist   # every module of a folder
-npx mango run app.mango              # compile and run`
+npx mango run app.mango              # compile and run
+npx mango build app.mango --markup   # with markup and components`
 
 const REPOSITORY_COMMANDS = `npm run site:dev         # this site on the Vite dev server
 npm run vscode:install   # syntax highlighting in VS Code`
@@ -327,7 +328,7 @@ comp Tools() {
         <p>
             Vite projects have a plugin, <code>mangoscript/vite</code>: with it <code>.mango</code>
             modules are imported like any others, and type errors show up over the page. This site
-            is built that way.
+            is built that way; its <code>package.json</code> turns markup and components on.
         </p>
         <p>
             The compiler is written in TypeScript; the source code is in the

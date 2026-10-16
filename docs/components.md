@@ -7,6 +7,9 @@
 > decorators (`dec`), `derived`, `effect`, `ref` and `style`. The decisions made are collected at the end of
 > the document, together with what is not decided yet.
 
+> Markup and components are off by default; a package turns them on with
+> `"mangoscript": { "markup": true }` in its `package.json` (see "Markup" in [spec.md](spec.md)).
+
 ## Goals
 
 1. **An element in code is a real DOM node.** `<a href="/">…</a>` is an expression that creates an

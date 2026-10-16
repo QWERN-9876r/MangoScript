@@ -5,6 +5,7 @@ import {
   type CoreCompileOptions,
 } from './compile.ts';
 import { completeModule, type CompletionList } from './completion.ts';
+import { markupFor } from './config.ts';
 import { loadModuleExports } from './modules.ts';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -30,14 +31,19 @@ export interface CompileOptions {
   declarations?: boolean;
   /** Where the worker module of `go` is, relative to the module; see workerUrl() in compile.ts. */
   workerUrl?: string;
+  /** Markup and components; by default as the package.json of the file says (src/config.ts). */
+  markup?: boolean;
 }
 
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
   const { filename } = options;
   const rewriteImports = options.rewriteImports ?? true;
 
+  const markup = options.markup ?? markupFor(filename);
+
   return compileModule(source, {
-    ...filesOf(filename, options.typeCheck ?? true),
+    ...filesOf(filename, options.typeCheck ?? true, options.markup),
+    markup,
     rewriteImports,
     workerUrl: options.workerUrl ?? workerUrl(filename ?? 'main.mango', rewriteImports),
     typeCheck: options.typeCheck ?? true,
@@ -52,19 +58,23 @@ export function compile(source: string, options: CompileOptions = {}): CompileRe
 export function complete(
   source: string,
   offset: number,
-  options: { filename?: string } = {},
+  options: { filename?: string; markup?: boolean } = {},
 ): CompletionList {
-  return completeModule(source, offset, filesOf(options.filename, true));
+  return completeModule(source, offset, {
+    ...filesOf(options.filename, true, options.markup),
+    markup: options.markup ?? markupFor(options.filename),
+  });
 }
 
 /** Reading what a module imports: other modules, declarations, CSS modules and the library. */
 function filesOf(
   filename: string | undefined,
   typeCheck: boolean,
+  markup: boolean | undefined,
 ): Pick<CoreCompileOptions, 'importModule' | 'importDeclarations' | 'readStyleModule' | 'library'> {
   return {
     importModule: filename
-      ? (specifier: string) => loadModuleExports(filename, specifier)
+      ? (specifier: string) => loadModuleExports(filename, specifier, markup)
       : undefined,
     importDeclarations: filename
       ? (specifier: string) => importDeclarations(filename, specifier)

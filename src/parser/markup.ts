@@ -12,6 +12,8 @@ export abstract class MarkupParser extends LiteralParser {
   }
 
   private parseMarkup(): ast.ElementExpression {
+    this.requireMarkup('markup is');
+
     const start = this.expect('JsxTagOpen').start;
     const tag = this.check('JsxTagEnd') ? null : this.parseJsxName('tag name');
     const attributes: (ast.JsxAttribute | ast.JsxSpreadAttribute)[] = [];

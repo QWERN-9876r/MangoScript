@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { check } from '../src/checker/checker.ts';
@@ -7,6 +6,7 @@ import { compile } from '../src/index.ts';
 import { parse } from '../src/parser/parser.ts';
 import { mountWithDom } from './fake-dom.ts';
 import { expr, first, sx, ty } from './parser-helpers.ts';
+import { markupProject } from './project.ts';
 
 // Components as values: `content: Intro` has the type `comp()`, and a tag takes the component from
 // a value, `<section.content />`, or `<Page />` when `Page` is a variable. The tag passes the
@@ -279,7 +279,7 @@ export comp Menu() {
 `;
 
   function compileMain(main: string) {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-values-'));
+    const dir = markupProject('mango-values-');
 
     writeFileSync(join(dir, 'pages.mango'), pages);
     writeFileSync(join(dir, 'main.mango'), main);
@@ -317,7 +317,7 @@ document.body.append(<Menu />)`);
   });
 
   it('declares a component type as the type of its function', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mango-values-'));
+    const dir = markupProject('mango-values-');
     const filename = join(dir, 'pages.mango');
 
     writeFileSync(filename, pages);

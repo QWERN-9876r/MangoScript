@@ -1255,6 +1255,20 @@ export declare class Stack<T> {
 
 ### Markup
 
+**Markup and components are off by default,** so that MangoScript can be the language of the logic
+of an app whose views are in React, Svelte or Vue. A package turns them on in its `package.json`:
+
+```json
+{ "mangoscript": { "markup": true } }
+```
+
+A file takes the setting of the nearest `package.json` above it, and so do the language server of
+VS Code and the Vite plugin. `mango build --markup` and `--no-markup` set it for all files, and so
+does `mango({ markup: true })` in Vite. Where it is off, markup, `comp`, `dec` and decorators are
+errors that say how to turn them on; `state`, `ref` and the like are keywords only inside a
+component anyway. The browser compiler takes it as an option, `compile(source, null,
+{ markup: true })`.
+
 Markup in code creates real DOM elements, with no virtual DOM:
 
 ```go

@@ -129,6 +129,7 @@ export abstract class TypeParser extends ClassParser {
 
       // `comp(title string)`: the names are those of the attributes, so they are required.
       case 'comp': {
+        this.requireMarkup('components are');
         this.next();
 
         const params = this.parseParams(false);

@@ -1,11 +1,11 @@
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { build } from 'vite';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index.ts';
 import { mango } from '../src/vite.ts';
 import { mountJsWithDom } from './fake-dom.ts';
+import { markupProject } from './project.ts';
 
 // Exported components, `export comp Card(...) { ... }`: their module compiles them to functions,
 // `export function $$Card(...)`, which other modules import and call. Their code stays in their
@@ -77,7 +77,7 @@ document.body.append(<App />)
 
 /** Writes the files to a new directory. */
 function project(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'mango-comp-'));
+  const dir = markupProject('mango-comp-');
 
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
 

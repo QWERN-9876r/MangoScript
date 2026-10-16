@@ -245,6 +245,8 @@ export abstract class DeclarationParser extends ControlFlowParser {
     htmlTag: ast.HtmlTag | null = null,
     decorators: ast.DecoratorUse[] = [],
   ): ast.ComponentDeclaration {
+    this.requireMarkup('components are');
+
     const keyword = this.expect('comp');
 
     if (!this.context.topLevel) {

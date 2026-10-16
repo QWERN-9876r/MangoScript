@@ -46,7 +46,9 @@ func withCompiler(use func(?Compile)) {
     loadCompiler().then(
         module => {
             compiler = (source, workerUrl) => {
-                const result = module.compile(source, workerUrl == "" ? null : workerUrl)
+                // The page is the DOM: its programs have markup and components.
+                const url = workerUrl == "" ? null : workerUrl
+                const result = module.compile(source, url, { markup: true })
                 return {
                     code: result.code,
                     errors: result.diagnostics.map(d => `${text().position(d.line, d.column)}: ${d.message}`),

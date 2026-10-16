@@ -25,6 +25,9 @@
   "license": "MIT",
   "author": "Qwern9876r",
   "type": "module",
+  "mangoscript": {
+    "markup": true
+  },
   "engines": {
     "node": ">=24"
   },

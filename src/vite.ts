@@ -16,6 +16,11 @@ const GOROUTINES = '.goroutines.js';
 export interface MangoPluginOptions {
   /** Check types before generating code. Defaults to `true`. */
   typeCheck?: boolean;
+  /**
+   * Markup and components, for every `.mango` file; by default as the package.json of the file
+   * says, `"mangoscript": { "markup": true }`.
+   */
+  markup?: boolean;
 }
 
 export function mango(options: MangoPluginOptions = {}): Plugin {
@@ -65,6 +70,7 @@ export function mango(options: MangoPluginOptions = {}): Plugin {
         filename: path,
         rewriteImports: false,
         typeCheck,
+        markup: options.markup,
         workerUrl: `./${basename(path)}${GOROUTINES}`,
       });
       const file = new SourceFile(relative(root, path), source);

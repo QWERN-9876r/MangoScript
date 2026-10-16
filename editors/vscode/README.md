@@ -20,6 +20,8 @@ the errors and warnings that `mango build` would print, and it completes:
 
 The types of the standard library and the DOM come from TypeScript's lib files, which the extension
 carries. Imports of other `.mango` files and of packages with types are checked as in `mango build`.
+Markup and components are errors unless the nearest `package.json` turns them on with
+`"mangoscript": { "markup": true }`, as for `mango build`.
 
 ## Highlighting
 

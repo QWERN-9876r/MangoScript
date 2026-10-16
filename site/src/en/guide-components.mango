@@ -1,10 +1,16 @@
 // The sections of the English guide about markup and components; guide.mango lists them all.
 
+import { Callout } from "../../ui/callout.mango"
 import { example } from "../example.mango"
 import { highlight } from "../highlight.mango"
 
 export comp Markup() {
     return <>
+        <Callout kind="note">
+            Markup and components are turned on in <code>package.json</code>:
+            {" "}<code>{'"mangoscript": { "markup": true }'}</code>. Without it they are errors, so
+            {" "}<code>.mango</code> modules fit an app on React, Svelte or Vue as they are.
+        </Callout>
         <p>
             Markup is an ordinary expression: <code>&lt;a href="/"&gt;</code> creates a real
             {" "}<code>HTMLAnchorElement</code>, with no virtual DOM. The syntax is that of JSX, but

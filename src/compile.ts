@@ -24,6 +24,8 @@ export interface CoreCompileOptions {
   rewriteImports?: boolean;
   /** Check types before generating code. Defaults to `true`. */
   typeCheck?: boolean;
+  /** Markup and components; read unless false (the entries decide it, see src/config.ts). */
+  markup?: boolean;
   /** The exports of an imported `.mango` module; without it, imports are untyped (`any`). */
   importModule?: ((specifier: string) => ImportResult) | undefined;
   /** The exports of other imports, from TypeScript declarations; without it, they are untyped. */
@@ -64,7 +66,7 @@ export interface CompileResult {
 }
 
 export function compileModule(source: string, options: CoreCompileOptions = {}): CompileResult {
-  const { program, diagnostics } = parse(source);
+  const { program, diagnostics } = parse(source, { markup: options.markup ?? true });
 
   if (diagnostics.length > 0) return { code: '', diagnostics, warnings: [], dependencies: [] };
 

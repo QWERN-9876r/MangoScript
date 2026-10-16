@@ -16,6 +16,8 @@ export abstract class DecoratorParser extends DeclarationParser {
     start: number,
     exported: boolean,
   ): ast.DecoratorDeclaration {
+    this.requireMarkup('decorators are');
+
     const keyword = this.next();
 
     if (!this.context.topLevel) {
@@ -127,6 +129,8 @@ export abstract class DecoratorParser extends DeclarationParser {
    * Each is on its own line or followed by the next one.
    */
   protected override parseDecorated(start: number, exported: boolean): ast.ComponentDeclaration {
+    this.requireMarkup('decorators are');
+
     let htmlTag: ast.HtmlTag | null = null;
     const decorators: ast.DecoratorUse[] = [];
 
@@ -217,6 +221,8 @@ export abstract class DecoratorParser extends DeclarationParser {
   }
 
   protected parseDecoratorMember(): ast.DecoratorMember {
+    this.requireMarkup('decorators are');
+
     const at = this.expect('@');
     const decorator = this.parseIdentifier('decorator name');
 

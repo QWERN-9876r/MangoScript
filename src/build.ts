@@ -11,6 +11,8 @@ export interface BuildOptions {
   typeCheck?: boolean;
   /** Write a `.d.ts` next to each `.js`, for TypeScript code. Defaults to `typeCheck`. */
   declarations?: boolean;
+  /** Markup and components for every file; by default as its package.json says (config.ts). */
+  markup?: boolean;
 }
 
 export interface BuildOutput {
@@ -67,7 +69,12 @@ export function build(entries: readonly string[], options: BuildOptions = {}): B
   for (let i = 0; i < queue.length; i++) {
     const source = queue[i]!;
     const text = readFileSync(source, 'utf8');
-    const result = compile(text, { filename: source, typeCheck, declarations });
+    const result = compile(text, {
+      filename: source,
+      typeCheck,
+      declarations,
+      markup: options.markup,
+    });
 
     if (result.warnings.length > 0) {
       warnings.push({

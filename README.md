@@ -91,7 +91,9 @@ staged version is formatted, so edits that are not staged stay out of the commit
 | `npm run vscode:install`             | Build and install the VS Code extension                    |
 
 Options of `build`: `--out-dir dir` writes the `.js` files to a separate folder, `--stdout` prints
-the JS of one file, `--no-check` skips type checking.
+the JS of one file, `--no-check` skips type checking. `--markup` and `--no-markup` turn markup and
+components on or off for all files (with `run` too); by default they are off, and a package turns
+them on in its `package.json`: `"mangoscript": { "markup": true }`.
 
 ## Releases
 
@@ -157,7 +159,9 @@ export default defineConfig({ plugins: [mango()] });
 ```
 
 Then `.mango` files can be imported from JS, TS and other `.mango` modules. Type errors stop the
-build, and in development they show up over the page.
+build, and in development they show up over the page. Markup and components are off by default,
+so `.mango` modules fit a React, Svelte or Vue app as they are; turn them on with
+`"mangoscript": { "markup": true }` in `package.json`, or `mango({ markup: true })`.
 
 ## Conventions
 

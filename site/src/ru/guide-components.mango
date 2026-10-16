@@ -1,10 +1,16 @@
 // Разделы русского гайда о разметке и компонентах; все разделы перечислены в guide.mango.
 
+import { Callout } from "../../ui/callout.mango"
 import { example } from "../example.mango"
 import { highlight } from "../highlight.mango"
 
 export comp Markup() {
     return <>
+        <Callout kind="note">
+            Разметка и компоненты включаются в <code>package.json</code>:
+            {" "}<code>{'"mangoscript": { "markup": true }'}</code>. Без этого они — ошибки, поэтому
+            {" "}<code>.mango</code>-модули подходят приложению на React, Svelte или Vue как есть.
+        </Callout>
         <p>
             Разметка — обычное выражение: <code>&lt;a href="/"&gt;</code> создаёт настоящий
             {" "}<code>HTMLAnchorElement</code>, без виртуального DOM. Синтаксис как в JSX, но имена

@@ -13,8 +13,9 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { build, displayPath } from './build.ts';
+import { build, displayPath, type BuildOptions } from './build.ts';
 import { CompileError, compileFile } from './compile-file.ts';
+import { markupFor } from './config.ts';
 import { formatDiagnostic, type Diagnostic } from './diagnostics.ts';
 import { tokenize } from './lexer/lexer.ts';
 import { parse } from './parser/parser.ts';
@@ -39,6 +40,9 @@ Options:
                         (by default they go next to the .mango files)
       --stdout          build: print the JS of a single file instead of writing files
       --no-check        Skip type checking
+      --markup          Turn markup and components on; by default they are on where the
+                        package.json has "mangoscript": { "markup": true }
+      --no-markup       Turn them off
   -h, --help            Show this help
   -v, --version         Show version`;
 
@@ -52,6 +56,8 @@ function main(): void {
       'out-dir': { type: 'string' },
       stdout: { type: 'boolean' },
       'no-check': { type: 'boolean' },
+      markup: { type: 'boolean' },
+      'no-markup': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -83,6 +89,13 @@ function main(): void {
   const file = files[0]!;
   const typeCheck = !values['no-check'];
 
+  if (values.markup && values['no-markup']) {
+    throw new UsageError('--markup and --no-markup cannot be used together');
+  }
+
+  // Unless one of them is given, each file takes the setting of its package.json (config.ts).
+  const markup = values.markup ? true : values['no-markup'] ? false : undefined;
+
   switch (command) {
     case 'build':
       if (values.stdout) {
@@ -90,15 +103,15 @@ function main(): void {
           throw new UsageError('--stdout needs a single .mango file');
         }
 
-        process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck }).code);
+        process.stdout.write(compileFile(file, { rewriteImports: true, typeCheck, markup }).code);
       } else {
-        buildFiles(files, values['out-dir'], typeCheck);
+        buildFiles(files, { outDir: values['out-dir'], typeCheck, markup });
       }
 
       break;
 
     case 'run':
-      process.exitCode = runFile(file, typeCheck);
+      process.exitCode = runFile(file, typeCheck, markup);
       break;
 
     case 'tokens':
@@ -106,7 +119,7 @@ function main(): void {
       break;
 
     case 'ast':
-      printAst(new SourceFile(file, readFileSync(file, 'utf8')));
+      printAst(new SourceFile(file, readFileSync(file, 'utf8')), markup ?? markupFor(file));
       break;
 
     default:
@@ -115,14 +128,14 @@ function main(): void {
 }
 
 /** Builds the files and directories and writes the `.js` files, or none if there are errors. */
-function buildFiles(entries: string[], outDir: string | undefined, typeCheck: boolean): void {
+function buildFiles(entries: string[], options: BuildOptions): void {
   for (const entry of entries) {
     if (!statSync(entry).isDirectory() && !entry.endsWith('.mango')) {
       throw new UsageError(`not a .mango file: ${entry}`);
     }
   }
 
-  const { outputs, errors, warnings } = build(entries, { outDir, typeCheck });
+  const { outputs, errors, warnings } = build(entries, options);
 
   for (const { file, diagnostics } of warnings) {
     for (const warning of diagnostics)
@@ -153,7 +166,7 @@ function buildFiles(entries: string[], outDir: string | undefined, typeCheck: bo
  * of its goroutines, which do not share the hooks of the thread that registers them. They take
  * the compiled code from a directory of the run, removed after it.
  */
-function runFile(file: string, typeCheck: boolean): number {
+function runFile(file: string, typeCheck: boolean, markup: boolean | undefined): number {
   const loader = new URL('./loader.ts', import.meta.url).href;
   const run = fileURLToPath(new URL('./run.ts', import.meta.url));
   const cache = mkdtempSync(join(tmpdir(), 'mango-run-'));
@@ -165,6 +178,7 @@ function runFile(file: string, typeCheck: boolean): number {
         ...process.env,
         MANGO_RUN_CACHE: cache,
         ...(typeCheck ? {} : { MANGO_NO_CHECK: '1' }),
+        ...(markup === undefined ? {} : { MANGO_MARKUP: markup ? '1' : '0' }),
       },
     });
 
@@ -187,8 +201,8 @@ function printTokens(file: SourceFile): void {
   reportDiagnostics(file, diagnostics);
 }
 
-function printAst(file: SourceFile): void {
-  const { program, diagnostics } = parse(file.text);
+function printAst(file: SourceFile, markup: boolean): void {
+  const { program, diagnostics } = parse(file.text, { markup });
   // Positions are left out and identifiers printed as plain names to keep the output readable.
   const compact = (key: string, value: unknown): unknown => {
     if (key === 'start' || key === 'end' || key === 'raw') return undefined;

@@ -49,6 +49,10 @@ npm run format                        # prettier --write, then eslint --fix for 
 - The editor of the playground is Monaco (`site/src/editor/`, TypeScript with the DOM, checked by
   `site/tsconfig.json`); it highlights with the grammar of `editors/vscode/syntaxes/`, so a change
   of the grammar shows there too.
+- Markup and components are off unless the package turns them on (`src/config.ts`): this
+  repository does, with `"mangoscript": { "markup": true }` in `package.json`, and tests in
+  temporary directories use `markupProject()` of `tests/project.ts`. The browser compiler takes
+  `{ markup: true }`.
 - `src/browser.ts` is the compiler of the site's playground: it has no TypeScript compiler. Code in
   `src/typescript/` (types from `.d.ts` and `lib.dom`) is Node-only and must not be imported from
   it; without it the checker falls back to `src/checker/builtins.ts` and `src/checker/dom.ts`.
