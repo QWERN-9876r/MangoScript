@@ -167,8 +167,10 @@ function buildFiles(entries: string[], options: BuildOptions): void {
  * the compiled code from a directory of the run, removed after it.
  */
 function runFile(file: string, typeCheck: boolean, markup: boolean | undefined): number {
-  const loader = new URL('./loader.ts', import.meta.url).href;
-  const run = fileURLToPath(new URL('./run.ts', import.meta.url));
+  // The build rewrites the extensions of imports, not of these URLs: in the package they are .js.
+  const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js';
+  const loader = new URL(`./loader${extension}`, import.meta.url).href;
+  const run = fileURLToPath(new URL(`./run${extension}`, import.meta.url));
   const cache = mkdtempSync(join(tmpdir(), 'rook-run-'));
 
   try {

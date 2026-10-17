@@ -1,6 +1,6 @@
 {
   "name": "rooklang",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A language with JavaScript semantics, Go-style syntax, goroutines on real threads and static types that compiles to readable JavaScript",
   "keywords": [
     "rooklang",
