@@ -37,6 +37,20 @@
 
 ## Установка
 
+Найдите «Rook Language» в панели расширений VS Code или установите его из
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Qwern9876r.rooklang).
+VSCodium, Cursor и другие редакторы, которые берут расширения из
+[Open VSX](https://open-vsx.org/extension/Qwern9876r/rooklang), найдут его там. Из командной строки:
+
+```sh
+code --install-extension Qwern9876r.rooklang
+```
+
+Расширение несёт свою копию компилятора, поэтому больше ничего не нужно. Чтобы собирать и запускать
+файлы `.rk`, поставьте и компилятор: `npm install --save-dev rooklang`.
+
+## Сборка из исходников
+
 Из корня репозитория:
 
 ```sh

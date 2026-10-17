@@ -1,10 +1,16 @@
 {
   "name": "rooklang",
-  "displayName": "Rook",
+  "displayName": "Rook Language",
   "description": "Rook support: highlighting, errors as you type and completion",
   "version": "0.1.0",
-  "publisher": "rooklang",
+  "publisher": "Qwern9876r",
+  "preview": true,
+  "icon": "icons/rook.png",
   "license": "MIT",
+  "homepage": "https://qwern-9876r.github.io/RookLang/",
+  "bugs": {
+    "url": "https://github.com/QWERN-9876r/RookLang/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/QWERN-9876r/RookLang.git",
@@ -16,6 +22,14 @@
   "categories": [
     "Programming Languages",
     "Linters"
+  ],
+  "keywords": [
+    "rook",
+    "rk",
+    "go",
+    "javascript",
+    "static types",
+    "language server"
   ],
   "activationEvents": [
     "onLanguage:rook"
@@ -34,8 +48,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./icons/rook.webp",
-          "dark": "./icons/rook.webp"
+          "light": "./icons/rook.png",
+          "dark": "./icons/rook.png"
         }
       }
     ],

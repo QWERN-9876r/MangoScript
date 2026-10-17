@@ -13,3 +13,5 @@ site/dist/
 
 # Packaged VS Code extension
 editors/vscode/*.vsix
+# Copied from the root by npm run vscode:build
+editors/vscode/LICENSE

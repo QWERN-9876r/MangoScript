@@ -45,3 +45,6 @@ for (const file of readdirSync(join(typescript, 'lib'))) {
     cpSync(join(typescript, 'lib', file), join(target, 'lib', file));
   }
 }
+
+// The Marketplace shows the license of the package, and it is the one of the repository.
+cpSync(join(root, 'LICENSE'), join(extension, 'LICENSE'));

@@ -5,6 +5,8 @@
 import { NavLink } from "../ui/nav-list.rk"
 
 export const REPOSITORY = "https://github.com/QWERN-9876r/RookLang"
+export const MARKETPLACE = "https://marketplace.visualstudio.com/items?itemName=Qwern9876r.rooklang"
+export const OPEN_VSX = "https://open-vsx.org/extension/Qwern9876r/rooklang"
 
 /** The pages of the site: the same three in each language. */
 export type Page "home" | "docs" | "playground"

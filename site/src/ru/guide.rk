@@ -6,7 +6,7 @@ import { example } from "../example.rk"
 import { Callout } from "../../ui/callout.rk"
 import { Card, CardGrid } from "../../ui/card.rk"
 import { CodeBlock } from "../../ui/code-block.rk"
-import { REPOSITORY, Section, text } from "../i18n.rk"
+import { MARKETPLACE, OPEN_VSX, REPOSITORY, Section, text } from "../i18n.rk"
 import { Components, Decorators, Markup, Mounting, Reactivity, Refs, Styles, WebComponents } from "./guide-components.rk"
 import { Async, Channels, Goroutines, Select, Streams } from "./guide-concurrency.rk"
 
@@ -325,7 +325,7 @@ npx rook run app.rk              # скомпилировать и запуст�
 npx rook build app.rk --markup   # с разметкой и компонентами`
 
 const REPOSITORY_COMMANDS = `npm run site:dev         # этот сайт на сервере разработки Vite
-npm run vscode:install   # подсветка синтаксиса в VS Code`
+npm run vscode:install   # расширение VS Code из исходников`
 
 comp Tools() {
     return <>
@@ -345,6 +345,11 @@ comp Tools() {
             {" "}<code>.rk</code>-модули импортируются как обычные, а ошибки типов показываются
             поверх страницы. Этот сайт собран именно так; его <code>package.json</code> включает
             разметку и компоненты.
+        </p>
+        <p>
+            Для VS Code есть расширение <a href={MARKETPLACE}>Rook Language</a>: подсветка, ошибки
+            прямо при наборе и автодополнение. VSCodium, Cursor и другие редакторы берут его из
+            {" "}<a href={OPEN_VSX}>Open VSX</a>.
         </p>
         <p>
             Компилятор написан на TypeScript, исходный код — в

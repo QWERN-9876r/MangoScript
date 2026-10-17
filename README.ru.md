@@ -91,6 +91,8 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 | `npm run check`                   | Всё сразу — типы, линт, формат, тесты                    |
 | `npm run build`                   | Собрать npm-пакет в `dist/`                              |
 | `npm run vscode:install`          | Собрать и установить расширение для VS Code              |
+| `npm run vscode:package`          | Упаковать расширение для VS Code в `rooklang.vsix`       |
+| `npm run vscode:publish-ovsx`     | Опубликовать расширение для VS Code в Open VSX           |
 
 Опции `build`: `--out-dir dir` — писать `.js` в отдельную папку, `--stdout` — вывести JS одного
 файла в консоль, `--no-check` — без проверки типов. `--markup` и `--no-markup` включают или
@@ -109,8 +111,16 @@ Node.js ≥ 24 (`nvm use`). Компилятор написан на TypeScript,
 
 В [editors/vscode/](editors/vscode/) лежит расширение для файлов `.rk`: подсветка кода, типов и
 разметки, ошибки прямо при наборе и автодополнение имён, членов, типов, тегов и атрибутов — от
-языкового сервера с компилятором. `npm run vscode:install` собирает его и устанавливает через
-`code`; подробности — в [editors/vscode/README.ru.md](editors/vscode/README.ru.md).
+языкового сервера с компилятором. Оно называется «Rook Language» и есть в
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Qwern9876r.rooklang) и в [Open VSX](https://open-vsx.org/extension/Qwern9876r/rooklang).
+`npm run vscode:install` собирает его из исходников и устанавливает через `code`; подробности — в
+[editors/vscode/README.ru.md](editors/vscode/README.ru.md).
+
+Релиз расширения — это новая `version` в `editors/vscode/package.json`, которую публикуют вручную.
+`npm run vscode:package` упаковывает `editors/vscode/rooklang.vsix`, и его загружают на
+[странице издателя](https://marketplace.visualstudio.com/manage/publishers/qwern9876r) в Marketplace
+(токены Azure DevOps для `vsce publish` выведены из употребления). `npm run vscode:publish-ovsx`
+публикует его в Open VSX с токеном из `OVSX_PAT`.
 
 ## Сайт с документацией
 

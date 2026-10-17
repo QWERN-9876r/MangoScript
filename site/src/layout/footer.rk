@@ -1,7 +1,7 @@
 // The bottom of the home page and the guide: the rook, links into the guide and to the other
 // resources, the other language.
 
-import { otherLanguageHref, pageHref, REPOSITORY, text } from "../i18n.rk"
+import { MARKETPLACE, otherLanguageHref, pageHref, REPOSITORY, text } from "../i18n.rk"
 import { Brand } from "./header.rk"
 import styles from "./footer.module.css"
 
@@ -25,7 +25,7 @@ export comp SiteFooter() {
                 <a href={pageHref("playground")}>{t.playground}</a>
                 <a href={REPOSITORY}>GitHub</a>
                 <a href={`${REPOSITORY}/blob/main/${t.specificationPath}`}>{t.specification}</a>
-                <a href={`${REPOSITORY}/tree/main/editors/vscode`}>{t.vscode}</a>
+                <a href={MARKETPLACE}>{t.vscode}</a>
             </nav>
             <div class={styles.column}>
                 <p class={styles.heading}>{t.footerLanguage}</p>

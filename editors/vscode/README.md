@@ -37,6 +37,20 @@ The extension also sets up comments (`Cmd+/`), closing brackets and quotes, and 
 
 ## Installation
 
+Search for "Rook Language" in the Extensions view of VS Code, or install it from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Qwern9876r.rooklang).
+VSCodium, Cursor and other editors that use [Open VSX](https://open-vsx.org/extension/Qwern9876r/rooklang)
+find it there. From the command line:
+
+```sh
+code --install-extension Qwern9876r.rooklang
+```
+
+The extension carries its own copy of the compiler, so it needs nothing else. To build and run
+`.rk` files, install the compiler too: `npm install --save-dev rooklang`.
+
+## Building from source
+
 From the root of the repository:
 
 ```sh
