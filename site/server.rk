@@ -16,6 +16,12 @@ func contentType(path string) string {
         return "text/javascript; charset=utf-8"
     case ".svg":
         return "image/svg+xml"
+    case ".png":
+        return "image/png"
+    case ".xml":
+        return "application/xml; charset=utf-8"
+    case ".txt":
+        return "text/plain; charset=utf-8"
     case ".webp":
         return "image/webp"
     case ".woff2":

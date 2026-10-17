@@ -26,6 +26,7 @@ npx vitest run tests/html-tag.test.ts # one test file
 npm run rook -- build app.rk      # compile (app.js next to the source); `run` compiles and runs
 node src/cli.ts ast file.rk        # print the AST
 npm run site:dev / site:build / site  # the docs site: Vite dev server / build / build and serve
+npm run site:images                   # redraw the og:image pictures of site/public (needs Chrome)
 npm run vscode:build                  # bundle the VS Code extension and its language server
 npm run vscode:install                # rebuild and install the VS Code extension
 npm run format                        # prettier --write, then eslint --fix for blank lines
@@ -82,6 +83,9 @@ npm run format                        # prettier --write, then eslint --fix for 
   with the plugin `src/vite.ts`. `tests/site.test.ts` compiles it, compiles every example with the
   browser compiler and checks that each example exists in both languages and is used by the guide
   (`site/src/<lang>/guide*.rk`).
+- Titles and descriptions of pages are in their `index.html`; `site/seo.ts` makes from them the
+  canonical address, hreflang, Open Graph, JSON-LD, `sitemap.xml` and `robots.txt`. A new page goes
+  into `PAGES` of `vite.config.ts`.
 
 ## Adding a language feature
 

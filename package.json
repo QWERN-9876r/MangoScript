@@ -57,6 +57,7 @@
     "site:dev": "vite",
     "site:build": "vite build",
     "site": "npm run site:build && node src/cli.ts run site/server.rk",
+    "site:images": "node scripts/og-image.ts",
     "vscode:build": "node scripts/build-vscode.ts",
     "vscode:package": "npm run vscode:build && cd editors/vscode && npx --yes @vscode/vsce@4 package --no-dependencies --allow-missing-repository --skip-license --out rooklang.vsix",
     "vscode:install": "npm run vscode:package && code --install-extension editors/vscode/rooklang.vsix --force",

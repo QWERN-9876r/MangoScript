@@ -1,12 +1,14 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
+import { seo } from './site/seo.ts';
 import { rook } from './src/vite.ts';
 
 // The documentation site (site/): its pages are Rook modules compiled by the plugin from
 // src/vite.ts. `npm run site:dev` serves it with Vite, `npm run site:build` builds it to site/dist.
 // Each language has three pages, each a folder with its index.html: the home page, docs/ and
-// playground/; the English ones are at the root, the Russian ones in ru/.
+// playground/; the English ones are at the root, the Russian ones in ru/. Files of site/public
+// (the pictures for links, drawn by `npm run site:images`) are copied to the site as they are.
 
 const site = new URL('./site/', import.meta.url).pathname;
 
@@ -70,5 +72,5 @@ export default defineConfig({
       ),
     },
   },
-  plugins: [rook(), examples()],
+  plugins: [rook(), examples(), seo(site, PAGES)],
 });

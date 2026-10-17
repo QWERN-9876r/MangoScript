@@ -133,5 +133,26 @@ describe('documentation site', { timeout: 30_000 }, () => {
       expect(code).toContain(hello(guide.examples));
       expect(code).not.toContain(hello(guide.other));
     }
+
+    // site/seo.ts: the tags of each page, the files of site/public, the sitemap and robots.txt.
+    const docs = readFileSync(join(outDir, 'ru/docs/index.html'), 'utf8');
+
+    expect(docs).toContain(
+      '<link rel="canonical" href="https://qwern-9876r.github.io/RookLang/ru/docs/">',
+    );
+    expect(docs).toContain(
+      '<meta property="og:image" content="https://qwern-9876r.github.io/RookLang/og-ru.png">',
+    );
+    expect(docs).toContain('<link rel="apple-touch-icon" href="../../apple-touch-icon.png">');
+    // After <meta charset>, which must come first.
+    expect(docs.indexOf('charset')).toBeLessThan(docs.indexOf('og:title'));
+    expect(readFileSync(join(outDir, 'index.html'), 'utf8')).toContain('application/ld+json');
+    expect(readdirSync(outDir)).toEqual(
+      expect.arrayContaining(['og-en.png', 'og-ru.png', 'apple-touch-icon.png']),
+    );
+    expect(readFileSync(join(outDir, 'sitemap.xml'), 'utf8')).toContain(
+      '<loc>https://qwern-9876r.github.io/RookLang/ru/playground/</loc>',
+    );
+    expect(readFileSync(join(outDir, 'robots.txt'), 'utf8')).toContain('sitemap.xml');
   });
 });
