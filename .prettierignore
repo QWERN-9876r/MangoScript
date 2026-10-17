@@ -1,0 +1,2 @@
+# Verification files of search engines must stay byte for byte as they were given.
+site/public/google*.html
