@@ -89,3 +89,21 @@ export comp Select() {
         {example("timers")}
     </>
 }
+
+export comp Streams() {
+    return <>
+        <p>
+            <code>chan(stream, size)</code> превращает <code>ReadableStream</code>, например тело
+            ответа <code>fetch</code>, в канал его кусков и даёт второй канал, в который приходит
+            ошибка потока или <code>null</code> в его конце. Следующий кусок читается, только когда
+            предыдущий уже в канале, так что место в канале — это обратное давление потока, а
+            читать канал может горутина в другом потоке. <code>close(chunks)</code> отменяет поток.
+        </p>
+        <p>
+            <code>stream(ch)</code> — обратное превращение: <code>ReadableStream</code> значений
+            канала, который кончается, когда канал закрыт; его можно отдать телом
+            {" "}<code>Response</code> или передать в <code>pipeTo</code>.
+        </p>
+        {example("streams")}
+    </>
+}

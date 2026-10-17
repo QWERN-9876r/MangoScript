@@ -5,11 +5,25 @@ import { GoroutineChecker } from './goroutines.ts';
 import { isUntyped } from './helpers.ts';
 import { isPromise } from './promise.ts';
 import { BUFFERS } from './transfer.ts';
-import { BOOL, isNullable, nonNull, NUMBER, typeToString, type Type } from './types.ts';
+import {
+  ANY,
+  BOOL,
+  ERROR,
+  instantiate,
+  isNullable,
+  nonNull,
+  NUMBER,
+  type ObjectType,
+  typeToString,
+  type Type,
+  typedArrayOf,
+  UNKNOWN,
+} from './types.ts';
 
 // Channels: `chan<number>(10)` makes one, `ch <- v` sends a value, `<-ch` receives one (in
 // operators.ts), `for v in ch` receives them until it is closed (in control-flow.ts), and
 // `select` waits for the first of several. `transfer(x)` moves a buffer to another thread.
+// `chan(stream)` receives the chunks of a ReadableStream, and `stream(ch)` reads a channel.
 
 /** What `transfer(x)` moves: a buffer, or a view whose buffer moves. */
 const MOVABLE: ReadonlySet<string> = new Set(BUFFERS);
@@ -28,6 +42,37 @@ export abstract class ChannelChecker extends GoroutineChecker {
     if (node.size) this.expectAssignable(this.checkValue(node.size, NUMBER), NUMBER, node.size);
 
     return chanOf(element);
+  }
+
+  // `chan(res.body, 4)`: the channel of the chunks and the one of the error of the stream. A null
+  // stream, such as the body of a response without one, gives a closed channel.
+  protected override checkStreamChan(node: ast.StreamChanExpression): Type {
+    const type = this.checkValue(node.stream);
+    const stream = isNullable(type) ? nonNull(type) : type;
+    let element: Type = ANY;
+
+    if (stream.kind === 'object' && typeName(stream) === 'ReadableStream') {
+      element = stream.instanceOf?.args[0] ?? ANY;
+
+      // The bytes of a body are a Uint8Array<ArrayBuffer>, and a channel takes only its own type:
+      // its values are `[]byte`.
+      const typed = typedArrayOf(element);
+
+      if (typed !== null) element = this.typedArray(typed);
+    } else if (!isUntyped(stream)) {
+      this.error(
+        `chan(...) takes a ReadableStream, not ${typeToString(type)}; a channel of values is made as chan<T>(size), e.g. chan<number>(10)`,
+        node.stream,
+      );
+      if (node.size) this.checkValue(node.size);
+
+      // `ch = chan(10)` meant `chan<number>(10)`: one error is enough.
+      return UNKNOWN;
+    }
+
+    if (node.size) this.expectAssignable(this.checkValue(node.size, NUMBER), NUMBER, node.size);
+
+    return { kind: 'tuple', types: [chanOf(element), chanOf(ERROR, 'receive')] };
   }
 
   protected override checkSend(node: ast.SendStatement): void {
@@ -85,6 +130,8 @@ export abstract class ChannelChecker extends GoroutineChecker {
       );
     }
 
+    if (builtin === 'stream' && isChan(type)) return this.streamOf(type, argument);
+
     if (builtin === 'cancel' && !isUntyped(type) && !isPromise(type)) {
       this.error(
         `cancel() stops a goroutine: give it the Promise of "go", not ${typeToString(type)}, e.g. "const task = go work(x)" and "cancel(task)"`,
@@ -100,6 +147,22 @@ export abstract class ChannelChecker extends GoroutineChecker {
     }
 
     return result;
+  }
+
+  /** `stream(ch)`: a ReadableStream of the values of the channel, from the library if it has one. */
+  private streamOf(channel: ObjectType, argument: ast.Expression): Type {
+    if (chanDirection(channel) === 'send') {
+      this.error(
+        `stream() reads a channel, and ${typeToString(channel)} only sends; give it a "chan T" or a "<-chan T"`,
+        argument,
+      );
+    }
+
+    const template = this.options.library?.type('ReadableStream');
+
+    return template?.kind === 'object' && template.typeParams?.length === 1
+      ? instantiate(template, [elementOf(channel)])
+      : ANY;
   }
 
   protected override checkSelect(node: ast.SelectStatement): void {

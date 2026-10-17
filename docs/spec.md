@@ -92,7 +92,8 @@ After `.` and in object keys, keywords can be used as ordinary names: `xs.map(f)
 `{ default: 1 }`.
 
 Predeclared identifiers (not keywords, they can be redeclared): the types `number`, `string`,
-`bool`, `any`, `error` and the functions `error()` and `close()` (of channels).
+`bool`, `any`, `error` and the functions `error()`, `close()` (of channels) and the others of
+goroutines and channels: `transfer()`, `after()`, `tick()`, `cancel()` and `stream()`.
 
 Names that start with `$$` are reserved for generated code (`$$defer`, `$$0`). Names that are valid
 in Rook but not in JS (`delete`, `static`, `function`…) get a `$` suffix in the output:
@@ -792,7 +793,8 @@ console.log(await $$receive(results));
 ```
 
 Channels pass values between goroutines, as in Go. `chan T` is the type of a channel of `T`, and
-`chan<T>(size)` makes one with room for `size` values; `chan<T>()` has none.
+`chan<T>(size)` makes one with room for `size` values; `chan<T>()` has none. `chan(stream, size)`
+makes one that receives a stream (see "Streams" below).
 
 - **`ch <- v` sends a value** and waits until the channel takes it: while the channel has room,
   at once, and otherwise until a receiver comes. **`<-ch` receives a value**, waiting until there
@@ -906,6 +908,53 @@ $$cancel(task);
   `go`, or of one that has finished, is left as it is.
 - `after`, `tick` and `cancel` are predeclared, like `close`: a declaration with one of these names
   hides them.
+
+### Streams
+
+```go
+async func countWords(chunks <-chan string) number {
+    let words = 0
+    for chunk in chunks {
+        words += chunk.split(" ").length
+    }
+    return words
+}
+
+const response = await fetch("book.txt")
+const text = response.body?.pipeThrough(new TextDecoderStream())
+const chunks, failed = chan(text, 4)
+const words = await go countWords(chunks)
+const err = <-failed
+```
+
+```js
+const [chunks, failed] = $$fromStream(text, 4, "");
+const words = await $$go("countWords", [chunks]);
+const err = await $$receive(failed);
+```
+
+A `ReadableStream`, such as the body of a `fetch` response, goes into a channel, and a channel
+becomes a stream, so that goroutines make pipelines over the network.
+
+- **`chan(stream, size)`** gives two channels: a `chan T` with room for `size` values that receives
+  the chunks of a `ReadableStream<T>`, and a `<-chan error` that gets the error of the stream, or
+  `null` at its end, as the `errc` of the pipelines of Go. Both are unpacked: `const chunks, failed
+= chan(body)`. The chunks of a body are `[]byte`; `pipeThrough(new TextDecoderStream())` makes
+  them strings.
+- **Backpressure:** the next chunk is read only when the last one is in the channel, so the room
+  of the channel is all that is read ahead: when it is full, the stream is not read, and the
+  network waits.
+- **The end:** when the stream ends, the channel is closed and `failed` gets `null`; when it fails,
+  as when the connection is lost, the channel is closed after the chunks it got, and `failed` gets
+  the error. `close(chunks)` cancels the stream, and `failed` gets `null`. A `null` stream, as the
+  body of a response without one, gives a closed channel.
+- **Threads:** the stream is read in the thread that called `chan`, and the channel goes to a
+  goroutine as any channel does: its chunks are copied there.
+- **`stream(ch)`** is a `ReadableStream<T>` of the values of a `<-chan T` that ends when the
+  channel is closed: `new Response(stream(lines))`. It reads one value for each read of the
+  stream, so the room of the channel is all it holds. A reader that cancels the stream stops
+  reading the channel; the channel is not closed, since its senders would fail.
+- `stream` is predeclared, like `after`.
 
 ## 6. Conditions and loops
 
@@ -1986,9 +2035,6 @@ Planned next, around goroutines and what the browser has:
 - **`topic T`, channels between the tabs of a site,** over `BroadcastChannel`, for example
   `const cart = topic<CartEvent>("cart")`. It is a type of its own, not a `chan`: every tab that
   listens gets each value, and sending waits for nobody, so the promises of `chan` would not hold.
-- **Streams and channels:** a channel that receives the chunks of a `ReadableStream`, such as the
-  body of a `fetch` response, and a stream that reads a channel, so that goroutines make pipelines
-  over the network. The room of the channel is the backpressure of the stream.
 - **A ring buffer for the values of a channel:** now they are an array, and taking one out with
   `shift()` costs as many steps as the channel holds, which shows with `chan<number>(100_000)`.
 - **State that survives a reload,** see Stages in [components.md](components.md).

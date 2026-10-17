@@ -180,6 +180,7 @@ export function callName(node: ast.Expression): string {
   }
 
   if (node.kind === 'GoExpression') return callName(node.call);
+  if (node.kind === 'StreamChanExpression') return 'chan(stream)';
 
   if (node.kind !== 'CallExpression') return 'this expression';
 

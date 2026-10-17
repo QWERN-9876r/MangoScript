@@ -123,6 +123,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       optional(node.size);
       break;
 
+    case 'StreamChanExpression':
+      visit(node.stream);
+      optional(node.size);
+      break;
+
     case 'MakeExpression':
       visit(node.type);
       visit(node.length);

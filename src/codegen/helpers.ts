@@ -31,6 +31,7 @@ export const PREDECLARED: Readonly<Record<string, Helper>> = {
   transfer: 'threads',
   after: 'timers',
   tick: 'timers',
+  stream: 'streams',
   cancel: 'cancel',
 };
 
@@ -42,6 +43,7 @@ export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> 
   serve: ['threads'],
   chan: ['threads', 'select'],
   timers: ['chan'],
+  streams: ['chan'],
   cancel: ['threads'],
   select: ['chan'],
   owner: ['runDeferred'],

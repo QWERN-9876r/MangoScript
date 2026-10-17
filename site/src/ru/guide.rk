@@ -8,7 +8,7 @@ import { Card, CardGrid } from "../../ui/card.rk"
 import { CodeBlock } from "../../ui/code-block.rk"
 import { REPOSITORY, Section, text } from "../i18n.rk"
 import { Components, Decorators, Markup, Mounting, Reactivity, Refs, Styles, WebComponents } from "./guide-components.rk"
-import { Async, Channels, Goroutines, Select } from "./guide-concurrency.rk"
+import { Async, Channels, Goroutines, Select, Streams } from "./guide-concurrency.rk"
 
 export const SECTIONS []Section = [
     { id: "intro", title: "Что такое Rook", group: "Язык", content: Intro },
@@ -26,6 +26,7 @@ export const SECTIONS []Section = [
     { id: "goroutines", title: "Горутины", group: "Горутины и каналы", content: Goroutines },
     { id: "channels", title: "Каналы", group: "Горутины и каналы", content: Channels },
     { id: "select", title: "select", group: "Горутины и каналы", content: Select },
+    { id: "streams", title: "Потоки", group: "Горутины и каналы", content: Streams },
     { id: "markup", title: "Разметка", group: "Разметка и компоненты", content: Markup },
     { id: "components", title: "Компоненты", group: "Разметка и компоненты", content: Components },
     { id: "state", title: "Состояние", group: "Разметка и компоненты", content: Reactivity },

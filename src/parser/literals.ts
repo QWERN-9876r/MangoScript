@@ -166,6 +166,24 @@ export abstract class LiteralParser extends ExpressionParser {
     return { kind: 'MakeExpression', type, length, shared, ...this.span(start) };
   }
 
+  /** `chan(stream)` or `chan(stream, size)`, after `chan`. */
+  protected override parseStreamChan(start: number): ast.StreamChanExpression {
+    this.expect('(');
+
+    const [stream, size] = this.nested(() => {
+      const stream = this.parseExpression();
+      const size = this.accept(',') && !this.check(')') ? this.parseExpression() : null;
+
+      this.accept(',');
+
+      return [stream, size] as const;
+    });
+
+    this.expect(')');
+
+    return { kind: 'StreamChanExpression', stream, size, ...this.span(start) };
+  }
+
   /** `[]byte("text")`: a type, then its value in parentheses. */
   protected override parseConversion(): ast.ConversionExpression {
     const { start } = this.peek();

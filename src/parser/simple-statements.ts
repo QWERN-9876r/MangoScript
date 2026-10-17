@@ -120,6 +120,8 @@ export abstract class SimpleStatementParser extends ParserBase {
     const call = awaited?.kind === 'GoExpression' ? awaited.call : awaited;
 
     if (values.length === 1 && call?.kind === 'CallExpression') return;
+    // `chunks, failed = chan(res.body)`: the channel of a stream and that of its error.
+    if (values.length === 1 && value?.kind === 'StreamChanExpression') return;
     this.error(
       `assignment mismatch: ${plural(targets, 'variable')} but ${plural(values.length, 'value')}`,
       start,

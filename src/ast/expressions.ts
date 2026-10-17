@@ -31,6 +31,7 @@ export type Expression =
   | AsExpression
   | GoExpression
   | ChanExpression
+  | StreamChanExpression
   | ConversionExpression
   | MakeExpression;
 
@@ -59,6 +60,16 @@ export interface MakeExpression extends NodeBase {
 export interface ChanExpression extends NodeBase {
   kind: 'ChanExpression';
   element: TypeNode;
+  size: Expression | null;
+}
+
+/**
+ * `chan(res.body, 4)`: a channel that receives the chunks of a ReadableStream, with room for 4,
+ * and a channel that gets the error of the stream, or null at its end.
+ */
+export interface StreamChanExpression extends NodeBase {
+  kind: 'StreamChanExpression';
+  stream: Expression;
   size: Expression | null;
 }
 

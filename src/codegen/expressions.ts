@@ -35,6 +35,8 @@ export abstract class ExpressionEmitter extends Emitter {
 
   protected abstract make(node: ast.MakeExpression): string;
 
+  protected abstract streamChan(node: ast.StreamChanExpression): string;
+
   /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
   protected readonly commaOk = new WeakSet<ast.Expression>();
 
@@ -181,6 +183,9 @@ export abstract class ExpressionEmitter extends Emitter {
 
         return [`$$chan(${size}, ${this.zeroValue(node.element) ?? 'null'})`, POSTFIX];
       }
+
+      case 'StreamChanExpression':
+        return [this.streamChan(node), POSTFIX];
 
       // The worker module has the function under the same name, a literal under the name given to
       // it, after the local names it uses; the arguments are copied there. In the worker module a

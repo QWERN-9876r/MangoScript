@@ -5,6 +5,7 @@ import { SVG_TYPES } from './dom-svg.ts';
 import { chanOf } from './channel.ts';
 import { PROMISE } from './promise.ts';
 import { BUFFERS } from './transfer.ts';
+import { UNTYPED_GLOBALS } from './untyped-globals.ts';
 import {
   ANY,
   arrayOf,
@@ -287,43 +288,8 @@ const booleanObject = object('Boolean', {}, func([ANY], [BOOL]));
 
 const timer = func([func([], []), NUMBER], [ANY], { required: 1, rest: ANY });
 
-/** JS globals that are available without types: everything about them is `any`. */
+/** The type parameter of `transfer`: it gives back what it takes. */
 const MOVED: TypeParam = { kind: 'param', name: 'T' };
-
-const UNTYPED_GLOBALS = [
-  'Object',
-  'Array',
-  'Date',
-  'RegExp',
-  'Map',
-  'Set',
-  'WeakMap',
-  'WeakSet',
-  'Promise',
-  'Symbol',
-  'Reflect',
-  'Proxy',
-  'Intl',
-  'globalThis',
-  'process',
-  'Buffer',
-  'URL',
-  'URLSearchParams',
-  'TextEncoder',
-  'TextDecoder',
-  'AbortController',
-  'fetch',
-  'structuredClone',
-  'queueMicrotask',
-  'window',
-  'document',
-  'navigator',
-  'location',
-  'localStorage',
-  'sessionStorage',
-  'crypto',
-  'performance',
-];
 
 export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   ['console', console],
@@ -356,6 +322,8 @@ export const GLOBAL_VALUES: ReadonlyMap<string, Type> = new Map<string, Type>([
   // Channels of time, as in Go: the time once after `ms`, or every `ms` until `close(ticks)`.
   ['after', func([NUMBER], [chanOf(NUMBER, 'receive')])],
   ['tick', func([NUMBER], [chanOf(NUMBER)])],
+  // `stream(ch)`: a ReadableStream of the values of a channel (its type: channels.ts).
+  ['stream', func([chanOf(ANY, 'receive')], [ANY])],
   // `cancel(task)` stops a goroutine: it takes the Promise of `go` (channels.ts).
   ['cancel', func([ANY], [])],
   ...[...UNTYPED_GLOBALS, ...BUFFERS].map((name): [string, Type] => [name, ANY]),

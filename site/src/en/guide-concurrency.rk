@@ -87,3 +87,22 @@ export comp Select() {
         {example("timers")}
     </>
 }
+
+export comp Streams() {
+    return <>
+        <p>
+            <code>chan(stream, size)</code> turns a <code>ReadableStream</code>, such as the body
+            of a <code>fetch</code> response, into a channel of its chunks, and gives a second
+            channel that gets the error of the stream, or <code>null</code> at its end. The next
+            chunk is read only when the last one is in the channel, so the room of the channel
+            is the backpressure of the stream, and a goroutine in another thread can read it.
+            {" "}<code>close(chunks)</code> cancels the stream.
+        </p>
+        <p>
+            <code>stream(ch)</code> is the other way: a <code>ReadableStream</code> of the values
+            of a channel, which ends when the channel is closed, to give as the body of a
+            {" "}<code>Response</code> or to <code>pipeTo</code> somewhere.
+        </p>
+        {example("streams")}
+    </>
+}

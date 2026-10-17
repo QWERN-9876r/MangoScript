@@ -1,5 +1,5 @@
 import type * as ast from '../ast.ts';
-import { typedArrayOf } from '../checker/types.ts';
+import { typedArrayOf, type Type } from '../checker/types.ts';
 import { isYieldCall } from '../iterators.ts';
 import { TYPED_ARRAYS, TYPED_ELEMENTS } from '../typed-arrays.ts';
 import { hasOptionalLink } from './analysis.ts';
@@ -131,5 +131,48 @@ export abstract class CallEmitter extends ExpressionEmitter {
 
   protected override conversion(node: ast.ConversionExpression): string {
     return `new TextEncoder().encode(${this.expression(node.argument, 0)})`;
+  }
+
+  /**
+   * `chan(stream, size)`: the channel keeps the zero value of its values, as `chan<T>(size)` does,
+   * from the type of the stream that the checker found; without it, null.
+   */
+  protected override streamChan(node: ast.StreamChanExpression): string {
+    const stream = this.expression(node.stream, ARROW);
+    const size = node.size ? this.expression(node.size, ARROW) : '0';
+    const type = this.options.types?.get(node);
+    const channel = type?.kind === 'tuple' ? type.types[0] : undefined;
+    const element = channel?.kind === 'object' ? channel.instanceOf?.args[0] : undefined;
+
+    this.helpers.add('streams');
+
+    return `$$fromStream(${stream}, ${size}, ${element ? zeroOf(element) : 'null'})`;
+  }
+}
+
+/** The zero value of a type, as zeroValue gives for a type as written. */
+function zeroOf(type: Type): string {
+  const typed = typedArrayOf(type);
+
+  if (typed !== null) return `new ${typed}()`;
+
+  switch (type.kind) {
+    case 'number':
+      return '0';
+
+    case 'bigint':
+      return '0n';
+
+    case 'string':
+      return '""';
+
+    case 'bool':
+      return 'false';
+
+    case 'array':
+      return '[]';
+
+    default:
+      return 'null';
   }
 }

@@ -65,7 +65,10 @@ describe('parsing', () => {
     ['func f() { <-ch }', '"<-" is allowed only in async functions'],
     ['func f() { ch <- 1 }', '"<-" is allowed only in async functions'],
     ['async func f() { defer { ch <- 1 } }', '"<-" is not allowed inside "defer"'],
-    ['x = chan(1)', '"<": a channel is made as chan<T>(size), e.g. chan<number>(10)'],
+    [
+      'x = chan[number](1)',
+      '"<" or "(": a channel is made as chan<T>(size), e.g. chan<number>(10)',
+    ],
   ])('reports %j', (source, message) => {
     expect(syntaxErrors(source)).toEqual([expect.stringContaining(message)]);
   });
