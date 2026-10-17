@@ -91,7 +91,6 @@ staged version is formatted, so edits that are not staged stay out of the commit
 | `npm run build`                   | Build the npm package to `dist/`                        |
 | `npm run vscode:install`          | Build and install the VS Code extension                 |
 | `npm run vscode:package`          | Pack the VS Code extension into `rooklang.vsix`         |
-| `npm run vscode:publish-ovsx`     | Publish the VS Code extension to Open VSX               |
 
 Options of `build`: `--out-dir dir` writes the `.js` files to a separate folder, `--stdout` prints
 the JS of one file, `--no-check` skips type checking. `--markup` and `--no-markup` turn markup and
@@ -112,14 +111,14 @@ version yet, runs `npm run check`, builds `dist/`, publishes the package to npm 
 and markup, errors as you type and completion of names, members, types, tags and attributes, from a
 language server with the compiler. It is "Rook Language" in the
 [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Qwern9876r.rooklang) and on [Open VSX](https://open-vsx.org/extension/Qwern9876r/rooklang).
-`npm run vscode:install` builds it from the source and installs it with `code`; see
-[editors/vscode/README.md](editors/vscode/README.md).
+`npm run vscode:install` builds it from the source and installs it with `code`; how to work on it
+is in [editors/vscode/DEVELOPMENT.md](editors/vscode/DEVELOPMENT.md).
 
-A release of the extension is a new `version` in `editors/vscode/package.json`, published by hand.
-`npm run vscode:package` packs `editors/vscode/rooklang.vsix`, which is uploaded on the
-[publisher's page](https://marketplace.visualstudio.com/manage/publishers/qwern9876r) of the
-Marketplace (Azure DevOps tokens for `vsce publish` are retired). `npm run vscode:publish-ovsx`
-publishes it to Open VSX with the token in `OVSX_PAT`.
+A release of the extension is a new `version` in `editors/vscode/package.json` on `main`: the
+workflow [.github/workflows/vscode.yml](.github/workflows/vscode.yml) sees that a store does not
+have this version yet, runs `npm run check`, publishes the extension to the Marketplace and Open VSX
+and tags the commit `vscode-v0.1.1`. The setup of the stores is in
+[editors/vscode/DEVELOPMENT.md](editors/vscode/DEVELOPMENT.md#publishing).
 
 ## Documentation site
 

@@ -1,0 +1,126 @@
+# Publishes the VS Code extension when main gets a version in editors/vscode/package.json that a
+# store does not have yet: to the Visual Studio Marketplace and to Open VSX, each on its own, so a
+# failed store is retried by running the workflow again. Both stores trust GitHub's OIDC token
+# instead of a stored one; the setup is in editors/vscode/DEVELOPMENT.md. The Marketplace takes it
+# through a managed identity of Azure (Azure DevOps tokens are retired), Open VSX directly, as a
+# trusted publisher of the namespace.
+name: VS Code extension
+
+on:
+  push:
+    branches: [main]
+    paths: [editors/vscode/package.json]
+  workflow_dispatch:
+    inputs:
+      identity:
+        description: Only print the Azure DevOps id of the managed identity, for the publisher
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+# Two pushes in a row must not publish the same version twice.
+concurrency:
+  group: vscode
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # The id that the Marketplace asks for when the identity is added to the publisher.
+      - if: inputs.identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          # The identity needs no Azure resources, only a token for Azure DevOps.
+          allow-no-subscriptions: true
+      - if: inputs.identity
+        run: >
+          az rest -u https://app.vssps.visualstudio.com/_apis/profile/profiles/me
+          --resource 499b84ac-1321-427f-aa17-267ca6975798
+
+      # `vsce show` fails for an extension the Marketplace does not have; Open VSX answers 404 for
+      # a version it does not have. The Marketplace is skipped until its identity is set up.
+      - if: ${{ !inputs.identity }}
+        name: Is this version new?
+        id: version
+        working-directory: editors/vscode
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+        run: |
+          id=$(node -p "const p = require('./package.json'); p.publisher + '.' + p.name")
+          path=$(node -p "const p = require('./package.json'); p.publisher + '/' + p.name")
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          versions=$(npx --yes @vscode/vsce@4 show "$id" --json 2>/dev/null \
+            | node -e "let s = ''; process.stdin.on('data', d => (s += d)).on('end', () => \
+                console.log(JSON.parse(s).versions.map(v => v.version).join(' ')))" || true)
+          if [ -z "$AZURE_CLIENT_ID" ]; then
+            echo "the variable AZURE_CLIENT_ID is not set: skipping the Marketplace"
+            echo "marketplace=false" >> "$GITHUB_OUTPUT"
+          elif [[ " $versions " == *" $version "* ]]; then
+            echo "$id@$version is in the Marketplace already"
+            echo "marketplace=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "marketplace=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          status=$(curl -s -o /dev/null -w "%{http_code}" "https://open-vsx.org/api/$path/$version")
+          if [ "$status" = 200 ]; then
+            echo "$id@$version is on Open VSX already"
+            echo "openvsx=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "openvsx=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.version.outputs.marketplace == 'true' || steps.version.outputs.openvsx == 'true'
+        name: Check and pack
+        run: |
+          npm ci
+          npm run check
+          npm run vscode:package
+
+      - if: steps.version.outputs.marketplace == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          # The identity needs no Azure resources, only a token for Azure DevOps.
+          allow-no-subscriptions: true
+      # --azure-credential signs in as whoever `az` is signed in as: the identity above.
+      - if: steps.version.outputs.marketplace == 'true'
+        name: Publish to the Marketplace
+        working-directory: editors/vscode
+        run: npx --yes @vscode/vsce@4 publish --packagePath rooklang.vsix --azure-credential
+
+      # Without a token ovsx exchanges the OIDC token for one (trusted publishing, ovsx 1.2.0 or
+      # later). The secret OVSX_PAT is only for a namespace that cannot register the workflow yet.
+      - if: steps.version.outputs.openvsx == 'true'
+        name: Publish to Open VSX
+        working-directory: editors/vscode
+        run: npx --yes ovsx@1.2.0 publish rooklang.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      # A tag pushed with the token of the workflow starts no other workflow.
+      - if: steps.version.outputs.marketplace == 'true' || steps.version.outputs.openvsx == 'true'
+        name: Tag the release
+        run: |
+          tag="vscode-v${{ steps.version.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag exists already"
+          else
+            git tag "$tag"
+            git push origin "$tag"
+          fi

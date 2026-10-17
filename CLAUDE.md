@@ -76,8 +76,12 @@ npm run format                        # prettier --write, then eslint --fix for 
   | `README.md`               | `README.ru.md`               |
   | `docs/spec.md`            | `docs/spec.ru.md`            |
   | `docs/components.md`      | `docs/components.ru.md`      |
+  | `editors/vscode/*.md`     | `editors/vscode/*.ru.md`     |
   | `site/src/en/` (site `/`) | `site/src/ru/` (site `/ru/`) |
   | `site/examples/*.rk`      | `site/examples/ru/*.rk`      |
+
+- `editors/vscode/README.md` is the page of the extension in the Marketplace, so it is written for
+  its users; building the extension and working on it go to `editors/vscode/DEVELOPMENT.md`.
 
 - The site is itself a Rook program (`site/src`, server `site/server.rk`), built by Vite
   with the plugin `src/vite.ts`. `tests/site.test.ts` compiles it, compiles every example with the

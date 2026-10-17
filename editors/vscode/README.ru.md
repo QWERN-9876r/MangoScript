@@ -49,36 +49,6 @@ code --install-extension Qwern9876r.rooklang
 Расширение несёт свою копию компилятора, поэтому больше ничего не нужно. Чтобы собирать и запускать
 файлы `.rk`, поставьте и компилятор: `npm install --save-dev rooklang`.
 
-## Сборка из исходников
-
-Из корня репозитория:
-
-```sh
-npm run vscode:install
-```
-
-Команда собирает клиент и языковой сервер вместе с компилятором в `editors/vscode/dist`
-(`npm run vscode:build`), упаковывает `editors/vscode/rooklang.vsix` и устанавливает его через
-`code`. После изменений в грамматике или компиляторе её нужно запустить снова и перезагрузить окно
-VS Code.
-
-Для разработки расширения удобнее окно, в котором оно загружено прямо из этой папки; сначала его
-нужно собрать:
-
-```sh
-npm run vscode:build
-code --extensionDevelopmentPath="$PWD/editors/vscode"
-```
-
-Исходники расширения лежат в `src/`: `extension.mts` запускает сервер, `server.mts` отвечает VS
-Code, а само автодополнение — в компиляторе (`src/completion.ts` и последний слой проверки типов,
-`src/checker/completion.ts`). Их проверяют `tests/completion.test.ts` и
-`tests/vscode-server.test.ts`.
-
-Грамматика проверяется тестами в `tests/vscode-grammar.test.ts` тем же движком, что использует VS
-Code (`vscode-textmate`). Посмотреть области под курсором можно командой «Developer: Inspect Editor
-Tokens and Scopes».
-
 ## Ограничения
 
 Как и в `rook build`, в файле с синтаксической ошибкой видны только синтаксические ошибки: типы
