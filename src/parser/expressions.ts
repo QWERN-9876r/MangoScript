@@ -230,6 +230,12 @@ export abstract class ExpressionParser extends TypeParser {
         if (this.peek(1).kind === '=>') return this.parseArrowFunction();
         if (this.isDecoratorGet()) return this.parseDecoratorGet();
         if (this.isMake()) return this.parseMake();
+        if (this.checkWord('queue') && this.peek(1).kind === '<') {
+          const queue = this.parseQueue();
+
+          if (queue) return queue;
+        }
+
         this.next();
 
         return { kind: 'Identifier', name: token.text, start, end };

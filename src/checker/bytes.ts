@@ -1,5 +1,5 @@
 import type * as ast from '../ast.ts';
-import { ChannelChecker } from './channels.ts';
+import { QueueChecker } from './queues.ts';
 import { isUntyped } from './helpers.ts';
 import { holdsBigInts } from '../typed-arrays.ts';
 import {
@@ -18,7 +18,7 @@ import {
 // expected, `let data []byte = [1, 2]`; and the conversions of Go between text and its UTF-8
 // bytes, `[]byte("rook")` and `string(data)`.
 
-export abstract class BytesChecker extends ChannelChecker {
+export abstract class BytesChecker extends QueueChecker {
   protected override checkArrayLiteral(node: ast.ArrayLiteral, expected: Type | null): Type {
     const typed = expected && nonNull(expected);
     const name = typed && typedArrayOf(typed);

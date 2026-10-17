@@ -55,6 +55,9 @@ export function sx(node: ast.Expression | ast.SpreadElement | ast.Property): str
     case 'StreamChanExpression':
       return `(chan-stream ${sx(node.stream)}${node.size ? ` ${sx(node.size)}` : ''})`;
 
+    case 'QueueExpression':
+      return `(queue ${ty(node.element)}${node.items ? ` ${sx(node.items)}` : ''})`;
+
     case 'MakeExpression':
       return `(make ${ty(node.type)} ${sx(node.length)}${node.shared ? ' shared' : ''})`;
 
@@ -154,6 +157,9 @@ export function ty(node: ast.TypeNode): string {
 
     case 'ChanType':
       return `${{ both: 'chan', send: 'chan<-', receive: '<-chan' }[node.direction]} ${ty(node.element)}`;
+
+    case 'QueueType':
+      return `queue ${ty(node.element)}`;
 
     case 'NullableType':
       return `?${ty(node.type)}`;

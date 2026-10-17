@@ -128,6 +128,11 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
       optional(node.size);
       break;
 
+    case 'QueueExpression':
+      visit(node.element);
+      optional(node.items);
+      break;
+
     case 'MakeExpression':
       visit(node.type);
       visit(node.length);
@@ -318,6 +323,7 @@ export function forEachChild(node: ast.Node, visit: (child: ast.Node) => void): 
     case 'TypeParameter':
     case 'ArrayType':
     case 'ChanType':
+    case 'QueueType':
     case 'NullableType':
     case 'FuncType':
     case 'ComponentType':

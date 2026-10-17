@@ -287,6 +287,12 @@ export abstract class SimpleStatementEmitter extends CallEmitter {
         return typed === undefined ? '[]' : `new ${typed}()`;
       }
 
+      // An empty queue, as `[]` is an empty array.
+      case 'QueueType':
+        this.helpers.add('queue');
+
+        return 'new $$Queue()';
+
       case 'FuncType':
       case 'ComponentType':
       case 'ChanType':

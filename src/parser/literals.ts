@@ -1,7 +1,7 @@
 import type * as ast from '../ast.ts';
 import { isKeyword, type StringToken, type TokenKind } from '../lexer/token.ts';
 import { ExpressionParser } from './expressions.ts';
-import { FUNCTION_BODY, describe, templateElement } from './syntax.ts';
+import { FUNCTION_BODY, ParseError, describe, templateElement } from './syntax.ts';
 
 // Functions, `new`, literals of arrays, objects and templates, names.
 
@@ -164,6 +164,45 @@ export abstract class LiteralParser extends ExpressionParser {
     this.expect(')');
 
     return { kind: 'MakeExpression', type, length, shared, ...this.span(start) };
+  }
+
+  /**
+   * `queue<number>()` or `queue<number>(items)`. A variable may be named `queue`, so `queue < n`
+   * that has no type and `(` after it is a comparison: then this gives null and reads nothing.
+   */
+  protected override parseQueue(): ast.QueueExpression | null {
+    const { pos } = this;
+    // Closing the type may split a `>>` token, and errors are reported as the type is read.
+    const tokens = this.tokens.slice(pos);
+    const reported = this.diagnostics.length;
+    const start = this.next().start;
+    let element: ast.TypeNode;
+
+    try {
+      this.expect('<');
+      element = this.parseType();
+      this.expectTypeClose('">" after the type of the values');
+      if (!this.check('(')) throw new ParseError('not a queue');
+    } catch (error) {
+      if (!(error instanceof ParseError)) throw error;
+      tokens.forEach((token, i) => (this.tokens[pos + i] = token));
+      this.diagnostics.length = reported;
+      this.pos = pos;
+
+      return null;
+    }
+
+    this.next();
+
+    const items = this.check(')') ? null : this.nested(() => this.parseExpression());
+
+    this.accept(',');
+    this.expect(
+      ')',
+      '")": a queue takes its first values as one array, e.g. queue<number>([1, 2])',
+    );
+
+    return { kind: 'QueueExpression', element, items, ...this.span(start) };
   }
 
   /** `chan(stream)` or `chan(stream, size)`, after `chan`. */

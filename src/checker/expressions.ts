@@ -39,6 +39,8 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
   protected abstract checkStreamChan(node: ast.StreamChanExpression): Type;
 
+  protected abstract checkQueue(node: ast.QueueExpression): Type;
+
   /** `[]byte("text")`; implemented by BytesChecker. */
   protected abstract checkConversion(node: ast.ConversionExpression): Type;
 
@@ -141,6 +143,9 @@ export abstract class ExpressionChecker extends FunctionChecker {
 
       case 'StreamChanExpression':
         return this.checkStreamChan(node);
+
+      case 'QueueExpression':
+        return this.checkQueue(node);
 
       case 'ConversionExpression':
         return this.checkConversion(node);

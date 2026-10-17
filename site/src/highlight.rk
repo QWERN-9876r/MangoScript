@@ -29,6 +29,9 @@ const LITERALS = ["true", "false", "null", "undefined"]
 // What follows public when it is a modifier: public state x, public func f(), public name string
 const PUBLIC_NEXT = ["Identifier", "const", "let", "func", "async"]
 
+// What starts the type of the values after queue, besides a name: queue ?string, queue []number
+const QUEUE_NEXT = ["?", "[", "(", "<-", "func", "comp", "chan"]
+
 // Between tokens are spaces and comments; split with a group keeps the comments in the result.
 const COMMENT = new RegExp("(//[^\\n]*|/\\*[\\s\\S]*?\\*/)")
 
@@ -113,6 +116,9 @@ func tokenClass(tokens any, i number, language string) string {
         }
         return "attr"
     case "Identifier":
+        if language != "js" && isQueueType(tokens, i) {
+            return "kw"
+        }
         return identifierClass(text, tokens[i + 1].kind, language)
     }
     if LITERALS.includes(text) {
@@ -156,6 +162,19 @@ func identifierClass(text string, next string, language string) string {
         return "fn"
     }
     return isCapitalized(text) ? "type" : ""
+}
+
+// queue is a type before the type of its values, queue number, and before the < of queue<T>()
+// written without a space; elsewhere it is a name: queue < n
+func isQueueType(tokens any, i number) bool {
+    const next = tokens[i + 1]
+    if tokens[i].text != "queue" {
+        return false
+    }
+    if next.kind == "<" {
+        return next.start == tokens[i].end
+    }
+    return next.kind == "Identifier" && next.text != "as" || QUEUE_NEXT.includes(next.kind)
 }
 
 // @html-tag is the tokens @, html, - and tag, written without spaces.

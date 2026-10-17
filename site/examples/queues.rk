@@ -1,0 +1,51 @@
+// a queue takes values out at both ends without moving the others,
+// so shift() costs as much for 100 000 values as for ten
+interface Step {
+    at number
+    steps number
+}
+
+const grid = [
+    "S.#.....",
+    ".##.###.",
+    "....#...",
+    ".##...#E",
+]
+const width = grid[0].length
+const cells = grid.join("")
+
+// breadth-first search: the queue holds the cells to visit, nearest first
+func shortest() ?number {
+    let seen []bool = cells.split("").map(() => false)
+    const todo = queue<Step>([{ at: cells.indexOf("S"), steps: 0 }])
+    for todo.length > 0 {
+        const step = todo.shift()
+        if step == null {
+            break
+        }
+        if cells[step.at] == "E" {
+            return step.steps
+        }
+        const col = step.at % width
+        const left = col > 0 ? step.at - 1 : -1
+        const right = col < width - 1 ? step.at + 1 : -1
+        for next in [step.at - width, step.at + width, left, right] {
+            if next >= 0 && next < cells.length && cells[next] != "#" && !seen[next] {
+                seen[next] = true
+                todo.push({ at: next, steps: step.steps + 1 })
+            }
+        }
+    }
+    return null
+}
+console.log("shortest path:", shortest())
+
+// both ends: the newest page goes in at the start, the oldest leaves at the end
+const recent = queue<string>()
+for page in ["home", "docs", "guide", "playground"] {
+    recent.unshift(page)
+    if recent.length > 3 {
+        recent.pop()
+    }
+}
+console.log("recent:", [...recent].join(", "), "| oldest:", recent.at(-1))

@@ -2,6 +2,7 @@ import { TYPED_ARRAYS, typedArrayName } from '../../typed-arrays.ts';
 import { ERROR_CLASS } from './classes.ts';
 import { nullable } from './constructors.ts';
 import type { Type } from './model.ts';
+import { isQueue, queueElement } from './queue.ts';
 
 // Types as text, for messages.
 
@@ -81,6 +82,14 @@ export function typeToString(type: Type): string {
         (type.name === 'chan' || type.name === 'chan<-' || type.name === '<-chan')
       ) {
         return `${type.name} ${typeToString(type.instanceOf.args[0]!)}`;
+      }
+
+      // `queue (string | number)`: the parentheses that the type is written with.
+      if (isQueue(type)) {
+        const element = queueElement(type);
+        const text = typeToString(element);
+
+        return `queue ${element.kind === 'union' && !element.name ? `(${text})` : text}`;
       }
 
       if (type.instanceOf && type.name !== null) {

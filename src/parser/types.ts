@@ -2,7 +2,7 @@ import type * as ast from '../ast.ts';
 import { ClassParser } from './classes.ts';
 import { describe } from './syntax.ts';
 
-// Types: `?T`, `[]T`, unions, literal types, function, component and object types, type arguments.
+// Types: `?T`, `[]T`, `queue T`, unions, literal types, function, component and object types, type arguments.
 
 /** `iterator: true` for the parameters of an iterator: one, named `yield`. */
 function iterator(names: readonly string[]): { iterator?: boolean } {
@@ -22,8 +22,8 @@ export abstract class TypeParser extends ClassParser {
     return args;
   }
 
-  protected override canStartType(): boolean {
-    switch (this.peek().kind) {
+  protected override canStartType(offset = 0): boolean {
+    switch (this.peek(offset).kind) {
       case 'Identifier':
       case '[':
       case '?':
@@ -143,7 +143,17 @@ export abstract class TypeParser extends ClassParser {
         return { kind: 'ObjectType', members, ...this.span(start) };
       }
 
+      // `queue number`: `queue` is a type of its own only before the type of its values, so that it
+      // stays a name elsewhere.
       default: {
+        if (this.checkWord('queue') && this.canStartType(1)) {
+          this.next();
+
+          const element = this.parsePrimaryType();
+
+          return { kind: 'QueueType', element, ...this.span(start) };
+        }
+
         const name = this.parseIdentifier('type');
         const typeArgs = this.parseTypeArgs();
 

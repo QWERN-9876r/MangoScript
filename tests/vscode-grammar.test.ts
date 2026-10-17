@@ -236,6 +236,21 @@ describe('VS Code grammar', () => {
     expect(scopeOf('const n = task.await', 'await')).not.toBe('keyword.control.flow');
   });
 
+  it('colours queue before a type, and keeps it a name elsewhere', () => {
+    expect(scopeOf('func f(q queue number) queue ?string {', 'queue')).toBe('storage.type');
+    expect(scopesOf('let q queue []number = queue<[]number>([])', 'queue')).toEqual([
+      'storage.type',
+      'storage.type',
+    ]);
+    expect(scopeOf('let q queue (string | number)', 'queue')).toBe('storage.type');
+    expect(scopeOf('let q queue <-chan number', 'queue')).toBe('storage.type');
+    expect(scopeOf('const ok = queue < 2', 'queue')).not.toBe('storage.type');
+    expect(scopeOf('for job in queue {', 'queue')).not.toBe('storage.type');
+    expect(scopeOf('const n = queue ?? 0', 'queue')).not.toBe('storage.type');
+    expect(scopeOf('const n = queue.length', 'queue')).not.toBe('storage.type');
+    expect(scopeOf('const ok = queue instanceof Array', 'queue')).not.toBe('storage.type');
+  });
+
   it('colours channels', () => {
     const source = 'async func f(jobs chan number) {\n    results <- <-jobs\n}';
 

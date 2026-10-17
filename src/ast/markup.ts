@@ -113,7 +113,8 @@ export type TypeNode =
   | ObjectType
   | UnionType
   | LiteralType
-  | ChanType;
+  | ChanType
+  | QueueType;
 
 /**
  * `chan number`: a channel of numbers, made by `chan<number>(size)`; `chan<- number` only sends
@@ -123,6 +124,12 @@ export interface ChanType extends NodeBase {
   kind: 'ChanType';
   element: TypeNode;
   direction: 'both' | 'send' | 'receive';
+}
+
+/** `queue number`: a queue of numbers, made by `queue<number>()`. */
+export interface QueueType extends NodeBase {
+  kind: 'QueueType';
+  element: TypeNode;
 }
 
 /** A named type: `number`, `User`, `Point`, `Box<number>`. */

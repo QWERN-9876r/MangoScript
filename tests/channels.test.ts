@@ -295,6 +295,33 @@ console.log(a, ok1, b, ok2, c == "", ok3)`),
     ).toEqual(['10 20 30', 'a true b true true false']);
   });
 
+  it('keeps the order of a buffer whose values go round its places', async () => {
+    expect(
+      await run(`const ch = chan<number>(3)
+let got []number
+for let i = 0; i < 10; i++ {
+    ch <- i
+    if i >= 2 {
+        got.push(<-ch)
+    }
+}
+close(ch)
+for v in ch {
+    got.push(v)
+}
+console.log(got.join(" "))
+const big = chan<number>(100_000)
+for let i = 0; i < 100_000; i++ {
+    big <- i
+}
+let sum = 0
+for let i = 0; i < 100_000; i++ {
+    sum += <-big
+}
+console.log(sum)`),
+    ).toEqual(['0 1 2 3 4 5 6 7 8 9', '4999950000']);
+  });
+
   it('fails a send to a closed channel and a second close', async () => {
     expect(
       await run(`const ch = chan<number>(1)

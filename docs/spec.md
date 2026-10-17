@@ -82,9 +82,9 @@ null  true  false  typeof  instanceof
 Inside a class declaration `static`, `private`, `protected`, `public` and `implements` are keywords
 too, in `import` and `export` so is `from`, at the start of a statement in a component's body
 `state`, `derived`, `ref`, `style`, `mount` and `effect`, at the start of a top-level declaration `dec`, after its
-parameters `needs`, in a decorator's body `public`, and before `{` at the start of a statement
-`select`. Elsewhere they are ordinary names; `get` is
-special only in `get(@name.member)`. Reserved
+parameters `needs`, in a decorator's body `public`, before `{` at the start of a statement
+`select`, and `queue` in a type before the type of its values and before the `<` that makes a
+queue. Elsewhere they are ordinary names; `get` is special only in `get(@name.member)`. Reserved
 for the future: `map`. Decorators are written before `comp`: `@html-tag` (see
 "Web components") and those declared with `dec` (see "Decorators").
 
@@ -137,6 +137,7 @@ A variable or a class field without an initial value gets the zero value of its 
 | `bool`                      | `false`                       |
 | `[]T`                       | `[]` (a new array each time)  |
 | `[]byte`, `[]float64`, ...  | an empty typed array          |
+| `queue T`                   | an empty queue (a new one)    |
 | `?T`, `error`, `any`        | `null`                        |
 | classes, interfaces, `func` | none: the value must be given |
 
@@ -201,6 +202,7 @@ only reports at compile time what would fail at run time.
 | `[]T`             | an array                                     | `Array`             |
 | `[]byte`          | bytes                                        | `Uint8Array`        |
 | `[]float64`, ...  | numbers of a fixed size                      | `Float64Array`, ... |
+| `queue T`         | values in order, taken out at both ends      | `$$Queue`           |
 | `?T`              | a value of type `T` or `null`                | a value or `null`   |
 | `func(A, B) R`    | a function                                   | a function          |
 | `(a A) => R`      | the same function type, written as an arrow  | a function          |
@@ -324,6 +326,60 @@ require-corp`); elsewhere `make` throws an error that says so. Node always has i
   `push`.
 - A program that declares a type `float64` or another of these names uses its own: `[]float64`
   is then an array of it.
+
+### Queues
+
+```go
+const jobs = queue<string>(["build", "test"])
+jobs.push("deploy")              // at the end
+jobs.unshift("lint")             // at the start
+const next = jobs.shift()        // ?string, "lint"
+const last = jobs.pop()          // ?string, "deploy"
+console.log(jobs.length, jobs.at(0), jobs.at(-1))
+for job in jobs {
+    console.log(job)
+}
+let waiting queue number         // an empty queue
+```
+
+```js
+const jobs = new $$Queue(["build", "test"]);
+jobs.push("deploy");
+jobs.unshift("lint");
+const next = jobs.shift();
+const last = jobs.pop();
+// ...
+let waiting = new $$Queue();
+```
+
+`queue T` keeps values of type `T` in order, and they go in and out at both ends. It has the
+methods of an array that a queue needs, but `shift()` and `unshift()` do not move the other values,
+as they do in an array, so taking the first of 100 000 values costs as much as taking the first of
+ten. `queue<T>()` makes an empty queue, and `queue<T>(items)` one with the values of an array or of
+another iterable, which it copies.
+
+- **The methods:** `push(...items)` and `unshift(...items)` add values at the end and at the start
+  and give the new length; `shift()` and `pop()` take one out at the start and at the end;
+  `at(i)` gives the value at a position, from the end if it is negative, `at(-1)` is the last;
+  `length` is the number of values and `clear()` removes them all. `shift()`, `pop()` and `at(i)`
+  give a `?T`: `null` for an empty queue or a position outside it, where an array gives
+  `undefined`. There is no `q[i]`, nor `map` or `filter`: `[...q]` makes an array of the values.
+- **`for v in q`** goes over the values from the start, without taking them out. A queue has no
+  keys, so `for i, v in q` is an error.
+- **Only a queue is a queue:** a `[]T` is not a `queue T`, nor the other way round. A
+  `queue number` goes where a `queue ?number` is expected, as an array does, and a queue goes
+  where an interface with its members is expected, `{ length number }`.
+- **`queue` is a name elsewhere:** it is a type only before the type of its values, `queue number`,
+  and makes a queue only before `<T>(`. So a variable may be called `queue`, and `queue < n`
+  compares it. `queue<number>` as a type is an error that says to write `queue number`.
+- **The zero value** is an empty queue, a new one for each variable and field, as `[]` is for an
+  array; a closed `chan queue T` gives an empty queue too.
+- **In JS** a queue is an instance of the class `$$Queue`, which the module gets when its code
+  uses queues: the values are a ring in an array, copied into one twice as large when it is full
+  and into one half as large when it is mostly empty. Its fields are data, so a queue goes to
+  another thread as a copy, if its values can be copied, and is a queue there too. TypeScript code
+  sees its members in the `.d.ts`. The values of a channel and the goroutines that wait for it are
+  kept in such queues as well.
 
 ### Type declarations
 
@@ -675,7 +731,7 @@ Workers in the browser and worker threads in Node, and a worker can run several 
   are these names.
 - **Copies:** the goroutine gets copies of the arguments, and the program gets a copy of the result
   (the structured clone of `postMessage`). So they are data: numbers, strings, `bool`, arrays,
-  objects of interfaces without methods, `Map`, `Set`, `Date`, typed arrays, `error`. A function,
+  objects of interfaces without methods, `Map`, `Set`, `Date`, typed arrays, queues, `error`. A function,
   an instance of a class or a DOM element is a compile error: its copy would lose its methods.
   Changing a copy does not change the original.
 - **Moving instead of copying:** `transfer(x)` gives `x`, an `ArrayBuffer` or a typed array, and
@@ -2035,8 +2091,6 @@ Planned next, around goroutines and what the browser has:
 - **`topic T`, channels between the tabs of a site,** over `BroadcastChannel`, for example
   `const cart = topic<CartEvent>("cart")`. It is a type of its own, not a `chan`: every tab that
   listens gets each value, and sending waits for nobody, so the promises of `chan` would not hold.
-- **A ring buffer for the values of a channel:** now they are an array, and taking one out with
-  `shift()` costs as many steps as the channel holds, which shows with `chan<number>(100_000)`.
 - **State that survives a reload,** see Stages in [components.md](components.md).
 
 ## Open questions

@@ -1,4 +1,4 @@
-import { memberNames, typeToString, type Type } from './types.ts';
+import { isQueue, memberNames, queueElement, typeToString, type Type } from './types.ts';
 
 // What can go to a worker and back: a worker gets a copy of each value (the structured clone of
 // postMessage), and a copy has the data of a value but not its methods.
@@ -79,6 +79,9 @@ export function notCopied(type: Type, seen = new Set<Type>()): string | null {
         : `a copy of ${typeToString(type)} would lose its class and methods`;
 
     case 'object': {
+      // A queue goes as its values, and the other thread makes a queue of them (thread-helpers.ts).
+      if (isQueue(type)) return inner([queueElement(type)]);
+
       const name = type.instanceOf?.template.name ?? type.name;
 
       if (name !== null && COPIED.has(name)) return inner(type.instanceOf?.args ?? []);

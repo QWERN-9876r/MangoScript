@@ -1,0 +1,51 @@
+// очередь вынимает значения с обоих концов, не сдвигая остальные,
+// поэтому shift() стоит для 100 000 значений столько же, сколько для десяти
+interface Step {
+    at number
+    steps number
+}
+
+const grid = [
+    "S.#.....",
+    ".##.###.",
+    "....#...",
+    ".##...#E",
+]
+const width = grid[0].length
+const cells = grid.join("")
+
+// поиск в ширину: в очереди клетки, которые осталось обойти, ближние первыми
+func shortest() ?number {
+    let seen []bool = cells.split("").map(() => false)
+    const todo = queue<Step>([{ at: cells.indexOf("S"), steps: 0 }])
+    for todo.length > 0 {
+        const step = todo.shift()
+        if step == null {
+            break
+        }
+        if cells[step.at] == "E" {
+            return step.steps
+        }
+        const col = step.at % width
+        const left = col > 0 ? step.at - 1 : -1
+        const right = col < width - 1 ? step.at + 1 : -1
+        for next in [step.at - width, step.at + width, left, right] {
+            if next >= 0 && next < cells.length && cells[next] != "#" && !seen[next] {
+                seen[next] = true
+                todo.push({ at: next, steps: step.steps + 1 })
+            }
+        }
+    }
+    return null
+}
+console.log("кратчайший путь:", shortest())
+
+// оба конца: новая страница входит в начало, самая старая уходит с конца
+const recent = queue<string>()
+for page in ["главная", "документация", "гайд", "песочница"] {
+    recent.unshift(page)
+    if recent.length > 3 {
+        recent.pop()
+    }
+}
+console.log("недавние:", [...recent].join(", "), "| самая старая:", recent.at(-1))

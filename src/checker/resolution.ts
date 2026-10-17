@@ -18,6 +18,7 @@ import {
   literal,
   nullable,
   NUMBER,
+  queueOf,
   substitute,
   typeToString,
   union,
@@ -43,6 +44,9 @@ export abstract class TypeResolver extends ClassChecker {
 
       case 'ChanType':
         return chanOf(this.resolveType(node.element), node.direction);
+
+      case 'QueueType':
+        return queueOf(this.resolveType(node.element));
 
       case 'NullableType':
         return nullable(this.resolveType(node.type));
@@ -140,7 +144,9 @@ export abstract class TypeResolver extends ClassChecker {
       this.error(
         this.lookupValue(name.name)
           ? `"${name.name}" is a value, not a type`
-          : `unknown type "${name.name}"`,
+          : name.name === 'queue'
+            ? 'a queue type is written with the type of its values after it, e.g. "queue number"'
+            : `unknown type "${name.name}"`,
         name,
       );
 

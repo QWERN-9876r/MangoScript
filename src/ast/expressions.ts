@@ -32,6 +32,7 @@ export type Expression =
   | GoExpression
   | ChanExpression
   | StreamChanExpression
+  | QueueExpression
   | ConversionExpression
   | MakeExpression;
 
@@ -61,6 +62,13 @@ export interface ChanExpression extends NodeBase {
   kind: 'ChanExpression';
   element: TypeNode;
   size: Expression | null;
+}
+
+/** `queue<number>()`: a new, empty queue; `queue<number>([1, 2])` starts with these values. */
+export interface QueueExpression extends NodeBase {
+  kind: 'QueueExpression';
+  element: TypeNode;
+  items: Expression | null;
 }
 
 /**

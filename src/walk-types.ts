@@ -25,6 +25,7 @@ export function forEachTypeChild(node: TypeChildNode, visit: (child: ast.Node) =
 
     case 'ArrayType':
     case 'ChanType':
+    case 'QueueType':
       visit(node.element);
       break;
 

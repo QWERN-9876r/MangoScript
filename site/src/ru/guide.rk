@@ -14,6 +14,7 @@ export const SECTIONS []Section = [
     { id: "intro", title: "Что такое Rook", group: "Язык", content: Intro },
     { id: "variables", title: "Переменные и типы", group: "Язык", content: Variables },
     { id: "bigint", title: "bigint и типизированные массивы", group: "Язык", content: Numbers },
+    { id: "queues", title: "Очереди", group: "Язык", content: Queues },
     { id: "null", title: "null, union и сужение", group: "Язык", content: NullSafety },
     { id: "functions", title: "Функции", group: "Язык", content: Functions },
     { id: "errors", title: "Ошибки и defer", group: "Язык", content: Errors },
@@ -160,6 +161,22 @@ comp Numbers() {
             копий.
         </p>
         {example("typed-arrays")}
+    </>
+}
+
+comp Queues() {
+    return <>
+        <p>
+            <code>queue T</code> хранит значения по порядку, и они входят и выходят с обоих концов:
+            {" "}<code>push</code> и <code>unshift</code> добавляют, <code>shift</code> и
+            {" "}<code>pop</code> вынимают, <code>at(-1)</code> смотрит на последнее. В массиве
+            {" "}<code>shift()</code> сдвигает все остальные значения, а очередь держит их кольцом,
+            поэтому взять первое значение стоит одинаково для десяти значений и для миллиона.
+            {" "}<code>queue&lt;T&gt;()</code> создаёт пустую очередь,
+            {" "}<code>queue&lt;T&gt;(items)</code> — очередь со значениями массива, а пустая
+            очередь — нулевое значение.
+        </p>
+        {example("queues")}
     </>
 }
 

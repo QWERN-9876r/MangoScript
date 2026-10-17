@@ -35,7 +35,11 @@ export abstract class ExpressionEmitter extends Emitter {
 
   protected abstract make(node: ast.MakeExpression): string;
 
+  protected abstract chan(node: ast.ChanExpression): string;
+
   protected abstract streamChan(node: ast.StreamChanExpression): string;
+
+  protected abstract queue(node: ast.QueueExpression): string;
 
   /** `<-ch` that gives `[value, ok]`, in `v, ok = <-ch`. */
   protected readonly commaOk = new WeakSet<ast.Expression>();
@@ -175,17 +179,14 @@ export abstract class ExpressionEmitter extends Emitter {
       case 'ArrowFunction':
         return [this.arrowFunction(node), ARROW];
 
-      // `chan<number>(10)`: the channel keeps the zero value that a closed one gives.
-      case 'ChanExpression': {
-        const size = node.size ? this.expression(node.size, ARROW) : '0';
-
-        this.helpers.add('chan');
-
-        return [`$$chan(${size}, ${this.zeroValue(node.element) ?? 'null'})`, POSTFIX];
-      }
+      case 'ChanExpression':
+        return [this.chan(node), POSTFIX];
 
       case 'StreamChanExpression':
         return [this.streamChan(node), POSTFIX];
+
+      case 'QueueExpression':
+        return [this.queue(node), POSTFIX];
 
       // The worker module has the function under the same name, a literal under the name given to
       // it, after the local names it uses; the arguments are copied there. In the worker module a

@@ -133,6 +133,22 @@ export abstract class CallEmitter extends ExpressionEmitter {
     return `new TextEncoder().encode(${this.expression(node.argument, 0)})`;
   }
 
+  /** `chan<number>(10)`: the channel keeps the zero value that a closed one gives. */
+  protected override chan(node: ast.ChanExpression): string {
+    const size = node.size ? this.expression(node.size, ARROW) : '0';
+
+    this.helpers.add('chan');
+
+    return `$$chan(${size}, ${this.zeroValue(node.element) ?? 'null'})`;
+  }
+
+  /** `queue<number>(items)`: the queue copies the values, as `[...items]` would. */
+  protected override queue(node: ast.QueueExpression): string {
+    this.helpers.add('queue');
+
+    return `new $$Queue(${node.items ? this.expression(node.items, ARROW) : ''})`;
+  }
+
   /**
    * `chan(stream, size)`: the channel keeps the zero value of its values, as `chan<T>(size)` does,
    * from the type of the stream that the checker found; without it, null.

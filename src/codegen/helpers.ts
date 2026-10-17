@@ -1,16 +1,19 @@
 import { CHAN_HELPERS, type ChanHelper } from './chan-helpers.ts';
 import { GO_HELPERS, type GoHelper } from './go-helpers.ts';
+import { QUEUE_HELPERS, type QueueHelper } from './queue-helpers.ts';
 import { SELECT_HELPERS, type SelectHelper } from './select-helpers.ts';
 import { THREAD_HELPERS, type ThreadHelper } from './thread-helpers.ts';
 
 // Small functions that a module gets only when its code needs them; those of `go` and of channels
-// are in go-helpers.ts, chan-helpers.ts, select-helpers.ts and thread-helpers.ts.
+// are in go-helpers.ts, chan-helpers.ts, select-helpers.ts and thread-helpers.ts, the class of
+// queues in queue-helpers.ts.
 
 export type Helper =
   | GoHelper
   | ChanHelper
   | SelectHelper
   | ThreadHelper
+  | QueueHelper
   | 'runDeferred'
   | 'values'
   | 'append'
@@ -41,7 +44,10 @@ export const HELPER_NEEDS: Readonly<Partial<Record<Helper, readonly Helper[]>>> 
   goFor: ['threads'],
   goLocal: ['threads'],
   serve: ['threads'],
-  chan: ['threads', 'select'],
+  // The values of a channel and what waits for it are queues; a queue that comes from another
+  // thread gets its class back.
+  chan: ['threads', 'select', 'queue'],
+  threads: ['queue'],
   timers: ['chan'],
   streams: ['chan'],
   cancel: ['threads'],
@@ -59,6 +65,7 @@ export const HELPERS: Readonly<Record<Helper, readonly string[]>> = {
   ...CHAN_HELPERS,
   ...SELECT_HELPERS,
   ...THREAD_HELPERS,
+  ...QUEUE_HELPERS,
   /** `for v in x` over an untyped value: a Map gives its values, as a typed one does. */
   values: [
     'function $$values(iterable) {',

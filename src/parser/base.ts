@@ -61,7 +61,7 @@ export abstract class ParserBase {
 
   protected abstract parseTypeAlias(start: number, exported: boolean): ast.TypeAliasDeclaration;
 
-  protected abstract canStartType(): boolean;
+  protected abstract canStartType(offset?: number): boolean;
 
   protected abstract parseType(): ast.TypeNode;
 
@@ -86,6 +86,8 @@ export abstract class ParserBase {
   protected abstract parseMake(): ast.MakeExpression;
 
   protected abstract parseStreamChan(start: number): ast.StreamChanExpression;
+
+  protected abstract parseQueue(): ast.QueueExpression | null;
 
   protected abstract parseArrowFunction(async?: boolean): ast.ArrowFunction;
 

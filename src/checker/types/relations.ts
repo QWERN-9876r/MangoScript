@@ -10,6 +10,7 @@ import {
   type Type,
 } from './model.ts';
 import { typedArrayOf, typeToString } from './printing.ts';
+import { isQueue, queueElement } from './queue.ts';
 
 // Relations between types: assignability, comparison, equality, common types.
 
@@ -97,6 +98,11 @@ export function assignable(source: Type, target: Type, assuming: [Type, Type][])
     }
 
     case 'object': {
+      // Only a queue is a queue, as only an array is an array, and its values are checked as theirs.
+      if (isQueue(target)) {
+        return isQueue(source) && assignable(queueElement(source), queueElement(target), nested);
+      }
+
       // A channel both takes and gives values, so `chan number` is not a `chan ?number`, as in Go;
       // `chan any` is any channel, for `close(ch)`. A `chan T` is also a channel of one
       // direction, `chan<- T` or `<-chan T`, but not the other way round.
@@ -256,10 +262,13 @@ function missingMember(
 
 /** Why `source` is not assignable to an object or class `target`, e.g. `missing field "y"`. */
 export function explainMismatch(source: Type, target: Type): string | null {
-  // `Stack<number>` and `Stack<string>`: the type arguments already say what differs.
+  // `Stack<number>` and `Stack<string>`: the type arguments already say what differs; only a queue
+  // is a queue.
   if (source.kind === 'class' && target.kind === 'class' && source.info === target.info) {
     return null;
   }
+
+  if (isQueue(target)) return null;
 
   const members =
     target.kind === 'object'
@@ -360,6 +369,10 @@ export function hasZeroValue(type: Type): boolean {
     case 'any':
     case 'unknown':
       return true;
+
+    // An empty queue, as `[]` is the zero value of an array.
+    case 'object':
+      return isQueue(type);
 
     default:
       return false;

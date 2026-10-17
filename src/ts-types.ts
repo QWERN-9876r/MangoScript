@@ -1,7 +1,9 @@
 import { CONTENT } from './checker/dom.ts';
 import {
   ERROR_CLASS,
+  isQueue,
   memberNames,
+  queueElement,
   type FunctionType,
   type Member,
   type ObjectType,
@@ -129,6 +131,16 @@ function objectType(type: ObjectType): string {
   // A channel is an object with its id; TypeScript code only passes it on.
   if (type.name === 'chan' || type.name === 'chan<-' || type.name === '<-chan') {
     return `{ readonly $$chan: string }`;
+  }
+
+  // A queue is an instance of a class of the module (queue-helpers.ts): TypeScript code uses its
+  // members.
+  if (isQueue(type)) {
+    const value = queueElement(type);
+    const items = `...items: ${element(value)}[]`;
+    const end = value.kind === 'nullable' ? tsType(value) : `${grouped(value)} | null`;
+
+    return `{ readonly length: number; push(${items}): number; unshift(${items}): number; shift(): ${end}; pop(): ${end}; at(index: number): ${end}; clear(): void; [Symbol.iterator](): Iterator<${tsType(value)}> }`;
   }
 
   if (type.name !== null) {
